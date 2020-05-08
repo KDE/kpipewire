@@ -12,8 +12,8 @@ ApplicationWindow
     height: 500
     visible: true
 
-    function addPipeline(nodeid) {
-        rep.model.append({node: nodeid})
+    function addPipeline(nodeid, displayText) {
+        rep.model.append({node: nodeid, display: displayText})
     }
 
     Button {
@@ -33,6 +33,11 @@ ApplicationWindow
                 id: vid
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+
+                Text {
+                    color: "red"
+                    text: display
+                }
 
                 PipelineItem {
                     nodeid: node

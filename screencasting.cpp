@@ -9,6 +9,7 @@
 #include <QRect>
 #include <QDebug>
 #include <KWayland/Client/output.h>
+#include <KWayland/Client/plasmawindowmanagement.h>
 
 using namespace KWayland::Client;
 
@@ -79,17 +80,19 @@ Screencasting::Screencasting(Registry *registry, int id, int version, QObject* p
 
 Screencasting::~Screencasting() = default;
 
-ScreencastingStream* Screencasting::createOutputStream(KWayland::Client::Output* output)
+ScreencastingStream* Screencasting::createOutputStream(Output* output)
 {
     auto stream = new ScreencastingStream(this);
+    stream->setObjectName(output->model());
     stream->d->init(d->stream_output(*output));
     return stream;
 }
 
-ScreencastingStream* Screencasting::createWindowStream(quint32 window)
+ScreencastingStream* Screencasting::createWindowStream(PlasmaWindow *window)
 {
     auto stream = new ScreencastingStream(this);
-    stream->d->init(d->stream_window(window));
+    stream->setObjectName(window->appId());
+    stream->d->init(d->stream_window(window->internalId()));
     return stream;
 }
 

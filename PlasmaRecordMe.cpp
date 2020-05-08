@@ -102,7 +102,9 @@ void PlasmaRecordMe::connected()
             if (match.hasMatch())
             {
                 auto f = [this, window] {
-                    start(m_screencasting->createWindowStream(window->internalId()));
+                    auto stream = m_screencasting->createWindowStream(window);
+                    start(stream);
+                    connect(window, &PlasmaWindow::activeChanged, stream, &ScreencastingStream::close);
                 };
                 qDebug() << "window" << window << m_sourceName;
                 if (m_screencasting)
@@ -147,13 +149,13 @@ void PlasmaRecordMe::connected()
 
 void PlasmaRecordMe::start(ScreencastingStream *stream)
 {
-    connect(stream, &ScreencastingStream::created, this, [this] (quint32 nodeId, const QSize &/*size*/)
+    connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId, const QSize &/*size*/)
         {
             qDebug() << "starting..." << nodeId;
             const auto roots = m_engine->rootObjects();
             for (auto root : roots) {
                 auto mo = root->metaObject();
-                mo->invokeMethod(root, "addPipeline", Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)));
+                mo->invokeMethod(root, "addPipeline", Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)), Q_ARG(QVariant, stream->objectName()));
             }
         }
     );
