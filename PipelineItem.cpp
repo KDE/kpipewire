@@ -63,41 +63,45 @@ GstState pipelineCurrentState(const T &pipe)
     return currentState;
 }
 
-PipelineItem::PipelineItem(int fd, uint nodeid, QObject* parent)
+PipelineItem::PipelineItem(QObject* parent)
     : QObject(parent)
     , m_pipeline(gst_pipeline_new("recordme"))
 {
-    GstElement* elements[] = {
-        gst_element_factory_make("pipewiresrc", "source"),
-        gst_element_factory_make("videoconvert", "convert"),
-        gst_element_factory_make("xvideosink", "sink"),
-    };
-
-    gst_bin_add_many (GST_BIN (m_pipeline.data()), elements[0], elements[1], elements[2], NULL);
-    if (!gst_element_link (elements[0], elements[1]) || !gst_element_link (elements[1], elements[2])) {
-        qWarning ("Elements could not be linked.\n");
-        return;
-    }
-
-    g_object_set(elements[0], "fd", fd, nullptr);
-    g_object_set(elements[0], "path", nodeid, nullptr);
-
     gst_bus_add_watch (gst_pipeline_get_bus(GST_PIPELINE(m_pipeline.data())), &pipelineWatch, this);
-
-    const auto ret = gst_element_set_state (m_pipeline.data(), GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE) {
-        GstState state, pending;
-        gst_element_get_state(m_pipeline.data(), &state, &pending, 1000);
-        qWarning() << "Unable to set the pipeline to the playing state." << state << pending;
-        return;
-    }
 }
 
+void PipelineItem::componentComplete()
+{
+    GstElement* source, *sink;
+    GstElement* elements[] = {
+        source = gst_element_factory_make("pipewiresrc", "source"),
+//         source = gst_element_factory_make("videotestsrc", "source"),
+        gst_element_factory_make("glupload", "convert"),
+        gst_element_factory_make("glcolorconvert", "convert2"),
+        sink = gst_element_factory_make("qmlglsink", "sink"),
+    };
+
+    gst_bin_add_many (GST_BIN (m_pipeline.data()), elements[0], elements[1], elements[2], elements[3], nullptr);
+    if (!gst_element_link(elements[0], elements[1]) || !gst_element_link(elements[1], elements[2]) || !gst_element_link(elements[2], elements[3])) {
+        qCritical() << "Elements could not be linked.";
+        return;
+    }
+
+//     Q_ASSERT(fd);
+//     qDebug() << "playing..." << m_nodeid;
+    const auto str = QByteArray::number(m_nodeid);
+    g_object_set(source, "path", str.constData(), nullptr);
+//     g_object_set(source, "fd", m_fd, nullptr);
+
+    g_object_set(sink, "qos", 0, "sync", 0,
+                       "widget", m_widget,
+                       nullptr);
+}
 
 PipelineItem::~PipelineItem()
 {
     if (m_pipeline)
-        gst_element_set_state(GST_ELEMENT(m_pipeline.data()), GST_STATE_NULL);
+        gst_element_set_state(m_pipeline.data(), GST_STATE_NULL);
 }
 
 void PipelineItem::onBusMessage(GstMessage* message)
@@ -119,13 +123,20 @@ void PipelineItem::onBusMessage(GstMessage* message)
 
 void PipelineItem::setPlaying(bool playing)
 {
+    qDebug() << "playing..." << m_playing << "to" << playing << m_pipeline;
     if (playing != m_playing) {
         m_playing = playing;
         Q_EMIT playingChanged(playing);
     }
 
     if (m_pipeline) {
-        gst_element_set_state(GST_ELEMENT(m_pipeline.data()), playing ? GST_STATE_PLAYING : GST_STATE_PAUSED);
+        if (playing) {
+            auto ret = gst_element_set_state(GST_ELEMENT(m_pipeline.data()), GST_STATE_READY);
+            Q_ASSERT(ret == GST_STATE_CHANGE_SUCCESS);
+        }
+
+        qDebug() << "playing" << playing <<
+        gst_element_set_state(GST_ELEMENT(m_pipeline.data()), playing ? GST_STATE_PLAYING : GST_STATE_NULL);
     }
 }
 

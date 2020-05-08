@@ -22,16 +22,22 @@
 #pragma once
 
 #include <QObject>
+#include <QQmlParserStatus>
 #include <gst/gst.h>
 #include "gstpointer.h"
 
-class PipelineItem : public QObject
+class PipelineItem : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
+    Q_INTERFACES(QQmlParserStatus)
+    Q_PROPERTY(uint fd MEMBER m_fd)
+    Q_PROPERTY(uint nodeid MEMBER m_nodeid)
+    Q_PROPERTY(QObject* widget MEMBER m_widget)
+    Q_PROPERTY(bool playing READ playing WRITE setPlaying NOTIFY playingChanged)
 public:
-    PipelineItem(int fd, uint nodeid, QObject* parent);
+    PipelineItem(QObject* parent = nullptr);
 
-    ~PipelineItem();
+    ~PipelineItem() override;
 
     void onBusMessage(GstMessage* message);
 
@@ -41,15 +47,23 @@ public:
 
     void stop() {
         setPlaying(false);
+        Q_EMIT close();
     }
+
+    void classBegin() override {}
+    void componentComplete() override;
 
 Q_SIGNALS:
     void playingChanged(bool playing);
     void surfaceChanged();
     void descriptionChanged();
     void failed();
+    void close();
 
 private:
+    uint m_fd;
+    uint m_nodeid;
+    QObject* m_widget = nullptr;
     bool m_playing = false;
     GstPointer<GstElement> m_pipeline;
 };

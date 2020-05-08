@@ -198,7 +198,7 @@ void RecordMe::handleStreams(const QVector<Stream> &streams)
     const int fd = reply.value().fileDescriptor();
     qDebug() << "feeding pipewire" << fd;
 
-    auto pipe = new PipelineItem(fd, streams.constFirst().id, this);
+    auto pipe = new PipelineItem(/*fd, streams.constFirst().id, */nullptr);
     if (m_durationTimer->interval() > 0) {
         connect(m_durationTimer, &QTimer::timeout, pipe, &PipelineItem::stop);
         m_durationTimer->start();

@@ -19,25 +19,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "RecordMe.h"
+#include "PlasmaRecordMe.h"
 #include <QCommandLineParser>
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <gst/gst.h>
+#include <pipewire/pipewire.h>
 
 int main(int argc, char **argv)
 {
     gst_init (&argc, &argv);
-    QCoreApplication app(argc, argv);
-    RecordMe me;
+//     pw_init(nullptr, nullptr);
+
+    QGuiApplication app(argc, argv);
 
     {
         QCommandLineParser parser;
         QCommandLineOption duration("duration", "seconds length of the video", "duration");
+        QCommandLineOption kwaylandSource("source", "use KWayland::Screencasting to record instead of xdg-desktop-portals", "source", {});
         parser.addOption(duration);
+        parser.addOption(kwaylandSource);
         parser.process(app);
 
+        PlasmaRecordMe *me = new PlasmaRecordMe(parser.value(kwaylandSource), &app);
         if (parser.isSet(duration)) {
-            me.setDuration(parser.value(duration).toInt() * 1000);
+            me->setDuration(parser.value(duration).toInt() * 1000);
         }
     }
 
