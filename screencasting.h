@@ -21,6 +21,9 @@ namespace KWayland
 namespace Client
 {
 class PlasmaWindow;
+}
+}
+
 class ScreencastingPrivate;
 class ScreencastingSourcePrivate;
 class ScreencastingStreamPrivate;
@@ -48,7 +51,7 @@ class Screencasting : public QObject
     Q_OBJECT
 public:
     explicit Screencasting(QObject *parent = nullptr);
-    explicit Screencasting(Registry *registry, int id, int version, QObject *parent = nullptr);
+    explicit Screencasting(KWayland::Client::Registry *registry, int id, int version, QObject *parent = nullptr);
     ~Screencasting() override;
 
     ScreencastingStream* createOutputStream(KWayland::Client::Output* output);
@@ -65,6 +68,3 @@ Q_SIGNALS:
 private:
     QScopedPointer<ScreencastingPrivate> d;
 };
-
-}
-}

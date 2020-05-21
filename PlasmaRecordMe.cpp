@@ -96,7 +96,7 @@ void PlasmaRecordMe::connected()
 
     connect(registry, &KWayland::Client::Registry::plasmaWindowManagementAnnounced, this, [this, registry] (quint32 name, quint32 version) {
         m_management = registry->createPlasmaWindowManagement(name, version, this);
-        connect(m_management, &KWayland::Client::PlasmaWindowManagement::windowCreated, this, [this] (KWayland::Client::PlasmaWindow *window) {
+        auto addWindow = [this] (KWayland::Client::PlasmaWindow *window) {
             const QRegularExpression rx(m_sourceName);
             const auto match = rx.match(window->title());
             if (match.hasMatch())
@@ -106,14 +106,18 @@ void PlasmaRecordMe::connected()
                     start(stream);
                     connect(window, &PlasmaWindow::activeChanged, stream, &ScreencastingStream::close);
                 };
-                qDebug() << "window" << window << m_sourceName;
+                qDebug() << "window" << window << window->uuid() << m_sourceName << m_screencasting;
                 if (m_screencasting)
                     f();
                 else
                     m_delayed << f;
             }
-        });
+        };
+        for (auto w : m_management->windows())
+            addWindow(w);
+        connect(m_management, &KWayland::Client::PlasmaWindowManagement::windowCreated, this, addWindow);
     });
+
     connect(registry, &KWayland::Client::Registry::outputAnnounced, this, [this, registry] (quint32 name, quint32 version) {
             auto output = new KWayland::Client::Output(this);
             output->setup(registry->bindOutput(name, version));
@@ -136,7 +140,7 @@ void PlasmaRecordMe::connected()
     connect(registry, &KWayland::Client::Registry::interfaceAnnounced, this, [this, registry] (const QByteArray &interfaceName, quint32 name, quint32 version) {
         if (interfaceName != "zkde_screencast_unstable_v1")
             return;
-        m_screencasting = new KWayland::Client::Screencasting(registry, name, version, this);
+        m_screencasting = new Screencasting(registry, name, version, this);
 
         for(auto f : m_delayed)
             f();
@@ -149,6 +153,10 @@ void PlasmaRecordMe::connected()
 
 void PlasmaRecordMe::start(ScreencastingStream *stream)
 {
+    qDebug() << "start" << stream;
+    connect(stream, &ScreencastingStream::failed, this, [] (const QString &error) {
+        qWarning() << "stream failed" << error;
+    });
     connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId, const QSize &/*size*/)
         {
             qDebug() << "starting..." << nodeId;

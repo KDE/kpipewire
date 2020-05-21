@@ -13,20 +13,23 @@
 
 using namespace KWayland::Client;
 
-class KWayland::Client::ScreencastingStreamPrivate : public QtWayland::zkde_screencast_stream_unstable_v1
+class ScreencastingStreamPrivate : public QtWayland::zkde_screencast_stream_unstable_v1
 {
 public:
     ScreencastingStreamPrivate(ScreencastingStream* q) : q(q) {}
 
-    void zkde_screencast_stream_unstable_v1_closed() override {
-        Q_EMIT q->closed();
-    }
-
     void zkde_screencast_stream_unstable_v1_created(uint32_t node, quint32 width, quint32 height) override {
         Q_EMIT q->created(node, QSize(width, height));
     }
+
+    void zkde_screencast_stream_unstable_v1_closed() override {
+        Q_EMIT q->closed();
+        q->deleteLater();
+    }
+
     void zkde_screencast_stream_unstable_v1_failed(const QString &error) override {
         Q_EMIT q->failed(error);
+        q->deleteLater();
     }
 
 private:
@@ -46,7 +49,7 @@ void ScreencastingStream::close()
     d->close();
 }
 
-class KWayland::Client::ScreencastingPrivate : public QtWayland::zkde_screencast_unstable_v1
+class ScreencastingPrivate : public QtWayland::zkde_screencast_unstable_v1
 {
 public:
     ScreencastingPrivate(Registry *registry, int id, int version, Screencasting *q)
@@ -92,7 +95,7 @@ ScreencastingStream* Screencasting::createWindowStream(PlasmaWindow *window)
 {
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(window->appId());
-    stream->d->init(d->stream_window(window->internalId()));
+    stream->d->init(d->stream_window(window->uuid()));
     return stream;
 }
 

@@ -26,17 +26,16 @@
 
 class QQmlApplicationEngine;
 class QTimer;
+class Screencasting;
 
 namespace KWayland {
     namespace Client {
-        class Screencasting;
         class EventQueue;
         class ConnectionThread;
-        class ScreencastingStream;
         class PlasmaWindowManagement;
     }
 }
-
+class ScreencastingStream;
 class OrgFreedesktopPortalScreenCastInterface;
 
 class PlasmaRecordMe : public QObject
@@ -50,14 +49,14 @@ public:
 
 private:
     void connected();
-    void start(KWayland::Client::ScreencastingStream* stream);
+    void start(ScreencastingStream* stream);
 
     QTimer* const m_durationTimer;
     const QString m_sourceName;
     QVector<std::function<void()>> m_delayed;
     KWayland::Client::PlasmaWindowManagement* m_management = nullptr;
-    KWayland::Client::Screencasting* m_screencasting = nullptr;
     KWayland::Client::EventQueue* m_queue = nullptr;
     KWayland::Client::ConnectionThread* m_connection = nullptr;
+    Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;
 };

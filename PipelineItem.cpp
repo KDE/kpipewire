@@ -101,6 +101,7 @@ void PipelineItem::componentComplete()
 PipelineItem::~PipelineItem()
 {
     if (m_pipeline)
+        qDebug() << "xxxxx" <<
         gst_element_set_state(m_pipeline.data(), GST_STATE_NULL);
 }
 
