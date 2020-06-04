@@ -37,7 +37,7 @@ public:
     void close();
 
 Q_SIGNALS:
-    void created(quint32 nodeid, const QSize &resolution);
+    void created(quint32 nodeid);
     void failed(const QString &error);
     void closed();
 

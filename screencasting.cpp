@@ -18,8 +18,8 @@ class ScreencastingStreamPrivate : public QtWayland::zkde_screencast_stream_unst
 public:
     ScreencastingStreamPrivate(ScreencastingStream* q) : q(q) {}
 
-    void zkde_screencast_stream_unstable_v1_created(uint32_t node, quint32 width, quint32 height) override {
-        Q_EMIT q->created(node, QSize(width, height));
+    void zkde_screencast_stream_unstable_v1_created(uint32_t node) override {
+        Q_EMIT q->created(node);
     }
 
     void zkde_screencast_stream_unstable_v1_closed() override {

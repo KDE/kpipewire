@@ -157,7 +157,7 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
     connect(stream, &ScreencastingStream::failed, this, [] (const QString &error) {
         qWarning() << "stream failed" << error;
     });
-    connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId, const QSize &/*size*/)
+    connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId)
         {
             qDebug() << "starting..." << nodeId;
             const auto roots = m_engine->rootObjects();
