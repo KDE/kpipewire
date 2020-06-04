@@ -47,34 +47,15 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
 {
     m_durationTimer->setSingleShot(true);
 
-    auto m_thread = new QThread(this);
+    m_thread = new QThread(this);
     m_connection = new ConnectionThread;
 
     connect(m_connection, &ConnectionThread::connected, this, &PlasmaRecordMe::connected, Qt::QueuedConnection);
-    connect(m_connection, &ConnectionThread::connectionDied, this, [=] {
-        if (m_queue) {
-            delete m_queue;
-            m_queue = nullptr;
-        }
-
-        m_connection->deleteLater();
-        m_connection = nullptr;
-
-        if (m_thread) {
-            m_thread->quit();
-            if (!m_thread->wait(3000)) {
-                m_thread->terminate();
-                m_thread->wait();
-            }
-            delete m_thread;
-        }
-    });
-    connect(m_connection, &ConnectionThread::failed, m_thread, [m_thread] {
+    connect(m_connection, &ConnectionThread::connectionDied, this, &PlasmaRecordMe::cleanup);
+    connect(m_connection, &ConnectionThread::failed, m_thread, [this] {
         m_thread->quit();
         m_thread->wait();
     });
-
-    gst_element_factory_make ("qmlglsink", NULL);
 
     m_thread->start();
     m_connection->moveToThread(m_thread);
@@ -85,26 +66,46 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
 }
 
-PlasmaRecordMe::~PlasmaRecordMe() = default;
+PlasmaRecordMe::~PlasmaRecordMe()
+{
+    cleanup();
+}
+
+void PlasmaRecordMe::cleanup()
+{
+    if (m_queue) {
+        delete m_queue;
+        m_queue = nullptr;
+    }
+
+    m_connection->deleteLater();
+    m_connection = nullptr;
+
+    if (m_thread) {
+        m_thread->quit();
+        if (!m_thread->wait(3000)) {
+            m_thread->terminate();
+            m_thread->wait();
+        }
+        delete m_thread;
+    }
+}
 
 void PlasmaRecordMe::connected()
 {
     m_queue = new EventQueue(this);
     m_queue->setup(m_connection);
 
-    auto registry = new Registry(this);
+    auto registry = new Registry(m_queue);
 
     connect(registry, &KWayland::Client::Registry::plasmaWindowManagementAnnounced, this, [this, registry] (quint32 name, quint32 version) {
         m_management = registry->createPlasmaWindowManagement(name, version, this);
         auto addWindow = [this] (KWayland::Client::PlasmaWindow *window) {
             const QRegularExpression rx(m_sourceName);
-            const auto match = rx.match(window->title());
-            if (match.hasMatch())
-            {
+            const auto match = rx.match(window->appId());
+            if (match.hasMatch()) {
                 auto f = [this, window] {
-                    auto stream = m_screencasting->createWindowStream(window);
-                    start(stream);
-                    connect(window, &PlasmaWindow::activeChanged, stream, &ScreencastingStream::close);
+                    start(m_screencasting->createWindowStream(window));
                 };
                 qDebug() << "window" << window << window->uuid() << m_sourceName << m_screencasting;
                 if (m_screencasting)
@@ -138,12 +139,15 @@ void PlasmaRecordMe::connected()
             });
     });
     connect(registry, &KWayland::Client::Registry::interfaceAnnounced, this, [this, registry] (const QByteArray &interfaceName, quint32 name, quint32 version) {
+        qDebug() << "interface!" << interfaceName;
         if (interfaceName != "zkde_screencast_unstable_v1")
             return;
-        m_screencasting = new Screencasting(registry, name, version, this);
 
+        m_screencasting = new Screencasting(registry, name, version, this);
         for(auto f : m_delayed)
             f();
+
+        m_delayed.clear();
     });
 
     registry->create(m_connection);

@@ -28,6 +28,7 @@
 int main(int argc, char **argv)
 {
     gst_init (&argc, &argv);
+    gst_element_factory_make ("qmlglsink", NULL);
 //     pw_init(nullptr, nullptr);
 
     QGuiApplication app(argc, argv);

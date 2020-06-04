@@ -50,6 +50,7 @@ public:
 private:
     void connected();
     void start(ScreencastingStream* stream);
+    void cleanup();
 
     QTimer* const m_durationTimer;
     const QString m_sourceName;
@@ -59,4 +60,5 @@ private:
     KWayland::Client::ConnectionThread* m_connection = nullptr;
     Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;
+    QThread* m_thread;
 };
