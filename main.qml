@@ -15,6 +15,14 @@ ApplicationWindow
     function addPipeline(nodeid, displayText) {
         rep.model.append({node: nodeid, display: displayText})
     }
+    function removePipeline(nodeid) {
+        for(var i=0; i<rep.model.count; ++i) {
+            if (rep.model.get(i).node === nodeid) {
+            //    rep.model.remove(i)
+                break;
+            }
+        }
+    }
 
     Button {
         id: butt

@@ -161,8 +161,19 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
     connect(stream, &ScreencastingStream::failed, this, [] (const QString &error) {
         qWarning() << "stream failed" << error;
     });
+    connect(stream, &ScreencastingStream::closed, this, [this, stream] {
+        auto nodeId = stream->property("nodeid").toInt();
+        qDebug() << "bye bye" << stream << nodeId;
+
+        const auto roots = m_engine->rootObjects();
+        for (auto root : roots) {
+            auto mo = root->metaObject();
+            mo->invokeMethod(root, "removePipeline", Qt::QueuedConnection, Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)));
+        }
+    });
     connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId)
         {
+            stream->setProperty("nodeid", nodeId);
             qDebug() << "starting..." << nodeId;
             const auto roots = m_engine->rootObjects();
             for (auto root : roots) {
