@@ -2,8 +2,6 @@ import QtQuick 2.1
 import QtQuick.Layouts 1.1
 import QtQuick.Controls 2.1
 
-import org.freedesktop.gstreamer.GLVideoItem 1.0
-
 import org.kde.recordme 1.0
 
 ApplicationWindow
@@ -37,20 +35,17 @@ ApplicationWindow
             id: rep
             model: ListModel {}
 
-            delegate: GstGLVideoItem {
+            delegate: PipeWireSourceItem {
                 id: vid
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                nodeid: model.node
+                playing: butt.checked
 
+                clip: true
                 Text {
                     color: "red"
-                    text: display
-                }
-
-                PipelineItem {
-                    nodeid: node
-                    widget: vid
-                    playing: butt.checked
+                    text: display + " " + node
                 }
             }
         }

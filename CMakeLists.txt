@@ -40,8 +40,8 @@ ecm_qt_declare_logging_category(SRCS HEADER logging.h IDENTIFIER PIPEWIRE_LOGGIN
 
 add_executable(recordme main.cpp PipeWireSourceItem.cpp pipewirestream.cpp ${SRCS}
                             PlasmaRecordMe.cpp screencasting.cpp
-                            RecordMe.cpp)
-target_link_libraries(recordme Qt5::DBus PkgConfig::GStreamer KF5::WaylandClient Wayland::Client Qt5::Quick)
+#                             RecordMe.cpp
+                            )
 target_link_libraries(recordme Qt5::DBus PkgConfig::PipeWire KF5::WaylandClient Wayland::Client Qt5::Quick KF5::I18n KF5::Declarative Qt5::Gui_EGL Qt5::Gui_GL Qt5::GuiPrivate)
 
 configure_file(org.kde.recordme.desktop.cmake ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop @ONLY)

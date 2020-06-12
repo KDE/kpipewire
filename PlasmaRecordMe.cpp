@@ -20,7 +20,6 @@
  */
 
 #include "PlasmaRecordMe.h"
-#include "PipelineItem.h"
 #include "screencasting.h"
 #include <QLoggingCategory>
 #include <QTimer>
@@ -31,6 +30,7 @@
 #include <QQuickItem>
 #include <QQmlApplicationEngine>
 #include <QRegularExpression>
+#include "PipeWireSourceItem.h"
 
 #include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/connection_thread.h>
@@ -61,7 +61,7 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     m_connection->moveToThread(m_thread);
     m_connection->initConnection();
 
-    qmlRegisterType<PipelineItem>("org.kde.recordme", 1, 0, "PipelineItem");
+    qmlRegisterType<PipeWireSourceItem>("org.kde.recordme", 1, 0, "PipeWireSourceItem");
 
     m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
 }
@@ -139,7 +139,6 @@ void PlasmaRecordMe::connected()
             });
     });
     connect(registry, &KWayland::Client::Registry::interfaceAnnounced, this, [this, registry] (const QByteArray &interfaceName, quint32 name, quint32 version) {
-        qDebug() << "interface!" << interfaceName;
         if (interfaceName != "zkde_screencast_unstable_v1")
             return;
 

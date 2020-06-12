@@ -264,8 +264,9 @@ bool PipeWireSourceStream::createStream(uint nodeid)
                                         SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
                                         SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video),
                                         SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
-                                        SPA_FORMAT_VIDEO_format, SPA_POD_CHOICE_ENUM_Id(5, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_RGBA,
-                                                                 SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_BGRA),
+                                        SPA_FORMAT_VIDEO_format, SPA_POD_CHOICE_ENUM_Id(4,
+                                                    SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_RGBA,
+                                                    SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_BGRA),
                                         SPA_FORMAT_VIDEO_size, SPA_POD_CHOICE_RANGE_Rectangle(&minResolution, &minResolution, &maxResolution),
                                         SPA_FORMAT_VIDEO_framerate, SPA_POD_Fraction(&defaultFramerate),
                                         SPA_FORMAT_VIDEO_maxFramerate, SPA_POD_CHOICE_RANGE_Fraction(&maxFramerate, &minFramerate, &maxFramerate));
@@ -283,12 +284,14 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer* buffer)
 {
     spa_buffer* spaBuffer = buffer->buffer;
 
-    if (spaBuffer->datas[0].chunk->size == 0) {
+    if (spaBuffer->datas->chunk->size == 0) {
         return;
-    } else if (spaBuffer->datas[0].type == SPA_DATA_MemFd) {
+    }
+
+    if (spaBuffer->datas->type == SPA_DATA_MemFd) {
         uint8_t *map = static_cast<uint8_t*>(mmap(
-            nullptr, spaBuffer->datas[0].maxsize + spaBuffer->datas[0].mapoffset,
-            PROT_READ, MAP_PRIVATE, spaBuffer->datas[0].fd, 0));
+            nullptr, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset,
+            PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
 
         if (map == MAP_FAILED) {
             qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
@@ -298,22 +301,29 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer* buffer)
         QImage img(map, videoFormat.size.width, videoFormat.size.height, spaBuffer->datas->chunk->stride, QImage::Format_ARGB32);
         Q_EMIT imageTextureReceived(img.copy());
 
-        munmap(map, spaBuffer->datas[0].maxsize + spaBuffer->datas[0].mapoffset);
-    } else if (spaBuffer->datas[0].type == SPA_DATA_DmaBuf) {
+        munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);
+    } else if (spaBuffer->datas->type == SPA_DATA_DmaBuf) {
         QVector<DmaBufPlane> planes;
         planes.reserve(spaBuffer->n_datas);
         for (uint i = 0; i < spaBuffer->n_datas; ++i) {
+            const auto &data = spaBuffer->datas[i];
+
             DmaBufPlane plane;
-            plane.fd = spaBuffer->datas[i].fd;
-            plane.stride = spaBuffer->datas[i].chunk->stride;
-            plane.offset = spaBuffer->datas[i].chunk->offset;
+            plane.fd = data.fd;
+            plane.stride = data.chunk->stride;
+            plane.offset = data.chunk->offset;
             planes += plane;
         }
         const QSize size(videoFormat.size.width, videoFormat.size.height);
-        Q_EMIT dmabufTextureReceived(planes, DRM_FORMAT_ABGR8888, size);
-    } else if (spaBuffer->datas[0].type == SPA_DATA_MemPtr) {
-        QImage img(static_cast<uint8_t*>(spaBuffer->datas[0].data), videoFormat.size.width, videoFormat.size.height, spaBuffer->datas->chunk->stride, QImage::Format_ARGB32);
+        Q_EMIT dmabufTextureReceived(planes, DRM_FORMAT_ARGB8888, size);
+    } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
+        QImage img(static_cast<uint8_t*>(spaBuffer->datas->data), videoFormat.size.width, videoFormat.size.height, spaBuffer->datas->chunk->stride, QImage::Format_ARGB32);
         Q_EMIT imageTextureReceived(img);
+    } else {
+        qWarning() << "unsupported buffer type" << spaBuffer->datas->type;
+        QImage errorImage(200, 200, QImage::Format_ARGB32);
+        errorImage.fill(Qt::red);
+        Q_EMIT imageTextureReceived(errorImage);
     }
 }
 

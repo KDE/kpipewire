@@ -22,15 +22,10 @@
 #include "PlasmaRecordMe.h"
 #include <QCommandLineParser>
 #include <QGuiApplication>
-#include <gst/gst.h>
 #include <pipewire/pipewire.h>
 
 int main(int argc, char **argv)
 {
-    gst_init (&argc, &argv);
-    gst_element_factory_make ("qmlglsink", NULL);
-//     pw_init(nullptr, nullptr);
-
     QGuiApplication app(argc, argv);
 
     {
