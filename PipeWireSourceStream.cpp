@@ -20,7 +20,7 @@
  *       Aleix Pol Gonzalez <aleixpol@kde.org>
  */
 
-#include "pipewirestream.h"
+#include "PipeWireSourceStream.h"
 #include "logging.h"
 
 #include <sys/ioctl.h>
@@ -204,10 +204,8 @@ Q_SIGNALS:
     void pipewireFailed(const QString &message);
 };
 
-PipeWireSourceStream::PipeWireSourceStream(EGLDisplay eglDisplay, const QSize &resolution, QObject *parent)
+PipeWireSourceStream::PipeWireSourceStream( QObject *parent)
     : QObject(parent)
-    , m_resolution(resolution)
-    , m_eglDisplay(eglDisplay)
 {
     pwStreamEvents.version = PW_VERSION_STREAM_EVENTS;
     pwStreamEvents.process = &onProcess;
@@ -341,4 +339,4 @@ void PipeWireSourceStream::stop()
     delete this;
 }
 
-#include "pipewirestream.moc"
+#include "PipeWireSourceStream.moc"

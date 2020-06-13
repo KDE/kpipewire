@@ -55,7 +55,7 @@ class PipeWireSourceStream : public QObject
 {
     Q_OBJECT
 public:
-    explicit PipeWireSourceStream(EGLDisplay eglDisplay, const QSize &resolution, QObject *parent);
+    explicit PipeWireSourceStream(QObject *parent);
     ~PipeWireSourceStream();
 
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
@@ -96,12 +96,10 @@ public:
 
     uint32_t pwNodeId = 0;
 
-    QSize m_resolution;
     bool m_stopped = false;
 
     spa_video_info_raw videoFormat;
     QString m_error;
     uint m_stride;
     struct gbm_device *m_gbmDevice = nullptr;
-    EGLDisplay m_eglDisplay;
 };
