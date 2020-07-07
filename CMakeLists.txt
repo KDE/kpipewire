@@ -38,7 +38,7 @@ ecm_add_qtwayland_client_protocol(SRCS
 
 ecm_qt_declare_logging_category(SRCS HEADER logging.h IDENTIFIER PIPEWIRE_LOGGING CATEGORY_NAME recordme_pipewire_logging)
 
-add_executable(recordme main.cpp PipeWireSourceItem.cpp PipeWireSourceStream.cpp ${SRCS}
+add_executable(recordme main.cpp ${SRCS}
                             PlasmaRecordMe.cpp screencasting.cpp
 #                             RecordMe.cpp
                             )

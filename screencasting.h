@@ -11,9 +11,6 @@
 #include <QSharedPointer>
 #include <optional>
 
-#include "registry.h"
-#include <KWayland/Client/kwaylandclient_export.h>
-
 struct zkde_screencast_unstable_v1;
 
 namespace KWayland
@@ -21,6 +18,8 @@ namespace KWayland
 namespace Client
 {
 class PlasmaWindow;
+class Registry;
+class Output;
 }
 }
 
@@ -34,7 +33,7 @@ public:
     ScreencastingStream(QObject* parent);
     ~ScreencastingStream() override;
 
-    void close();
+    quint32 nodeId() const;
 
 Q_SIGNALS:
     void created(quint32 nodeid);
@@ -54,8 +53,16 @@ public:
     explicit Screencasting(KWayland::Client::Registry *registry, int id, int version, QObject *parent = nullptr);
     ~Screencasting() override;
 
-    ScreencastingStream* createOutputStream(KWayland::Client::Output* output);
-    ScreencastingStream* createWindowStream(KWayland::Client::PlasmaWindow* window);
+    enum CursorMode {
+        Hidden = 1,
+        Embedded = 2,
+        Metadata = 4,
+    };
+    Q_ENUM(CursorMode);
+
+    ScreencastingStream* createOutputStream(KWayland::Client::Output* output, CursorMode mode);
+    ScreencastingStream* createWindowStream(KWayland::Client::PlasmaWindow* window, CursorMode mode);
+    ScreencastingStream* createWindowStream(const QString &uuid, CursorMode mode);
 
     void setup(zkde_screencast_unstable_v1* screencasting);
     void destroy();

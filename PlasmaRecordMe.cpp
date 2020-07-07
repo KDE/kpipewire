@@ -29,12 +29,13 @@
 #include <QQuickView>
 #include <QQuickItem>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QRegularExpression>
-#include "PipeWireSourceItem.h"
 
 #include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/connection_thread.h>
 #include <KWayland/Client/output.h>
+#include <KWayland/Client/registry.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
 
 using namespace KWayland::Client;
@@ -61,8 +62,7 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     m_connection->moveToThread(m_thread);
     m_connection->initConnection();
 
-    qmlRegisterType<PipeWireSourceItem>("org.kde.recordme", 1, 0, "PipeWireSourceItem");
-
+    m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
 }
 
@@ -105,7 +105,7 @@ void PlasmaRecordMe::connected()
             const auto match = rx.match(window->appId());
             if (match.hasMatch()) {
                 auto f = [this, window] {
-                    start(m_screencasting->createWindowStream(window));
+                    start(m_screencasting->createWindowStream(window, m_cursorMode));
                 };
                 qDebug() << "window" << window << window->uuid() << m_sourceName << m_screencasting;
                 if (m_screencasting)
@@ -128,8 +128,9 @@ void PlasmaRecordMe::connected()
                 const auto match = rx.match(output->model());
                 if (match.hasMatch()) {
                     auto f = [this, output] {
-                        start(m_screencasting->createOutputStream(output));
+                        start(m_screencasting->createOutputStream(output, m_cursorMode));
                     };
+                    connect(this, &PlasmaRecordMe::cursorModeChanged, output, f);
                     qDebug() << "output" << output->model() << m_sourceName;
                     if (m_screencasting)
                         f();
@@ -152,6 +153,12 @@ void PlasmaRecordMe::connected()
     registry->create(m_connection);
     registry->setEventQueue(m_queue);
     registry->setup();
+
+//     const auto roots = m_engine->rootObjects();
+//     for (auto root : roots) {
+//         auto mo = root->metaObject();
+//         mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<int>(93)), Q_ARG(QVariant, QStringLiteral("potato")));
+//     }
 }
 
 void PlasmaRecordMe::start(ScreencastingStream *stream)
@@ -167,7 +174,7 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
         const auto roots = m_engine->rootObjects();
         for (auto root : roots) {
             auto mo = root->metaObject();
-            mo->invokeMethod(root, "removePipeline", Qt::QueuedConnection, Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)));
+            mo->invokeMethod(root, "removeStream", Qt::QueuedConnection, Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)));
         }
     });
     connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId)
@@ -177,13 +184,20 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
             const auto roots = m_engine->rootObjects();
             for (auto root : roots) {
                 auto mo = root->metaObject();
-                mo->invokeMethod(root, "addPipeline", Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)), Q_ARG(QVariant, stream->objectName()));
+                mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)), Q_ARG(QVariant, stream->objectName()));
             }
         }
     );
+    connect(this, &PlasmaRecordMe::cursorModeChanged, stream, &ScreencastingStream::closed);
 }
 
 void PlasmaRecordMe::setDuration(int duration)
 {
     m_durationTimer->setInterval(duration);
+}
+
+void PlasmaRecordMe::setCursorMode(Screencasting::CursorMode mode)
+{
+    m_cursorMode = mode;
+    Q_EMIT cursorModeChanged(mode);
 }

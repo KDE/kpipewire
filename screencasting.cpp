@@ -8,6 +8,7 @@
 #include "qwayland-zkde-screencast-unstable-v1.h"
 #include <QRect>
 #include <QDebug>
+#include <KWayland/Client/registry.h>
 #include <KWayland/Client/output.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
 
@@ -17,23 +18,26 @@ class ScreencastingStreamPrivate : public QtWayland::zkde_screencast_stream_unst
 {
 public:
     ScreencastingStreamPrivate(ScreencastingStream* q) : q(q) {}
+    ~ScreencastingStreamPrivate() {
+        close();
+        q->deleteLater();
+    }
 
     void zkde_screencast_stream_unstable_v1_created(uint32_t node) override {
+        m_nodeId = node;
         Q_EMIT q->created(node);
     }
 
     void zkde_screencast_stream_unstable_v1_closed() override {
         Q_EMIT q->closed();
-        q->deleteLater();
     }
 
     void zkde_screencast_stream_unstable_v1_failed(const QString &error) override {
         Q_EMIT q->failed(error);
-        q->deleteLater();
     }
 
-private:
-    ScreencastingStream* const q;
+    uint m_nodeId = 0;
+    QPointer<ScreencastingStream> q;
 };
 
 ScreencastingStream::ScreencastingStream(QObject* parent)
@@ -44,9 +48,9 @@ ScreencastingStream::ScreencastingStream(QObject* parent)
 
 ScreencastingStream::~ScreencastingStream() = default;
 
-void ScreencastingStream::close()
+quint32 ScreencastingStream::nodeId() const
 {
-    d->close();
+    return d->m_nodeId;
 }
 
 class ScreencastingPrivate : public QtWayland::zkde_screencast_unstable_v1
@@ -83,19 +87,25 @@ Screencasting::Screencasting(Registry *registry, int id, int version, QObject* p
 
 Screencasting::~Screencasting() = default;
 
-ScreencastingStream* Screencasting::createOutputStream(Output* output)
+ScreencastingStream* Screencasting::createOutputStream(Output* output, CursorMode mode)
 {
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(output->model());
-    stream->d->init(d->stream_output(*output));
+    stream->d->init(d->stream_output(*output, mode));
     return stream;
 }
 
-ScreencastingStream* Screencasting::createWindowStream(PlasmaWindow *window)
+ScreencastingStream* Screencasting::createWindowStream(PlasmaWindow *window, CursorMode mode)
+{
+    auto stream = createWindowStream(QString::fromUtf8(window->uuid()), mode);
+    stream->setObjectName(window->appId());
+    return stream;
+}
+
+ScreencastingStream* Screencasting::createWindowStream(const QString &uuid, CursorMode mode)
 {
     auto stream = new ScreencastingStream(this);
-    stream->setObjectName(window->appId());
-    stream->d->init(d->stream_window(window->uuid()));
+    stream->d->init(d->stream_window(uuid, mode));
     return stream;
 }
 

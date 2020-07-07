@@ -2,50 +2,65 @@ import QtQuick 2.1
 import QtQuick.Layouts 1.1
 import QtQuick.Controls 2.1
 
-import org.kde.recordme 1.0
+import org.kde.taskmanager 0.1 as TaskManager
 
 ApplicationWindow
 {
+    id: root
     width: 500
     height: 500
     visible: true
+    readonly property int cursorMode: cursorCombo.model[cursorCombo.currentIndex].value
 
-    function addPipeline(nodeid, displayText) {
-        rep.model.append({node: nodeid, display: displayText})
+    function addStream(nodeid, displayText) {
+        rep.model.append({nodeId: nodeid, uuid: "", display: displayText})
     }
-    function removePipeline(nodeid) {
+    function removeStream(nodeid) {
         for(var i=0; i<rep.model.count; ++i) {
-            if (rep.model.get(i).node === nodeid) {
-            //    rep.model.remove(i)
+            if (rep.model.get(i).nodeId === nodeid) {
+               rep.model.remove(i)
                 break;
             }
         }
     }
 
-    Button {
-        id: butt
-        checkable: true
-    }
 
+    onCursorModeChanged: app.cursorMode = root.cursorMode
     ColumnLayout {
         id: pipes
         anchors.fill: parent
+
+        ComboBox {
+            id: cursorCombo
+            Layout.fillWidth: true
+            textRole: "text"
+            currentIndex: 0
+            model: [{
+                    text: "Hidden",
+                    value: TaskManager.Screencasting.Hidden
+                }, {
+                    text: "Embedded",
+                    value: TaskManager.Screencasting.Embedded
+                }, {
+                    text: "Metadata",
+                    value: TaskManager.Screencasting.Metadata
+                }
+            ]
+        }
 
         Repeater {
             id: rep
             model: ListModel {}
 
-            delegate: PipeWireSourceItem {
+            delegate: TaskManager.PipeWireSourceItem {
                 id: vid
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                nodeid: model.node
-                playing: butt.checked
+                nodeId: model.nodeId
 
-                clip: true
                 Text {
-                    color: "red"
-                    text: display + " " + node
+                    color: "blue"
+                    text: display + " " + parent.nodeId + " " + model.nodeId
                 }
             }
         }

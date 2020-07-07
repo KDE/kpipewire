@@ -23,6 +23,7 @@
 
 #include <QObject>
 #include <QDBusObjectPath>
+#include "screencasting.h"
 
 class QQmlApplicationEngine;
 class QTimer;
@@ -41,17 +42,25 @@ class OrgFreedesktopPortalScreenCastInterface;
 class PlasmaRecordMe : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(Screencasting::CursorMode cursorMode READ cursorMode WRITE setCursorMode NOTIFY cursorModeChanged)
 public:
     PlasmaRecordMe(const QString &source, QObject* parent = nullptr);
     ~PlasmaRecordMe() override;
 
     void setDuration(int duration);
 
+    Screencasting::CursorMode cursorMode() const { return m_cursorMode; }
+    void setCursorMode(Screencasting::CursorMode mode);
+
+Q_SIGNALS:
+    void cursorModeChanged(Screencasting::CursorMode cursorMode);
+
 private:
     void connected();
     void start(ScreencastingStream* stream);
     void cleanup();
 
+    Screencasting::CursorMode m_cursorMode = Screencasting::Hidden;
     QTimer* const m_durationTimer;
     const QString m_sourceName;
     QVector<std::function<void()>> m_delayed;
