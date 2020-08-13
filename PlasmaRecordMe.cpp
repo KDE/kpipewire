@@ -154,11 +154,15 @@ void PlasmaRecordMe::connected()
     registry->setEventQueue(m_queue);
     registry->setup();
 
-//     const auto roots = m_engine->rootObjects();
-//     for (auto root : roots) {
-//         auto mo = root->metaObject();
-//         mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<int>(93)), Q_ARG(QVariant, QStringLiteral("potato")));
-//     }
+    bool ok = false;
+    auto node = m_sourceName.toInt(&ok);
+    if (ok) {
+        const auto roots = m_engine->rootObjects();
+        for (auto root : roots) {
+            auto mo = root->metaObject();
+            mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<int>(node)), Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)));
+        }
+    }
 }
 
 void PlasmaRecordMe::start(ScreencastingStream *stream)
