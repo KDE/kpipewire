@@ -48,56 +48,17 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
 {
     m_durationTimer->setSingleShot(true);
 
-    m_thread = new QThread(this);
-    m_connection = new ConnectionThread;
-
-    connect(m_connection, &ConnectionThread::connected, this, &PlasmaRecordMe::connected, Qt::QueuedConnection);
-    connect(m_connection, &ConnectionThread::connectionDied, this, &PlasmaRecordMe::cleanup);
-    connect(m_connection, &ConnectionThread::failed, m_thread, [this] {
-        m_thread->quit();
-        m_thread->wait();
-    });
-
-    m_thread->start();
-    m_connection->moveToThread(m_thread);
-    m_connection->initConnection();
-
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
-}
 
-PlasmaRecordMe::~PlasmaRecordMe()
-{
-    cleanup();
-}
-
-void PlasmaRecordMe::cleanup()
-{
-    if (m_queue) {
-        delete m_queue;
-        m_queue = nullptr;
+    auto connection = ConnectionThread::fromApplication(this);
+    if (!connection) {
+        qWarning() << "Failed getting Wayland connection from QPA";
+        QCoreApplication::exit(1);
+        return;
     }
 
-    m_connection->deleteLater();
-    m_connection = nullptr;
-
-    if (m_thread) {
-        m_thread->quit();
-        if (!m_thread->wait(3000)) {
-            m_thread->terminate();
-            m_thread->wait();
-        }
-        delete m_thread;
-    }
-}
-
-void PlasmaRecordMe::connected()
-{
-    m_queue = new EventQueue(this);
-    m_queue->setup(m_connection);
-
-    auto registry = new Registry(m_queue);
-
+    auto registry = new Registry(qApp);
     connect(registry, &KWayland::Client::Registry::plasmaWindowManagementAnnounced, this, [this, registry] (quint32 name, quint32 version) {
         m_management = registry->createPlasmaWindowManagement(name, version, this);
         auto addWindow = [this] (KWayland::Client::PlasmaWindow *window) {
@@ -150,8 +111,7 @@ void PlasmaRecordMe::connected()
         m_delayed.clear();
     });
 
-    registry->create(m_connection);
-    registry->setEventQueue(m_queue);
+    registry->create(connection);
     registry->setup();
 
     bool ok = false;
@@ -163,6 +123,10 @@ void PlasmaRecordMe::connected()
             mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<int>(node)), Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)));
         }
     }
+}
+
+PlasmaRecordMe::~PlasmaRecordMe()
+{
 }
 
 void PlasmaRecordMe::start(ScreencastingStream *stream)

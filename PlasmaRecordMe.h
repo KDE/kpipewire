@@ -31,8 +31,7 @@ class Screencasting;
 
 namespace KWayland {
     namespace Client {
-        class EventQueue;
-        class ConnectionThread;
+        class Registry;
         class PlasmaWindowManagement;
     }
 }
@@ -56,18 +55,13 @@ Q_SIGNALS:
     void cursorModeChanged(Screencasting::CursorMode cursorMode);
 
 private:
-    void connected();
     void start(ScreencastingStream* stream);
-    void cleanup();
 
     Screencasting::CursorMode m_cursorMode = Screencasting::Hidden;
     QTimer* const m_durationTimer;
     const QString m_sourceName;
     QVector<std::function<void()>> m_delayed;
     KWayland::Client::PlasmaWindowManagement* m_management = nullptr;
-    KWayland::Client::EventQueue* m_queue = nullptr;
-    KWayland::Client::ConnectionThread* m_connection = nullptr;
     Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;
-    QThread* m_thread;
 };
