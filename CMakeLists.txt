@@ -11,17 +11,10 @@ include(ECMQtDeclareLoggingCategory)
 
 find_package(Qt5 REQUIRED COMPONENTS DBus Quick)
 find_package(KF5Wayland REQUIRED)
-find_package(KF5 REQUIRED COMPONENTS I18n Declarative)
+find_package(Wayland REQUIRED COMPONENTS Client)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GStreamer IMPORTED_TARGET gstreamer-plugins-base-1.0)
-
-find_package(Wayland REQUIRED)
 find_package(PlasmaWaylandProtocols REQUIRED)
 find_package(QtWaylandScanner REQUIRED)
-
-pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3)
-add_feature_info(PipeWire PipeWire_FOUND "Required for screencast portal")
 
 #########
 
@@ -42,7 +35,7 @@ add_executable(recordme main.cpp ${SRCS}
                             PlasmaRecordMe.cpp screencasting.cpp
 #                             RecordMe.cpp
                             )
-target_link_libraries(recordme Qt5::DBus PkgConfig::PipeWire KF5::WaylandClient Wayland::Client Qt5::Quick KF5::I18n KF5::Declarative Qt5::Gui_EGL Qt5::Gui_GL Qt5::GuiPrivate)
+target_link_libraries(recordme Qt5::DBus KF5::WaylandClient Wayland::Client Qt5::Quick)
 
 configure_file(org.kde.recordme.desktop.cmake ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop @ONLY)
 
