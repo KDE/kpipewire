@@ -46,8 +46,6 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     , m_sourceName(source)
     , m_engine(new QQmlApplicationEngine(this))
 {
-    m_durationTimer->setSingleShot(true);
-
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
 
@@ -58,6 +56,7 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
         return;
     }
 
+    m_durationTimer->setSingleShot(true);
     auto registry = new Registry(qApp);
     connect(registry, &KWayland::Client::Registry::plasmaWindowManagementAnnounced, this, [this, registry] (quint32 name, quint32 version) {
         m_management = registry->createPlasmaWindowManagement(name, version, this);

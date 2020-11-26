@@ -22,7 +22,6 @@
 #include "PlasmaRecordMe.h"
 #include <QCommandLineParser>
 #include <QGuiApplication>
-#include <pipewire/pipewire.h>
 
 int main(int argc, char **argv)
 {

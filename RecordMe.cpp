@@ -20,12 +20,11 @@
  */
 
 #include "RecordMe.h"
-#include "PipelineItem.h"
 #include <QLoggingCategory>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QTimer>
 
-#include <gst/gst.h>
-#include "gstpointer.h"
 #include "xdp_dbus_screencast_interface.h"
 
 Q_DECLARE_METATYPE(Stream)
@@ -72,7 +71,11 @@ RecordMe::RecordMe(QObject* parent)
         QLatin1String("org.freedesktop.portal.Desktop"), QLatin1String("/org/freedesktop/portal/desktop"), QDBusConnection::sessionBus(), this))
     , m_durationTimer(new QTimer(this))
     , m_handleToken(QStringLiteral("RecordMe%1").arg(QRandomGenerator::global()->generate()))
+    , m_engine(new QQmlApplicationEngine(this))
 {
+    m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
+    m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
+
     // create session
     const auto sessionParameters = QVariantMap {
         { QLatin1String("session_handle_token"), m_handleToken },
@@ -142,7 +145,6 @@ void RecordMe::response(uint code, const QVariantMap& results)
         QVector<Stream> streams;
         streamsIt->value<QDBusArgument>() >> streams;
 
-        qDebug() << "fuuuuuuu" << streams;
         handleStreams(streams);
         return;
     }
@@ -179,9 +181,6 @@ void RecordMe::start()
 
 void RecordMe::handleStreams(const QVector<Stream> &streams)
 {
-    if (streams.isEmpty())
-        return;
-
     const QVariantMap startParameters = {
         { QLatin1String("handle_token"), m_handleToken }
     };
@@ -196,14 +195,15 @@ void RecordMe::handleStreams(const QVector<Stream> &streams)
     }
 
     const int fd = reply.value().fileDescriptor();
-    qDebug() << "feeding pipewire" << fd;
 
-    auto pipe = new PipelineItem(/*fd, streams.constFirst().id, */nullptr);
-    if (m_durationTimer->interval() > 0) {
-        connect(m_durationTimer, &QTimer::timeout, pipe, &PipelineItem::stop);
-        m_durationTimer->start();
+    const auto roots = m_engine->rootObjects();
+    for (const auto &stream : streams) {
+        for (auto root : roots) {
+            auto mo = root->metaObject();
+            qDebug() << "feeding..." << stream.id << fd;
+            mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(stream.id)), Q_ARG(QVariant, m_handleToken), Q_ARG(QVariant, QVariant::fromValue<quint32>(fd)));
+        }
     }
-    pipe->setPlaying(true);
 }
 
 void RecordMe::setDuration(int duration)

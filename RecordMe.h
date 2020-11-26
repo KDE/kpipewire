@@ -25,6 +25,7 @@
 #include <QDBusObjectPath>
 
 class QTimer;
+class QQmlApplicationEngine;
 
 struct Stream {
     uint id;
@@ -67,4 +68,5 @@ private:
     QDBusObjectPath m_path;
     QTimer* const m_durationTimer;
     const QString m_handleToken;
+    QQmlApplicationEngine* m_engine;
 };
