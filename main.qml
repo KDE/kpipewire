@@ -1,10 +1,11 @@
 import QtQuick 2.1
 import QtQuick.Layouts 1.1
 import QtQuick.Controls 2.1
+import org.kde.kirigami 2.15 as Kirigami
 
 import org.kde.taskmanager 0.1 as TaskManager
 
-ApplicationWindow
+Kirigami.ApplicationWindow
 {
     id: root
     width: 500
@@ -25,6 +26,7 @@ ApplicationWindow
         }
     }
 
+    signal record(int nodeId, bool capture)
 
     onCursorModeChanged: app.cursorMode = root.cursorMode
     ColumnLayout {
@@ -41,7 +43,8 @@ ApplicationWindow
             Layout.fillWidth: true
             textRole: "text"
             currentIndex: 0
-            model: [{
+            model: [
+                {
                     text: "Hidden",
                     value: TaskManager.Screencasting.Hidden
                 }, {
@@ -58,15 +61,29 @@ ApplicationWindow
             id: rep
             model: ListModel {}
 
-            delegate: TaskManager.PipeWireSourceItem {
-                id: vid
+            delegate: Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                nodeId: model.nodeId
+                TaskManager.PipeWireSourceItem {
+                    id: sourceItem
+                    nodeId: model.nodeId
+                    visible: !record.recording
+                    anchors.fill: parent
 
-                Text {
-                    color: "blue"
-                    text: display + " " + parent.nodeId + " " + model.nodeId
+                }
+                Button {
+                    id: butt
+                    icon.name: "media-record"
+                    text: model.display + " " + model.nodeId
+                    enabled: checked === record.recording
+                    checkable: true
+
+                    TaskManager.PipeWireRecord {
+                        id: record
+                        nodeId: model.nodeId
+                        output: "/home/apol/clementine.mp4"
+                        active: butt.checked
+                    }
                 }
             }
         }

@@ -21,10 +21,12 @@
 
 #include "PlasmaRecordMe.h"
 #include "screencasting.h"
+#include <QDir>
 #include <QLoggingCategory>
 #include <QTimer>
 #include <QCoreApplication>
 #include <QThread>
+#include <QProcess>
 #include <QRect>
 #include <QQuickView>
 #include <QQuickItem>
@@ -93,7 +95,6 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
                         start(m_screencasting->createOutputStream(output, m_cursorMode));
                     };
                     connect(this, &PlasmaRecordMe::cursorModeChanged, output, f);
-                    qDebug() << "output" << output->model() << m_sourceName;
                     if (m_screencasting)
                         f();
                     else
