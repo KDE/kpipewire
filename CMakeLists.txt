@@ -18,26 +18,27 @@ find_package(QtWaylandScanner REQUIRED)
 
 #########
 
-qt5_add_dbus_interface(
-   SRCS
-   org.freedesktop.portal.ScreenCast.xml
-   xdp_dbus_screencast_interface
-)
-
 ecm_add_qtwayland_client_protocol(SRCS
     PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/screencast.xml
     BASENAME zkde-screencast-unstable-v1
 )
 
-ecm_qt_declare_logging_category(SRCS HEADER logging.h IDENTIFIER PIPEWIRE_LOGGING CATEGORY_NAME recordme_pipewire_logging)
-
-add_executable(recordme main.cpp ${SRCS}
-                            PlasmaRecordMe.cpp screencasting.cpp
-#                             RecordMe.cpp
-                            )
-target_link_libraries(recordme Qt5::DBus KF5::WaylandClient Wayland::Client Qt5::Quick)
+add_executable(recordme main.cpp ${SRCS} PlasmaRecordMe.cpp screencasting.cpp)
+target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick)
 
 configure_file(org.kde.recordme.desktop.cmake ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop @ONLY)
 
 install(TARGETS recordme DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop DESTINATION ${KDE_INSTALL_APPDIR} )
+
+#########
+
+qt5_add_dbus_interface(
+   XDP_SRCS
+   org.freedesktop.portal.ScreenCast.xml
+   xdp_dbus_screencast_interface
+)
+
+add_executable(xdp-recordme xdp-main.cpp ${XDP_SRCS} RecordMe.cpp)
+target_link_libraries(xdp-recordme Qt5::DBus Qt5::Quick)
+install(TARGETS xdp-recordme DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
