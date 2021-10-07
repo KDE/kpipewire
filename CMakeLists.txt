@@ -24,7 +24,7 @@ ecm_add_qtwayland_client_protocol(SRCS
 )
 
 add_executable(recordme main.cpp ${SRCS} PlasmaRecordMe.cpp screencasting.cpp)
-target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick)
+target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick Qt::DBus)
 
 configure_file(org.kde.recordme.desktop.cmake ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop @ONLY)
 
