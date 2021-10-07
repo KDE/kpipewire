@@ -185,22 +185,22 @@ void RecordMe::handleStreams(const QVector<Stream> &streams)
         { QLatin1String("handle_token"), m_handleToken }
     };
 
-    auto reply = iface->OpenPipeWireRemote(m_path, startParameters);
-    reply.waitForFinished();
-
-    if (reply.isError()) {
-        qWarning() << "Could not start stream" << reply.error();
-        exit(1);
-        return;
-    }
-
-    const int fd = reply.value().fileDescriptor();
+//     auto reply = iface->OpenPipeWireRemote(m_path, startParameters);
+//     reply.waitForFinished();
+//
+//     if (reply.isError()) {
+//         qWarning() << "Could not start stream" << reply.error();
+//         exit(1);
+//         return;
+//     }
+//
+//     const int fd = reply.value().fileDescriptor();
 
     const auto roots = m_engine->rootObjects();
     for (const auto &stream : streams) {
         for (auto root : roots) {
             auto mo = root->metaObject();
-            qDebug() << "feeding..." << stream.id << fd;
+            qDebug() << "feeding..." << stream.id ;
             mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(stream.id)), Q_ARG(QVariant, m_handleToken));
         }
     }

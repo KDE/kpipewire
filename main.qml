@@ -47,6 +47,12 @@ ApplicationWindow
                 }
             ]
         }
+        Button {
+            text: "Create"
+            onClicked: {
+                app.createVirtualOutput()
+            }
+        }
 
         Repeater {
             id: rep

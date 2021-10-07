@@ -168,3 +168,8 @@ void PlasmaRecordMe::setCursorMode(Screencasting::CursorMode mode)
     m_cursorMode = mode;
     Q_EMIT cursorModeChanged(mode);
 }
+
+void PlasmaRecordMe::createVirtualOutput()
+{
+    start(m_screencasting->createVirtualOutputStream({1920, 1080}, 1, m_cursorMode));
+}

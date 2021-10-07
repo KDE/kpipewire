@@ -8,6 +8,7 @@
 #include "qwayland-zkde-screencast-unstable-v1.h"
 #include <QRect>
 #include <QDebug>
+#include <QCoreApplication>
 #include <KWayland/Client/registry.h>
 #include <KWayland/Client/output.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
@@ -92,6 +93,14 @@ ScreencastingStream* Screencasting::createOutputStream(Output* output, CursorMod
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(output->model());
     stream->d->init(d->stream_output(*output, mode));
+    return stream;
+}
+
+ScreencastingStream* Screencasting::createVirtualOutputStream(const QSize &size, double scaling, CursorMode mode)
+{
+    auto stream = new ScreencastingStream(this);
+    stream->setObjectName(QStringLiteral("%1-%2x%3").arg(QCoreApplication::instance()->applicationName()).arg(size.width()).arg(size.height()));
+    stream->d->init(d->stream_virtual_output(stream->objectName(), size.width(), size.height(), wl_fixed_from_double(scaling), mode));
     return stream;
 }
 
