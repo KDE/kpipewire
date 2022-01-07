@@ -46,7 +46,9 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     , m_sourceName(source)
     , m_engine(new QQmlApplicationEngine(this))
 {
-    m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
+    m_engine->setInitialProperties({
+        { QStringLiteral("app"), QVariant::fromValue<QObject *>(this) },
+    });
     m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
 
     auto connection = ConnectionThread::fromApplication(this);
@@ -167,4 +169,9 @@ void PlasmaRecordMe::setCursorMode(Screencasting::CursorMode mode)
 {
     m_cursorMode = mode;
     Q_EMIT cursorModeChanged(mode);
+}
+
+void PlasmaRecordMe::createVirtualMonitor()
+{
+    m_screencasting->createVirtualMonitorStream("recordme", {200, 200}, 1, m_cursorMode);
 }

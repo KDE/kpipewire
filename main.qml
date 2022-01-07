@@ -11,6 +11,7 @@ ApplicationWindow
     height: 500
     visible: true
     readonly property int cursorMode: cursorCombo.model[cursorCombo.currentIndex].value
+    property QtObject app
 
     function addStream(nodeid, displayText) {
         rep.model.append({nodeId: nodeid, uuid: "", display: displayText})
@@ -29,6 +30,11 @@ ApplicationWindow
     ColumnLayout {
         id: pipes
         anchors.fill: parent
+
+        Button {
+            text: "Add Virtual Monitor"
+            onClicked: app.createVirtualMonitor()
+        }
 
         ComboBox {
             id: cursorCombo

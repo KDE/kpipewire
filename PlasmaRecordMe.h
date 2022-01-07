@@ -51,6 +51,8 @@ public:
     Screencasting::CursorMode cursorMode() const { return m_cursorMode; }
     void setCursorMode(Screencasting::CursorMode mode);
 
+    Q_SCRIPTABLE void createVirtualMonitor();
+
 Q_SIGNALS:
     void cursorModeChanged(Screencasting::CursorMode cursorMode);
 

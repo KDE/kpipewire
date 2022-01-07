@@ -109,6 +109,13 @@ ScreencastingStream* Screencasting::createWindowStream(const QString &uuid, Curs
     return stream;
 }
 
+ScreencastingStream* Screencasting::createVirtualMonitorStream(const QString &name, const QSize &size, qreal scale, CursorMode mode)
+{
+    auto stream = new ScreencastingStream(this);
+    stream->d->init(d->stream_virtual_output(name, size.width(), size.height(), wl_fixed_from_double(scale), mode));
+    return stream;
+}
+
 void Screencasting::setup(::zkde_screencast_unstable_v1* screencasting)
 {
     d.reset(new ScreencastingPrivate(screencasting, this));
