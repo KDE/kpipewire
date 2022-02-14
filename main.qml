@@ -3,7 +3,7 @@ import QtQuick.Layouts 1.1
 import QtQuick.Controls 2.1
 import org.kde.kirigami 2.15 as Kirigami
 
-import org.kde.taskmanager 0.1 as TaskManager
+import org.kde.pipewire 0.1 as PipeWire
 
 Kirigami.ApplicationWindow
 {
@@ -46,13 +46,13 @@ Kirigami.ApplicationWindow
             model: [
                 {
                     text: "Hidden",
-                    value: TaskManager.Screencasting.Hidden
+                    value: PipeWire.Screencasting.Hidden
                 }, {
                     text: "Embedded",
-                    value: TaskManager.Screencasting.Embedded
+                    value: PipeWire.Screencasting.Embedded
                 }, {
                     text: "Metadata",
-                    value: TaskManager.Screencasting.Metadata
+                    value: PipeWire.Screencasting.Metadata
                 }
             ]
         }
@@ -64,7 +64,7 @@ Kirigami.ApplicationWindow
             delegate: Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                TaskManager.PipeWireSourceItem {
+                PipeWire.PipeWireSourceItem {
                     id: sourceItem
                     nodeId: model.nodeId
                     visible: !record.recording
@@ -78,7 +78,7 @@ Kirigami.ApplicationWindow
                     enabled: checked === record.recording
                     checkable: true
 
-                    TaskManager.PipeWireRecord {
+                    PipeWire.PipeWireRecord {
                         id: record
                         nodeId: model.nodeId
                         output: "/home/apol/clementine.mp4"

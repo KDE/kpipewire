@@ -20,7 +20,7 @@
  */
 
 #include "PlasmaRecordMe.h"
-#include "screencasting.h"
+#include "libkpipewire/screencasting.h"
 #include <QDir>
 #include <QLoggingCategory>
 #include <QTimer>
@@ -39,6 +39,7 @@
 #include <KWayland/Client/output.h>
 #include <KWayland/Client/registry.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
+#include "libkpipewire/kpipewiredeclarativeplugin.h"
 
 using namespace KWayland::Client;
 
@@ -48,10 +49,15 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     , m_sourceName(source)
     , m_engine(new QQmlApplicationEngine(this))
 {
+    auto uri = "org.kde.pipewire";
+    KPipewireDeclarativePlugin *plugin = new KPipewireDeclarativePlugin;
+    plugin->setParent(this);
+    plugin->registerTypes(uri);
+
     m_engine->setInitialProperties({
         { QStringLiteral("app"), QVariant::fromValue<QObject *>(this) },
     });
-    m_engine->load(QUrl::fromLocalFile("/home/apol/devel/frameworks/xdgrecordme/main.qml"));
+    m_engine->load(QUrl("qrc:/main.qml"));
 
     auto connection = ConnectionThread::fromApplication(this);
     if (!connection) {

@@ -23,7 +23,7 @@
 
 #include <QObject>
 #include <QDBusObjectPath>
-#include "screencasting.h"
+#include "libkpipewire/screencasting.h"
 
 class QQmlApplicationEngine;
 class QTimer;
