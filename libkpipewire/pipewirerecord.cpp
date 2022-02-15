@@ -234,9 +234,11 @@ void PipeWireRecordProduce::finish()
 {
     disconnect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
     disconnect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
-    m_writeThread->drain();
-    bool done = QThreadPool::globalInstance()->waitForDone(-1);
-    Q_ASSERT(done);
+    if (m_writeThread) {
+        m_writeThread->drain();
+        bool done = QThreadPool::globalInstance()->waitForDone(-1);
+        Q_ASSERT(done);
+    }
 
     qDebug() << "finished";
     avio_closep(&m_avFormatContext->pb);
