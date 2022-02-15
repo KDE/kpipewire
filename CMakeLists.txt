@@ -29,6 +29,11 @@ find_package(epoxy 1.3 REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Prevent EGL headers from including platform headers, in particular Xlib.h.
+add_definitions(-DMESA_EGL_NO_X11_HEADERS)
+add_definitions(-DEGL_NO_X11)
+add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
+
 #############
 
 ecm_add_qtwayland_client_protocol(Declarative_SRCS
