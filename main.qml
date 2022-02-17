@@ -81,7 +81,7 @@ Kirigami.ApplicationWindow
                     PipeWire.PipeWireRecord {
                         id: record
                         nodeId: model.nodeId
-                        output: "/home/apol/clementine.mp4"
+                        output: "~/clementine.mp4"
                         active: butt.checked
                     }
                 }

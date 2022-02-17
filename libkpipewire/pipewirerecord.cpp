@@ -16,6 +16,7 @@
 #include <QMutex>
 #include <QThreadPool>
 #include <QTimer>
+#include <KShell>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -110,8 +111,10 @@ void PipeWireRecord::setActive(bool active)
     Q_EMIT activeChanged(active);
 }
 
-void PipeWireRecord::setOutput(const QString &output)
+void PipeWireRecord::setOutput(const QString &_output)
 {
+    const QString output = KShell::tildeExpand(_output);
+
     if (m_output == output)
         return;
 
