@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Joyclick
+Name=RecordMe
 Exec=@CMAKE_INSTALL_PREFIX@/bin/recordme
 Icon=camera-video
 Type=Application
