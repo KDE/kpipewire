@@ -312,7 +312,9 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
     if (h && h->pts) {
         m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
     } else {
-        m_currentPresentationTimestamp = {};
+        using namespace std::chrono;
+        auto now = system_clock::now();
+        m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
     }
 
     if (spaBuffer->datas->type == SPA_DATA_MemFd) {
