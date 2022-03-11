@@ -140,8 +140,16 @@ PlasmaRecordMe::~PlasmaRecordMe()
 void PlasmaRecordMe::start(ScreencastingStream *stream)
 {
     qDebug() << "start" << stream;
-    connect(stream, &ScreencastingStream::failed, this, [] (const QString &error) {
-        qWarning() << "stream failed" << error;
+    connect(stream, &ScreencastingStream::failed, this, [this] (const QString &error) {
+        qWarning() << "stream failed" << error;const auto roots = m_engine->rootObjects();
+        for (auto root : roots) {
+            auto mo = root->metaObject();
+            mo->invokeMethod(root, "showPassiveNotification", Qt::QueuedConnection, Q_ARG(QVariant, QVariant(error))
+                                                                                  , Q_ARG(QVariant, {})
+                                                                                  , Q_ARG(QVariant, {})
+                                                                                  , Q_ARG(QVariant, {})
+            );
+        }
     });
     connect(stream, &ScreencastingStream::closed, this, [this, stream] {
         auto nodeId = stream->property("nodeid").toInt();
