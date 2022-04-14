@@ -49,7 +49,7 @@ private:
 class PipeWireRecordProduce : public QObject
 {
 public:
-    PipeWireRecordProduce(uint nodeId, const QString &output);
+    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, const QString &output);
     ~PipeWireRecordProduce() override;
 
     void finish();
@@ -81,6 +81,7 @@ private:
     EGLStruct m_egl;
     PipeWireRecordWriteThread *m_writeThread;
     QWaitCondition m_bufferNotEmpty;
+    const QByteArray m_encoder;
 
     QScopedPointer<CustomAVFrame> m_frame;
 };
@@ -88,9 +89,10 @@ private:
 class PipeWireRecordProduceThread : public QThread
 {
 public:
-    PipeWireRecordProduceThread(uint nodeId, const QString &output)
+    PipeWireRecordProduceThread(const QByteArray &encoder, uint nodeId, const QString &output)
         : m_nodeId(nodeId)
         , m_output(output)
+        , m_encoder(encoder)
     {
     }
     void run() override;
@@ -100,6 +102,7 @@ private:
     const uint m_nodeId;
     const QString m_output;
     PipeWireRecordProduce *m_producer = nullptr;
+    const QByteArray m_encoder;
 };
 
 class PipeWireRecord : public QObject
@@ -136,6 +139,16 @@ public:
     }
     void setOutput(const QString &output);
 
+    /**
+     * Set the FFmpeg @p encoder that will be used to create the video
+     *
+     * They can be inspected using:
+     * ffmpeg -encoders | grep "^ V"
+     */
+    void setEncoder(const QByteArray &encoder) {
+        m_encoder = encoder;
+    }
+
 Q_SIGNALS:
     void activeChanged(bool active);
     void recordingChanged(bool recording);
@@ -150,4 +163,5 @@ private:
     QString m_output;
     PipeWireRecordProduceThread *m_recordThread = nullptr;
     bool m_lastRecordThreadFinished = true;
+    QByteArray m_encoder;
 };

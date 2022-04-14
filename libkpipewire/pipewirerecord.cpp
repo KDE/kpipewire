@@ -65,7 +65,7 @@ public:
 
     ~CustomAVFrame()
     {
-        av_freep(&m_avFrame->data[0]);
+        av_freep(&m_avFrame->data);
         av_frame_free(&m_avFrame);
     }
 
@@ -82,6 +82,7 @@ public:
 
 PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
+    , m_encoder("libx264rgb")
 {
     av_log_set_level(AV_LOG_DEBUG);
 }
@@ -192,10 +193,11 @@ void PipeWireRecordProduce::setupEGL()
     m_eglInitialized = true;
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(uint nodeId, const QString &output)
+PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, const QString &output)
     : QObject()
     , m_output(output)
     , m_nodeId(nodeId)
+    , m_encoder(encoder)
 {
     setupEGL();
 
@@ -217,7 +219,7 @@ PipeWireRecordProduce::~PipeWireRecordProduce() noexcept
 
 void PipeWireRecordProduceThread::run()
 {
-    PipeWireRecordProduce produce(m_nodeId, m_output);
+    PipeWireRecordProduce produce(m_encoder, m_nodeId, m_output);
     if (!produce.m_stream) {
         return;
     }
@@ -261,12 +263,7 @@ void PipeWireRecordProduce::setupStream()
     if (!m_avFormatContext)
         return;
 
-    // m_codec = avcodec_find_encoder(AV_CODEC_ID_AV1);
-    // m_codec = avcodec_find_encoder(AV_CODEC_ID_H264);
-//     m_codec = avcodec_find_encoder(AV_CODEC_ID_RAWVIDEO);
-    // m_codec = avcodec_find_encoder_by_name("libvpx-vp9");
-//     m_codec = avcodec_find_encoder_by_name("libx264");
-    m_codec = avcodec_find_encoder_by_name("libx264rgb");
+    m_codec = avcodec_find_encoder_by_name(m_encoder);
     if (!m_codec) {
         qWarning() << "Codec not found";
         return;
@@ -294,11 +291,6 @@ void PipeWireRecordProduce::setupStream()
     }
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    av_opt_set(m_avCodecContext->priv_data, "tune-content", "screen", 0);
-    av_opt_set_int(m_avCodecContext->priv_data, "cpu-used", 4, 0);
-    av_opt_set_int(m_avCodecContext->priv_data, "deadline", 1 /*VPX_DL_REALTIME*/, 0);
-    av_opt_set_int(m_avCodecContext->priv_data, "tile-columns", 2, 0);
-    av_opt_set_int(m_avCodecContext->priv_data, "tile-rows", 2, 0);
     if (avcodec_open2(m_avCodecContext, m_codec, NULL) < 0) {
         qWarning() << "Could not open codec";
         return;
@@ -346,7 +338,7 @@ void PipeWireRecordProduce::setupStream()
 void PipeWireRecord::refresh()
 {
     if (!m_output.isEmpty() && m_active) {
-        m_recordThread = new PipeWireRecordProduceThread(m_nodeId, m_output);
+        m_recordThread = new PipeWireRecordProduceThread(m_encoder, m_nodeId, m_output);
         connect(m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
         });
