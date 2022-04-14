@@ -262,14 +262,14 @@ uint PipeWireSourceStream::nodeId()
 bool PipeWireSourceStream::createStream(uint nodeid)
 {
     pwCore = PipeWireCore::self();
-    if (!pwCore->m_error.isEmpty()) {
-        m_error = pwCore->m_error;
+    if (!pwCore->error().isEmpty()) {
+        m_error = pwCore->error();
         return false;
     }
 
     connect(pwCore.data(), &PipeWireCore::pipewireFailed, this, &PipeWireSourceStream::coreFailed);
 
-    pwStream = pw_stream_new(pwCore->pwCore, "plasma-screencast", nullptr);
+    pwStream = pw_stream_new(**pwCore, "plasma-screencast", nullptr);
     pwNodeId = nodeid;
     pw_stream_add_listener(pwStream, &streamListener, &pwStreamEvents, this);
 

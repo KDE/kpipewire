@@ -11,20 +11,25 @@
 #include <QSocketNotifier>
 #include <QThreadStorage>
 #include <spa/utils/result.h>
+#include <mutex>
+
+pw_core_events PipeWireCore::s_pwCoreEvents = {
+    .version = PW_VERSION_CORE_EVENTS,
+    .error = &PipeWireCore::onCoreError,
+};
 
 PipeWireCore::PipeWireCore()
 {
-    pw_init(nullptr, nullptr);
-    pwCoreEvents.version = PW_VERSION_CORE_EVENTS;
-    pwCoreEvents.error = &PipeWireCore::onCoreError;
+    static std::once_flag pwInitOnce;
+    std::call_once(pwInitOnce, [] { pw_init(nullptr, nullptr); });
 }
 
 void PipeWireCore::onCoreError(void *data, uint32_t id, int seq, int res, const char *message)
 {
     Q_UNUSED(seq)
 
-    qCWarning(PIPEWIRE_LOGGING) << "PipeWire remote error: " << message;
-    if (id == PW_ID_CORE && res == -EPIPE) {
+    qCWarning(PIPEWIRE_LOGGING) << "PipeWire remote error: " << res << message;
+    if (id == PW_ID_CORE) {
         PipeWireCore *pw = static_cast<PipeWireCore *>(data);
         Q_EMIT pw->pipewireFailed(QString::fromUtf8(message));
     }
@@ -32,66 +37,64 @@ void PipeWireCore::onCoreError(void *data, uint32_t id, int seq, int res, const 
 
 PipeWireCore::~PipeWireCore()
 {
-    if (pwMainLoop) {
-        pw_loop_leave(pwMainLoop);
+    if (m_pwMainLoop) {
+        pw_loop_leave(m_pwMainLoop);
     }
 
-    if (pwCore) {
-        pw_core_disconnect(pwCore);
+    if (m_pwCore) {
+        pw_core_disconnect(m_pwCore);
     }
 
-    if (pwContext) {
-        pw_context_destroy(pwContext);
+    if (m_pwContext) {
+        pw_context_destroy(m_pwContext);
     }
 
-    if (pwMainLoop) {
-        pw_loop_destroy(pwMainLoop);
+    if (m_pwMainLoop) {
+        pw_loop_destroy(m_pwMainLoop);
     }
 }
 
 bool PipeWireCore::init()
 {
-    pwMainLoop = pw_loop_new(nullptr);
-    pw_loop_enter(pwMainLoop);
+    m_pwMainLoop = pw_loop_new(nullptr);
+    pw_loop_enter(m_pwMainLoop);
 
-    QSocketNotifier *notifier = new QSocketNotifier(pw_loop_get_fd(pwMainLoop), QSocketNotifier::Read, this);
+    QSocketNotifier *notifier = new QSocketNotifier(pw_loop_get_fd(m_pwMainLoop), QSocketNotifier::Read, this);
     connect(notifier, &QSocketNotifier::activated, this, [this] {
-        int result = pw_loop_iterate(pwMainLoop, 0);
+        int result = pw_loop_iterate(m_pwMainLoop, 0);
         if (result < 0)
             qCWarning(PIPEWIRE_LOGGING) << "pipewire_loop_iterate failed: " << spa_strerror(result);
     });
 
-    pwContext = pw_context_new(pwMainLoop, nullptr, 0);
-    if (!pwContext) {
+    m_pwContext = pw_context_new(m_pwMainLoop, nullptr, 0);
+    if (!m_pwContext) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to create PipeWire context";
         m_error = i18n("Failed to create PipeWire context");
         return false;
     }
 
-    pwCore = pw_context_connect(pwContext, nullptr, 0);
-    if (!pwCore) {
+    m_pwCore = pw_context_connect(m_pwContext, nullptr, 0);
+    if (!m_pwCore) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to connect PipeWire context";
         m_error = i18n("Failed to connect PipeWire context");
         return false;
     }
 
-    if (pw_loop_iterate(pwMainLoop, 0) < 0) {
+    if (pw_loop_iterate(m_pwMainLoop, 0) < 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to start main PipeWire loop";
         m_error = i18n("Failed to start main PipeWire loop");
         return false;
     }
 
-    pw_core_add_listener(pwCore, &coreListener, &pwCoreEvents, this);
+    pw_core_add_listener(m_pwCore, &m_coreListener, &s_pwCoreEvents, this);
     return true;
 }
 
 QSharedPointer<PipeWireCore> PipeWireCore::self()
 {
     static QThreadStorage<QWeakPointer<PipeWireCore>> global;
-    QSharedPointer<PipeWireCore> ret;
-    if (global.localData()) {
-        ret = global.localData().toStrongRef();
-    } else {
+    QSharedPointer<PipeWireCore> ret = global.localData().toStrongRef();
+    if (!ret) {
         ret.reset(new PipeWireCore);
         if (ret->init()) {
             global.setLocalData(ret);

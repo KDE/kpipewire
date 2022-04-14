@@ -21,16 +21,19 @@ public:
     ~PipeWireCore();
 
     bool init();
+    QString error() const { return m_error; }
 
+    pw_core *operator*() const { return m_pwCore; };
     static QSharedPointer<PipeWireCore> self();
 
-    struct pw_core *pwCore = nullptr;
-    struct pw_context *pwContext = nullptr;
-    struct pw_loop *pwMainLoop = nullptr;
-    spa_hook coreListener;
+private:
+    pw_core *m_pwCore = nullptr;
+    pw_context *m_pwContext = nullptr;
+    pw_loop *m_pwMainLoop = nullptr;
+    spa_hook m_coreListener;
     QString m_error;
 
-    pw_core_events pwCoreEvents = {};
+    static pw_core_events s_pwCoreEvents;
 
 Q_SIGNALS:
     void pipewireFailed(const QString &message);
