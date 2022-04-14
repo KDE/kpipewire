@@ -209,6 +209,7 @@ static EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &plan
 
 void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes, uint32_t format)
 {
+    Q_ASSERT(!planes.isEmpty());
     static auto s_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
     if (!s_glEGLImageTargetTexture2DOES) {
         qWarning() << "glEGLImageTargetTexture2DOES is not available" << window();

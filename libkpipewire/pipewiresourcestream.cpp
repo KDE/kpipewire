@@ -344,6 +344,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             plane.modifier = DRM_FORMAT_MOD_INVALID;
             planes += plane;
         }
+        Q_ASSERT(!planes.isEmpty());
         Q_EMIT dmabufTextureReceived(planes, DRM_FORMAT_ARGB8888);
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
         QImage img(static_cast<uint8_t *>(spaBuffer->datas->data),
