@@ -46,13 +46,11 @@ public:
 Q_SIGNALS:
     void nodeIdChanged(quint32 nodeId);
     void uuidChanged(const QString &uuid);
-    void closeRunningStreams();
     void cursorModeChanged(Screencasting::CursorMode cursorMode);
 
 private:
     void setNodeid(uint nodeId);
 
-    ScreencastingStream *m_stream = nullptr;
     QString m_uuid;
     quint32 m_nodeId = 0;
 };

@@ -30,7 +30,6 @@ void ScreencastingRequest::setUuid(const QString &uuid)
         return;
     }
 
-    Q_EMIT closeRunningStreams();
     setNodeid(0);
 
     m_uuid = uuid;
@@ -55,12 +54,7 @@ void ScreencastingRequest::create(Screencasting *screencasting)
 {
     auto stream = screencasting->createWindowStream(m_uuid, Screencasting::CursorMode::Hidden);
     stream->setObjectName(m_uuid);
-
-    connect(stream, &ScreencastingStream::created, this, [stream, this](int nodeId) {
-        if (stream->objectName() == m_uuid) {
-            setNodeid(nodeId);
-        }
-    });
+    connect(stream, &ScreencastingStream::created, this, &ScreencastingRequest::setNodeid);
     connect(stream, &ScreencastingStream::failed, this, [](const QString &error) {
         qWarning() << "error creating screencast" << error;
     });
@@ -69,7 +63,7 @@ void ScreencastingRequest::create(Screencasting *screencasting)
             setNodeid(0);
         }
     });
-    connect(this, &ScreencastingRequest::closeRunningStreams, stream, &QObject::deleteLater);
+    connect(this, &ScreencastingRequest::uuidChanged, stream, &QObject::deleteLater);
 }
 
 QString ScreencastingRequest::uuid() const

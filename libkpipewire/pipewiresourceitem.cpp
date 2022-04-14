@@ -77,10 +77,6 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
         if (m_stream)
             m_stream->setActive(isVisible() && data.boolValue && isComponentComplete());
         break;
-    case ItemSceneChange:
-        m_needsRecreateTexture = true;
-        releaseResources();
-        break;
     default:
         break;
     }
@@ -134,12 +130,6 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
     if (!texture) {
         delete node;
         return nullptr;
-    }
-
-    if (m_needsRecreateTexture) {
-        delete node;
-        node = nullptr;
-        m_needsRecreateTexture = false;
     }
 
     QSGImageNode *textureNode = static_cast<QSGImageNode *>(node);

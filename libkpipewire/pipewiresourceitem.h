@@ -56,5 +56,4 @@ private:
     QScopedPointer<QOpenGLTexture> m_texture;
 
     EGLImage m_image = nullptr;
-    bool m_needsRecreateTexture = false;
 };
