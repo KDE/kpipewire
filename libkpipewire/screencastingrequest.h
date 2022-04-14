@@ -54,6 +54,5 @@ private:
 
     ScreencastingStream *m_stream = nullptr;
     QString m_uuid;
-    KWayland::Client::Output *m_output = nullptr;
     quint32 m_nodeId = 0;
 };

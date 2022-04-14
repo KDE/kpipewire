@@ -23,6 +23,7 @@
 
 #include <QObject>
 #include <QDBusObjectPath>
+#include <QRect>
 #include "libkpipewire/screencasting.h"
 
 class QQmlApplicationEngine;
@@ -33,6 +34,8 @@ namespace KWayland {
     namespace Client {
         class Registry;
         class PlasmaWindowManagement;
+        class Output;
+        class XdgOutputManager;
     }
 }
 class ScreencastingStream;
@@ -55,6 +58,7 @@ public:
 
 Q_SIGNALS:
     void cursorModeChanged(Screencasting::CursorMode cursorMode);
+    void workspaceChanged();
 
 private:
     void start(ScreencastingStream* stream);
@@ -66,4 +70,7 @@ private:
     KWayland::Client::PlasmaWindowManagement* m_management = nullptr;
     Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;
+    ScreencastingStream *m_workspaceStream = nullptr;
+    QRect m_workspace;
+    KWayland::Client::XdgOutputManager *m_xdgOutputManager = nullptr;
 };

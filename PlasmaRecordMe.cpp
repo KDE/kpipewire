@@ -37,6 +37,7 @@
 #include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/connection_thread.h>
 #include <KWayland/Client/output.h>
+#include <KWayland/Client/xdgoutput.h>
 #include <KWayland/Client/registry.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
 #include "libkpipewire/kpipewiredeclarativeplugin.h"
@@ -94,6 +95,12 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
             output->setup(registry->bindOutput(name, version));
 
             connect(output, &Output::changed, this, [this, output] {
+                auto xdgOutput = m_xdgOutputManager->getXdgOutput(output);
+                connect(xdgOutput, &XdgOutput::changed, this, [this, xdgOutput] {
+                    m_workspace |= QRect {xdgOutput->logicalPosition(), xdgOutput->logicalSize()};
+                    Q_EMIT workspaceChanged();
+                });
+
                 const QRegularExpression rx(m_sourceName);
                 const auto match = rx.match(output->model());
                 if (match.hasMatch()) {
@@ -108,19 +115,20 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
                 }
             });
     });
-    connect(registry, &KWayland::Client::Registry::interfaceAnnounced, this, [this, registry] (const QByteArray &interfaceName, quint32 name, quint32 version) {
-        if (interfaceName != "zkde_screencast_unstable_v1")
-            return;
-
-        m_screencasting = new Screencasting(registry, name, version, this);
-        for(auto f : m_delayed)
-            f();
-
-        m_delayed.clear();
+    connect(this, &PlasmaRecordMe::workspaceChanged, this, [this] {
+        delete m_workspaceStream;
+        m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
+        start(m_workspaceStream);
+    });
+    connect(registry, &KWayland::Client::Registry::interfacesAnnounced, this, [this, registry] {
+        const auto xdgOMData = registry->interface(Registry::Interface::XdgOutputUnstableV1);
+        m_xdgOutputManager = registry->createXdgOutputManager(xdgOMData.name, xdgOMData.version);
     });
 
     registry->create(connection);
     registry->setup();
+
+    m_screencasting = new Screencasting(this);
 
     bool ok = false;
     auto node = m_sourceName.toInt(&ok);

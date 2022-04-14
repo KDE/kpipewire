@@ -9,7 +9,7 @@ include(KDECompilerSettings NO_POLICY_SCOPE)
 include(KDECMakeSettings)
 include(ECMQtDeclareLoggingCategory)
 
-find_package(Qt5 REQUIRED COMPONENTS DBus Quick)
+find_package(Qt5 REQUIRED COMPONENTS DBus Quick WaylandClient)
 find_package(KF5 REQUIRED COMPONENTS Wayland I18n CoreAddons)
 find_package(Wayland REQUIRED COMPONENTS Client)
 
@@ -67,7 +67,7 @@ add_library(KPipewire STATIC
 target_link_libraries(KPipewire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
     Wayland::Client KF5::WaylandClient Qt5::Gui_EGL KF5::CoreAddons
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale epoxy::epoxy # PipeWireRecord
-    PkgConfig::PipeWire)
+    PkgConfig::PipeWire Qt${QT_MAJOR_VERSION}::WaylandClient)
 if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
     target_link_libraries(KPipewire PRIVATE Qt5::Gui_GLESv2)
 else()
