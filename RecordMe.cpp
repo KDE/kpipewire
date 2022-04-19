@@ -25,6 +25,7 @@
 #include <QQmlContext>
 #include <QTimer>
 #include "libkpipewire/kpipewiredeclarativeplugin.h"
+#include "libkpipewire/kpipewirerecorddeclarativeplugin.h"
 
 #include "xdp_dbus_screencast_interface.h"
 
@@ -74,10 +75,13 @@ RecordMe::RecordMe(QObject* parent)
     , m_handleToken(QStringLiteral("RecordMe%1").arg(QRandomGenerator::global()->generate()))
     , m_engine(new QQmlApplicationEngine(this))
 {
-    auto uri = "org.kde.pipewire";
-    KPipewireDeclarativePlugin *plugin = new KPipewireDeclarativePlugin;
+    auto plugin = new KPipewireDeclarativePlugin;
     plugin->setParent(this);
-    plugin->registerTypes(uri);
+    plugin->registerTypes("org.kde.pipewire");
+
+    auto pluginrec = new KPipewireRecordDeclarativePlugin;
+    pluginrec->setParent(this);
+    pluginrec->registerTypes("org.kde.pipewire.record");
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     m_engine->load(QUrl("qrc:/main.qml"));

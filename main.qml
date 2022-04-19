@@ -4,6 +4,7 @@ import QtQuick.Controls 2.1
 import org.kde.kirigami 2.15 as Kirigami
 
 import org.kde.pipewire 0.1 as PipeWire
+import org.kde.pipewire.record 0.1 as PWRec
 
 Kirigami.ApplicationWindow
 {
@@ -78,7 +79,7 @@ Kirigami.ApplicationWindow
                     enabled: checked === record.recording
                     checkable: true
 
-                    PipeWire.PipeWireRecord {
+                    PWRec.PipeWireRecord {
                         id: record
                         nodeId: model.nodeId
                         output: "~/clementine.mp4"

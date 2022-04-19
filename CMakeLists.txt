@@ -34,51 +34,12 @@ add_definitions(-DMESA_EGL_NO_X11_HEADERS)
 add_definitions(-DEGL_NO_X11)
 add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
 
-#############
-
-ecm_add_qtwayland_client_protocol(Declarative_SRCS
-    PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/screencast.xml
-    BASENAME zkde-screencast-unstable-v1
-)
-
-ecm_qt_declare_logging_category(Declarative_SRCS
-                            HEADER logging.h
-                            IDENTIFIER PIPEWIRE_LOGGING
-                            CATEGORY_NAME kde_recordme_pipewire_logging
-                            DESCRIPTION "PipeWire components for KDE"
-                            EXPORT KDERecordmePipeWire)
-ecm_qt_install_logging_categories(
-    EXPORT KDERecordmePipeWire
-    FILE recordme.categories
-    DESTINATION "${KDE_INSTALL_LOGGINGCATEGORIESDIR}"
-)
-
-
-add_library(KPipewire STATIC
-    libkpipewire/kpipewiredeclarativeplugin.cpp
-    libkpipewire/pipewirecore.cpp
-    libkpipewire/pipewirerecord.cpp
-    libkpipewire/pipewiresourceitem.cpp
-    libkpipewire/pipewiresourcestream.cpp
-    libkpipewire/screencasting.cpp
-    libkpipewire/screencastingrequest.cpp
-    ${Declarative_SRCS}
-)
-target_link_libraries(KPipewire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
-    Wayland::Client KF5::WaylandClient Qt5::Gui_EGL KF5::CoreAddons
-    PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale epoxy::epoxy # PipeWireRecord
-    PkgConfig::PipeWire Qt${QT_MAJOR_VERSION}::WaylandClient)
-if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
-    target_link_libraries(KPipewire PRIVATE Qt5::Gui_GLESv2)
-else()
-    target_link_libraries(KPipewire PRIVATE Qt5::Gui_GL)
-endif()
-
+add_subdirectory(libkpipewire)
 
 #########
 
 add_executable(recordme main.cpp recordme.qrc ${SRCS} PlasmaRecordMe.cpp)
-target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick Qt::DBus KPipewire)
+target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick Qt::DBus KPipewireDeclarative KPipewireRecordDeclarative)
 
 configure_file(org.kde.recordme.desktop.cmake ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop @ONLY)
 
@@ -94,6 +55,5 @@ qt5_add_dbus_interface(
 )
 
 add_executable(xdp-recordme xdp-main.cpp recordme.qrc ${XDP_SRCS} RecordMe.cpp)
-target_link_libraries(xdp-recordme Qt5::DBus Qt5::Quick KPipewire)
+target_link_libraries(xdp-recordme Qt5::DBus Qt5::Quick KPipewireDeclarative KPipewireRecordDeclarative)
 install(TARGETS xdp-recordme DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
-
