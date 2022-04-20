@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(recordme)
-
+set(PROJECT_VERSION "5.24.80")
+set(PROJECT_VERSION_MAJOR 5)
 
 find_package(ECM 5.20 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
@@ -39,7 +40,7 @@ add_subdirectory(libkpipewire)
 #########
 
 add_executable(recordme main.cpp recordme.qrc ${SRCS} PlasmaRecordMe.cpp)
-target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick Qt::DBus KPipewireDeclarative KPipewireRecordDeclarative)
+target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt5::Quick Qt::DBus KPipeWire)
 
 configure_file(org.kde.recordme.desktop.cmake ${CMAKE_CURRENT_BINARY_DIR}/org.kde.recordme.desktop @ONLY)
 
@@ -55,5 +56,5 @@ qt5_add_dbus_interface(
 )
 
 add_executable(xdp-recordme xdp-main.cpp recordme.qrc ${XDP_SRCS} RecordMe.cpp)
-target_link_libraries(xdp-recordme Qt5::DBus Qt5::Quick KPipewireDeclarative KPipewireRecordDeclarative)
+target_link_libraries(xdp-recordme Qt5::DBus Qt5::Quick KPipeWire)
 install(TARGETS xdp-recordme DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

@@ -40,8 +40,6 @@
 #include <KWayland/Client/xdgoutput.h>
 #include <KWayland/Client/registry.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
-#include "libkpipewire/kpipewiredeclarativeplugin.h"
-#include <kpipewirerecorddeclarativeplugin.h>
 
 using namespace KWayland::Client;
 
@@ -51,14 +49,6 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     , m_sourceName(source)
     , m_engine(new QQmlApplicationEngine(this))
 {
-    auto plugin = new KPipewireDeclarativePlugin;
-    plugin->setParent(this);
-    plugin->registerTypes("org.kde.pipewire");
-
-    auto pluginrec = new KPipewireRecordDeclarativePlugin;
-    pluginrec->setParent(this);
-    pluginrec->registerTypes("org.kde.pipewire.record");
-
     m_engine->setInitialProperties({
         { QStringLiteral("app"), QVariant::fromValue<QObject *>(this) },
     });

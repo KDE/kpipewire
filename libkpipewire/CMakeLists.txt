@@ -1,3 +1,6 @@
+include(ECMGenerateExportHeader)
+include(ECMQmlModule)
+
 ecm_qt_declare_logging_category(kpipewire_SRCS
                             HEADER logging.h
                             IDENTIFIER PIPEWIRE_LOGGING
@@ -15,7 +18,7 @@ ecm_add_qtwayland_client_protocol(kpipewire_SRCS
     BASENAME zkde-screencast-unstable-v1
 )
 
-add_library(KPipewire STATIC
+add_library(KPipeWire
     pipewirecore.cpp
     pipewiresourceitem.cpp
     pipewiresourcestream.cpp
@@ -24,29 +27,38 @@ add_library(KPipewire STATIC
     ${kpipewire_SRCS}
 )
 
-target_link_libraries(KPipewire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
+target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
     Wayland::Client KF5::WaylandClient Qt5::Gui_EGL KF5::CoreAddons
     PkgConfig::PipeWire Qt::WaylandClient)
 
 if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
-    target_link_libraries(KPipewire PRIVATE Qt5::Gui_GLESv2)
+    target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GLESv2)
 else()
-    target_link_libraries(KPipewire PRIVATE Qt5::Gui_GL)
+    target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GL)
 endif()
 
-target_include_directories(KPipewire PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 
-add_library(KPipewireRecord STATIC pipewirerecord.cpp)
-target_link_libraries(KPipewireRecord PRIVATE KPipewire Qt::Core Qt::Gui
+add_library(KPipeWireRecord pipewirerecord.cpp)
+target_link_libraries(KPipeWireRecord PRIVATE KPipeWire Qt::Core Qt::Gui
     KF5::CoreAddons
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale epoxy::epoxy # PipeWireRecord
 )
 
-add_library(KPipewireDeclarative STATIC
-    kpipewiredeclarativeplugin.cpp)
-target_link_libraries(KPipewireDeclarative PRIVATE KPipewire Qt::Quick)
+ecm_add_qml_module(KPipeWireDeclarative URI "org.kde.pipewire" VERSION 1.0)
+target_sources(KPipeWireDeclarative PRIVATE kpipewiredeclarativeplugin.cpp)
+target_link_libraries(KPipeWireDeclarative PRIVATE KPipeWire Qt::Quick)
+ecm_finalize_qml_module(KPipeWireDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
 
-add_library(KPipewireRecordDeclarative STATIC
-    kpipewirerecorddeclarativeplugin.cpp)
-target_link_libraries(KPipewireRecordDeclarative PRIVATE KPipewire KPipewireRecord Qt::Quick)
+ecm_add_qml_module(KPipeWireRecordDeclarative URI "org.kde.pipewire.record" VERSION 1.0)
+target_sources(KPipeWireRecordDeclarative PRIVATE kpipewirerecorddeclarativeplugin.cpp)
+target_link_libraries(KPipeWireRecordDeclarative PRIVATE KPipeWire KPipeWireRecord Qt::Quick)
+ecm_finalize_qml_module(KPipeWireRecordDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
+
+ecm_generate_export_header(KPipeWire
+    BASE_NAME KPipeWire
+    VERSION ${PROJECT_VERSION}
+)
+
+install(TARGETS KPipeWire KPipeWireRecord ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

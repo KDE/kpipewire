@@ -5,6 +5,7 @@
 */
 
 #include "pipewirerecord.h"
+#include "pipewirerecord_p.h"
 #include "pipewiresourcestream.h"
 #include <epoxy/egl.h>
 #include <epoxy/gl.h>
@@ -359,7 +360,7 @@ void PipeWireRecord::refresh()
     Q_EMIT recordingChanged(isRecording());
 }
 
-void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t format)
+void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t /*format*/)
 {
     Q_ASSERT(qGuiApp->thread() != QThread::currentThread());
     const QSize streamSize = m_stream->size();

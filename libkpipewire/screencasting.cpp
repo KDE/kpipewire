@@ -75,7 +75,7 @@ public:
         initialize();
 #else
         // QWaylandClientExtensionTemplate invokes this with a QueuedConnection but we want it called immediately
-        QMetaObject::invokeMethod(this, "addRegistryListener");
+        QMetaObject::invokeMethod(this, "addRegistryListener", Qt::DirectConnection);
 #endif
     }
 

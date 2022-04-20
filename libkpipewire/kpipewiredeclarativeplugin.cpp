@@ -11,9 +11,8 @@
 #include "screencasting.h"
 #include "screencastingrequest.h"
 
-void KPipewireDeclarativePlugin::registerTypes(const char * /*uri*/)
+void KPipewireDeclarativePlugin::registerTypes(const char *uri)
 {
-    const char * uri = "org.kde.pipewire";
     qmlRegisterType<PipeWireSourceItem>(uri, 0, 1, "PipeWireSourceItem");
     qmlRegisterType<ScreencastingRequest>(uri, 0, 1, "ScreencastingRequest");
     qmlRegisterUncreatableType<Screencasting>(uri, 0, 1, "Screencasting", "Use PipeWireSourceItem");

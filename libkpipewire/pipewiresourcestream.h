@@ -19,6 +19,8 @@
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
 
+#include <kpipewire_export.h>
+
 #undef Status
 
 namespace KWin
@@ -31,10 +33,10 @@ class PipeWireCore;
 typedef void *EGLDisplay;
 
 struct DmaBufPlane {
-    int fd; /// The dmabuf file descriptor
-    uint32_t offset; /// The offset from the start of buffer
-    uint32_t stride; /// The distance from the start of a row to the next row in bytes
-    uint64_t modifier = 0; /// The layout modifier
+    int fd; ///< The dmabuf file descriptor
+    uint32_t offset; ///< The offset from the start of buffer
+    uint32_t stride; ///< The distance from the start of a row to the next row in bytes
+    uint64_t modifier = 0; ///< The layout modifier
 };
 
 struct Fraction {
@@ -42,7 +44,7 @@ struct Fraction {
     const quint32 denominator;
 };
 
-class PipeWireSourceStream : public QObject
+class KPIPEWIRE_EXPORT PipeWireSourceStream : public QObject
 {
     Q_OBJECT
 public:

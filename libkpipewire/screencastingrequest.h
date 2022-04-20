@@ -9,6 +9,8 @@
 #include "screencasting.h"
 #include <QObject>
 
+#include <kpipewire_export.h>
+
 class ScreencastingStream;
 
 /**
@@ -18,7 +20,7 @@ class ScreencastingStream;
  * We will get a PipeWire node id that can be fed to any pipewire player, be it
  * the PipeWireSourceItem, GStreamer's pipewiresink or any other.
  */
-class ScreencastingRequest : public QObject
+class KPIPEWIRE_EXPORT ScreencastingRequest : public QObject
 {
     Q_OBJECT
     /**

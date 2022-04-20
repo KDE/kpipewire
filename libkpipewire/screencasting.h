@@ -11,6 +11,8 @@
 #include <QVector>
 #include <optional>
 
+#include <kpipewire_export.h>
+
 struct zkde_screencast_unstable_v1;
 
 namespace KWayland
@@ -26,7 +28,7 @@ class Output;
 class ScreencastingPrivate;
 class ScreencastingSourcePrivate;
 class ScreencastingStreamPrivate;
-class ScreencastingStream : public QObject
+class KPIPEWIRE_EXPORT ScreencastingStream : public QObject
 {
     Q_OBJECT
 public:
@@ -45,7 +47,7 @@ private:
     QScopedPointer<ScreencastingStreamPrivate> d;
 };
 
-class Screencasting : public QObject
+class KPIPEWIRE_EXPORT Screencasting : public QObject
 {
     Q_OBJECT
 public:

@@ -15,13 +15,15 @@
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
 
+#include <kpipewire_export.h>
+
 struct DmaBufPlane;
 class PipeWireSourceStream;
 class QSGTexture;
 class QOpenGLTexture;
 typedef void *EGLImage;
 
-class PipeWireSourceItem : public QQuickItem
+class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 {
     Q_OBJECT
     /// Specify the pipewire node id that we want to play
