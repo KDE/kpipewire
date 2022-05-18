@@ -190,5 +190,5 @@ void PlasmaRecordMe::setCursorMode(Screencasting::CursorMode mode)
 
 void PlasmaRecordMe::createVirtualMonitor()
 {
-    m_screencasting->createVirtualMonitorStream("recordme", {200, 200}, 1, m_cursorMode);
+    m_screencasting->createVirtualMonitorStream("recordme", {1920, 1080}, 1, m_cursorMode);
 }
