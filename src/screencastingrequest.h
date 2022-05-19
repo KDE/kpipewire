@@ -33,6 +33,11 @@ class KPIPEWIRE_EXPORT ScreencastingRequest : public QObject
      */
     Q_PROPERTY(QString uuid READ uuid WRITE setUuid NOTIFY uuidChanged)
 
+    /**
+     * The output name as define in Screen.name
+     */
+    Q_PROPERTY(QString outputName READ outputName WRITE setOutputName NOTIFY uuidChanged)
+
     /** The offered nodeId to give to a source */
     Q_PROPERTY(quint32 nodeId READ nodeId NOTIFY nodeIdChanged)
 public:
@@ -41,18 +46,22 @@ public:
 
     void setUuid(const QString &uuid);
     QString uuid() const;
+    void setOutputName(const QString &outputName);
+    QString outputName() const;
     quint32 nodeId() const;
 
-    void create(Screencasting *screencasting);
 
 Q_SIGNALS:
     void nodeIdChanged(quint32 nodeId);
     void uuidChanged(const QString &uuid);
+    void outputNameChanged(const QString &outputNames);
     void cursorModeChanged(Screencasting::CursorMode cursorMode);
 
 private:
+    void adopt(ScreencastingStream *stream);
     void setNodeid(uint nodeId);
 
     QString m_uuid;
+    QString m_outputName;
     quint32 m_nodeId = 0;
 };

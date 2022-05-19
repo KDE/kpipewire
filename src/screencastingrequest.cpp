@@ -31,13 +31,45 @@ void ScreencastingRequest::setUuid(const QString &uuid)
     }
 
     setNodeid(0);
-
     m_uuid = uuid;
     if (!m_uuid.isEmpty()) {
-        create(new Screencasting(this));
+        auto screencasting = new Screencasting(this);
+        auto stream = screencasting->createWindowStream(m_uuid, Screencasting::CursorMode::Hidden);
+        stream->setObjectName(m_uuid);
     }
 
     Q_EMIT uuidChanged(uuid);
+}
+
+void ScreencastingRequest::setOutputName(const QString &outputName)
+{
+    if (m_outputName == outputName) {
+        return;
+    }
+
+    setNodeid(0);
+    m_outputName = outputName;
+    if (!m_outputName.isEmpty()) {
+        auto screencasting = new Screencasting(this);
+        auto stream = screencasting->createOutputStream(m_outputName, Screencasting::CursorMode::Hidden);
+        stream->setObjectName(m_outputName);
+    }
+
+    Q_EMIT outputNameChanged(outputName);
+}
+
+void ScreencastingRequest::adopt(ScreencastingStream *stream)
+{
+    connect(this, &ScreencastingRequest::uuidChanged, stream, &QObject::deleteLater);
+    connect(stream, &ScreencastingStream::created, this, &ScreencastingRequest::setNodeid);
+    connect(stream, &ScreencastingStream::failed, this, [](const QString &error) {
+        qWarning() << "error creating screencast" << error;
+    });
+    connect(stream, &ScreencastingStream::closed, this, [this, stream] {
+        if (stream->nodeId() == m_nodeId) {
+            setNodeid(0);
+        }
+    });
 }
 
 void ScreencastingRequest::setNodeid(uint nodeId)
@@ -50,23 +82,12 @@ void ScreencastingRequest::setNodeid(uint nodeId)
     Q_EMIT nodeIdChanged(nodeId);
 }
 
-void ScreencastingRequest::create(Screencasting *screencasting)
-{
-    auto stream = screencasting->createWindowStream(m_uuid, Screencasting::CursorMode::Hidden);
-    stream->setObjectName(m_uuid);
-    connect(stream, &ScreencastingStream::created, this, &ScreencastingRequest::setNodeid);
-    connect(stream, &ScreencastingStream::failed, this, [](const QString &error) {
-        qWarning() << "error creating screencast" << error;
-    });
-    connect(stream, &ScreencastingStream::closed, this, [this, stream] {
-        if (stream->nodeId() == m_nodeId) {
-            setNodeid(0);
-        }
-    });
-    connect(this, &ScreencastingRequest::uuidChanged, stream, &QObject::deleteLater);
-}
-
 QString ScreencastingRequest::uuid() const
 {
     return m_uuid;
+}
+
+QString ScreencastingRequest::outputName() const
+{
+    return m_outputName;
 }

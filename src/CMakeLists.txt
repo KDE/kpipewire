@@ -39,8 +39,9 @@ else()
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GL)
 endif()
 
-target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(KPipeWire INTERFACE "$<INSTALL_INTERFACE:${KDE_INSTALL_INCLUDEDIR}/KPipeWire>")
+target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+                                     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+                                     INTERFACE "$<INSTALL_INTERFACE:${KDE_INSTALL_INCLUDEDIR}/KPipeWire>")
 
 ecm_generate_export_header(KPipeWire
     BASE_NAME KPipeWire

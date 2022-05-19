@@ -20,7 +20,7 @@
  */
 
 #include "PlasmaRecordMe.h"
-#include "libkpipewire/screencasting.h"
+#include <screencasting.h>
 #include <QDir>
 #include <QLoggingCategory>
 #include <QTimer>

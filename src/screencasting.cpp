@@ -12,7 +12,10 @@
 #include <KWayland/Client/registry.h>
 #include <QtWaylandClient/QWaylandClientExtensionTemplate>
 #include <QDebug>
+#include <QGuiApplication>
 #include <QRect>
+#include <qscreen.h>
+#include <qpa/qplatformnativeinterface.h>
 
 using namespace KWayland::Client;
 
@@ -94,6 +97,25 @@ Screencasting::Screencasting(QObject *parent)
 }
 
 Screencasting::~Screencasting() = default;
+
+ScreencastingStream * Screencasting::createOutputStream(const QString &outputName, Screencasting::CursorMode mode)
+{
+    wl_output *output = nullptr;
+    for (auto screen : qGuiApp->screens()) {
+        if (screen->name() == outputName) {
+            output = (wl_output *) QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
+        }
+    }
+
+    if (!output) {
+        return nullptr;
+    }
+
+    auto stream = new ScreencastingStream(this);
+    stream->setObjectName(outputName);
+    stream->d->init(d->stream_output(output, mode));
+    return stream;
+}
 
 ScreencastingStream *Screencasting::createOutputStream(Output *output, CursorMode mode)
 {

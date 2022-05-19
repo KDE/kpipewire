@@ -24,7 +24,7 @@
 #include <QObject>
 #include <QDBusObjectPath>
 #include <QRect>
-#include "libkpipewire/screencasting.h"
+#include <screencasting.h>
 
 class QQmlApplicationEngine;
 class QTimer;
