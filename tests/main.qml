@@ -68,7 +68,7 @@ Kirigami.ApplicationWindow
                 PipeWire.PipeWireSourceItem {
                     id: sourceItem
                     nodeId: model.nodeId
-                    visible: !record.recording
+                    visible: record.state !== PipeWire.PipeWireRecord.Recording
                     anchors.fill: parent
 
                 }
@@ -76,7 +76,7 @@ Kirigami.ApplicationWindow
                     id: butt
                     icon.name: "media-record"
                     text: model.display + " " + model.nodeId
-                    enabled: checked === record.recording
+                    enabled: checked === (record.state !== PipeWire.PipeWireRecord.Idle)
                     checkable: true
 
                     PWRec.PipeWireRecord {

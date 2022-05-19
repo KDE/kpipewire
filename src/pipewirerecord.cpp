@@ -95,6 +95,16 @@ PipeWireRecord::~PipeWireRecord()
     setActive(false);
 }
 
+PipeWireRecord::State PipeWireRecord::state() const
+{
+    if (d->m_active)
+        return Recording;
+    else if (d->m_recordThread || !d->m_lastRecordThreadFinished)
+        return Rendering;
+
+    return Idle;
+}
+
 void PipeWireRecord::setNodeId(uint nodeId)
 {
     if (nodeId == d->m_nodeId)
@@ -353,12 +363,12 @@ void PipeWireRecord::refresh()
             qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << d->m_output;
             delete d->m_recordThread;
             d->m_lastRecordThreadFinished = true;
-            Q_EMIT recordingChanged(isRecording());
+            Q_EMIT stateChanged();
         });
         d->m_lastRecordThreadFinished = false;
         d->m_recordThread = nullptr;
     }
-    Q_EMIT recordingChanged(isRecording());
+    Q_EMIT stateChanged();
 }
 
 void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t /*format*/)
@@ -488,11 +498,6 @@ QString PipeWireRecord::output() const
 bool PipeWireRecord::isActive() const
 {
     return d->m_active;
-}
-
-bool PipeWireRecord::isRecording() const
-{
-    return d->m_recordThread || !d->m_lastRecordThreadFinished;
 }
 
 uint PipeWireRecord::nodeId() const

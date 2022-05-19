@@ -18,18 +18,25 @@ class KPIPEWIRE_EXPORT PipeWireRecord : public QObject
     /// Specify the pipewire node id that we want to record
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
-    Q_PROPERTY(bool recording READ isRecording NOTIFY recordingChanged)
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
+    Q_PROPERTY(State state READ state NOTIFY stateChanged)
 public:
     PipeWireRecord(QObject *parent = nullptr);
     ~PipeWireRecord() override;
 
+    enum State {
+        Idle, //< ready to get started
+        Recording, //< actively recording
+        Rendering, //< recording is over but the video file is still being written
+    };
+    Q_ENUM(State)
+
     void setNodeId(uint nodeId);
     uint nodeId() const;
 
-    bool isRecording() const;
     bool isActive() const;
     void setActive(bool active);
+    State state() const;
 
     QString output() const;
     void setOutput(const QString &output);
@@ -44,9 +51,9 @@ public:
 
 Q_SIGNALS:
     void activeChanged(bool active);
-    void recordingChanged(bool recording);
     void nodeIdChanged(uint nodeId);
     void outputChanged(const QString &output);
+    void stateChanged();
 
 private:
     void refresh();
