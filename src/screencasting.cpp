@@ -11,11 +11,11 @@
 #include <KWayland/Client/plasmawindowmanagement.h>
 #include <KWayland/Client/registry.h>
 #include <QtWaylandClient/QWaylandClientExtensionTemplate>
-#include <QDebug>
 #include <QGuiApplication>
 #include <QRect>
 #include <qscreen.h>
 #include <qpa/qplatformnativeinterface.h>
+#include "logging.h"
 
 using namespace KWayland::Client;
 
@@ -80,6 +80,11 @@ public:
         // QWaylandClientExtensionTemplate invokes this with a QueuedConnection but we want it called immediately
         QMetaObject::invokeMethod(this, "addRegistryListener", Qt::DirectConnection);
 #endif
+
+        if (!isInitialized()) {
+            qCWarning(PIPEWIRE_LOGGING) << "Remember requesting the interface on your desktop file: X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1";
+        }
+        Q_ASSERT(isInitialized());
     }
 
     ~ScreencastingPrivate()
