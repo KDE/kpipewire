@@ -531,7 +531,8 @@ void PipeWireRecordWriteThread::run()
             if (m_active) {
                 m_bufferNotEmpty->wait(&mutex);
             } else {
-                qCDebug(PIPEWIRERECORD_LOGGING) << "draining" << avcodec_send_frame(m_avCodecContext, NULL);
+                int sent = avcodec_send_frame(m_avCodecContext, NULL);
+                qCDebug(PIPEWIRERECORD_LOGGING) << "draining" << sent;
             }
             continue;
         } else if (ret < 0) {
