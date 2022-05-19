@@ -6,12 +6,24 @@ include(ECMSetupVersion)
 ecm_qt_declare_logging_category(kpipewire_SRCS
                             HEADER logging.h
                             IDENTIFIER PIPEWIRE_LOGGING
-                            CATEGORY_NAME kde_recordme_pipewire_logging
+                            CATEGORY_NAME kpipewire_logging
                             DESCRIPTION "PipeWire components for KDE"
-                            EXPORT KDERecordmePipeWire)
+                            EXPORT KPipeWire)
+ecm_qt_declare_logging_category(kpipewirerecord_SRCS
+                            HEADER logging_record.h
+                            IDENTIFIER PIPEWIRERECORD_LOGGING
+                            CATEGORY_NAME kpipewire_record_logging
+                            DESCRIPTION "PipeWire and FFmpeg components for KDE"
+                            EXPORT KPipeWireRecord)
 ecm_qt_install_logging_categories(
-    EXPORT KDERecordmePipeWire
-    FILE recordme.categories
+    EXPORT KPipeWire
+    FILE kpipewire.categories
+    DESTINATION "${KDE_INSTALL_LOGGINGCATEGORIESDIR}"
+)
+
+ecm_qt_install_logging_categories(
+    EXPORT KPipeWire
+    FILE kpipewirerecord.categories
     DESTINATION "${KDE_INSTALL_LOGGINGCATEGORIESDIR}"
 )
 
@@ -62,7 +74,7 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
-add_library(KPipeWireRecord pipewirerecord.cpp)
+add_library(KPipeWireRecord pipewirerecord.cpp ${kpipewirerecord_SRCS})
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF5::CoreAddons
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale epoxy::epoxy # PipeWireRecord

@@ -7,6 +7,7 @@
 #include "pipewirerecord.h"
 #include "pipewirerecord_p.h"
 #include "pipewiresourcestream.h"
+#include <logging_record.h>
 #include <epoxy/egl.h>
 #include <epoxy/gl.h>
 
@@ -188,8 +189,8 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    qDebug() << "Egl initialization succeeded";
-    qDebug() << QStringLiteral("EGL version: %1.%2").arg(major).arg(minor);
+    qCDebug(PIPEWIRERECORD_LOGGING) << "Egl initialization succeeded";
+    qCDebug(PIPEWIRERECORD_LOGGING) << QStringLiteral("EGL version: %1.%2").arg(major).arg(minor);
 
     m_eglInitialized = true;
 }
@@ -203,9 +204,9 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
     setupEGL();
 
     m_stream.reset(new PipeWireSourceStream(nullptr));
-    m_stream->createStream(m_nodeId);
-    if (!m_stream->error().isEmpty()) {
-        qWarning() << "failed to set up stream" << m_stream->error();
+    bool created = m_stream->createStream(m_nodeId);
+    if (!created || !m_stream->error().isEmpty()) {
+        qWarning() << "failed to set up stream for" << m_nodeId << m_stream->error();
         m_stream.reset(nullptr);
         return;
     }
@@ -225,9 +226,9 @@ void PipeWireRecordProduceThread::run()
         return;
     }
     m_producer = &produce;
-    qDebug() << "executing";
+    qCDebug(PIPEWIRERECORD_LOGGING) << "executing";
     const int ret = exec();
-    qDebug() << "finishing" << ret;
+    qCDebug(PIPEWIRERECORD_LOGGING) << "finishing" << ret;
     m_producer = nullptr;
 }
 
@@ -246,7 +247,7 @@ void PipeWireRecordProduce::finish()
         Q_ASSERT(done);
     }
 
-    qDebug() << "finished";
+    qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
     avio_closep(&m_avFormatContext->pb);
     avcodec_close(m_avCodecContext);
     av_free(m_avCodecContext);
@@ -331,14 +332,13 @@ void PipeWireRecordProduce::setupStream()
 
     connect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
     connect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
-    qDebug() << "started";
     m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avFormatContext, m_avCodecContext);
     QThreadPool::globalInstance()->start(m_writeThread);
 }
 
 void PipeWireRecord::refresh()
 {
-    if (!m_output.isEmpty() && m_active) {
+    if (!m_output.isEmpty() && m_active && m_nodeId > 0) {
         m_recordThread = new PipeWireRecordProduceThread(m_encoder, m_nodeId, m_output);
         connect(m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
@@ -349,7 +349,7 @@ void PipeWireRecord::refresh()
         m_recordThread->quit();
 
         connect(m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
-            qDebug() << "produce thread finished" << m_output;
+            qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << m_output;
             delete m_recordThread;
             m_lastRecordThreadFinished = true;
             Q_EMIT recordingChanged(isRecording());
@@ -447,9 +447,9 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 
     static int i = 0;
     ++i;
-    qDebug() << "sending frame" << i << av_ts2str(m_frame->m_avFrame->pts) << "fps: " << double(i * 1000) / double(m_frame->m_avFrame->pts);
+    qCDebug(PIPEWIRERECORD_LOGGING) << "sending frame" << i << av_ts2str(m_frame->m_avFrame->pts) << "fps: " << double(i * 1000) / double(m_frame->m_avFrame->pts);
     int ret = avcodec_send_frame(m_avCodecContext, m_frame->m_avFrame);
-    qDebug() << "sent frames" << i << av_ts2str(m_frame->m_avFrame->pts) << t.elapsed();
+    qCDebug(PIPEWIRERECORD_LOGGING) << "sent frames" << i << av_ts2str(m_frame->m_avFrame->pts) << t.elapsed();
     if (ret < 0) {
         qWarning() << "Error sending a frame for encoding:" << av_err2str(ret);
         return;
@@ -461,7 +461,7 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
 {
     AVRational *time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
 
-    qDebug("pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s stream_index:%d",
+    qCDebug(PIPEWIRERECORD_LOGGING, "pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s stream_index:%d",
            av_ts2str(pkt->pts),
            av_ts2timestr(pkt->pts, time_base),
            av_ts2str(pkt->dts),
@@ -495,11 +495,9 @@ void PipeWireRecordWriteThread::run()
             break;
         } else if (ret == AVERROR(EAGAIN)) {
             if (m_active) {
-                qDebug() << "{";
                 m_bufferNotEmpty->wait(&mutex);
-                qDebug() << "}";
             } else {
-                qDebug() << "draining" << avcodec_send_frame(m_avCodecContext, NULL);
+                qCDebug(PIPEWIRERECORD_LOGGING) << "draining" << avcodec_send_frame(m_avCodecContext, NULL);
             }
             continue;
         } else if (ret < 0) {
@@ -509,7 +507,7 @@ void PipeWireRecordWriteThread::run()
 
         static int i = 0;
         ++i;
-        qDebug() << "receiving packets" << i << m_active << av_ts2str(m_packet->pts) << (*m_avFormatContext->streams)->index;
+        qCDebug(PIPEWIRERECORD_LOGGING) << "receiving packets" << i << m_active << av_ts2str(m_packet->pts) << (*m_avFormatContext->streams)->index;
         m_packet->stream_index = (*m_avFormatContext->streams)->index;
         av_packet_rescale_ts(m_packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
         log_packet(m_avFormatContext, m_packet);

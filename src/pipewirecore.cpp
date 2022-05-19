@@ -9,6 +9,7 @@
 #include "logging.h"
 #include <KLocalizedString>
 #include <QSocketNotifier>
+#include <QThread>
 #include <QThreadStorage>
 #include <spa/utils/result.h>
 #include <mutex>
@@ -101,4 +102,9 @@ QSharedPointer<PipeWireCore> PipeWireCore::self()
         }
     }
     return ret;
+}
+
+QString PipeWireCore::error() const
+{
+    return m_error;
 }

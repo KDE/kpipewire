@@ -21,7 +21,7 @@ public:
     ~PipeWireCore();
 
     bool init();
-    QString error() const { return m_error; }
+    QString error() const;
 
     pw_core *operator*() const { return m_pwCore; };
     static QSharedPointer<PipeWireCore> self();

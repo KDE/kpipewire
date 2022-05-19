@@ -44,6 +44,8 @@ struct Fraction {
     const quint32 denominator;
 };
 
+struct PipeWireSourceStreamPrivate;
+
 class KPIPEWIRE_EXPORT PipeWireSourceStream : public QObject
 {
     Q_OBJECT
@@ -56,15 +58,9 @@ public:
 
     Fraction framerate() const;
     uint nodeId();
-    QString error() const
-    {
-        return m_error;
-    }
+    QString error() const;
 
-    QSize size() const
-    {
-        return QSize(videoFormat.size.width, videoFormat.size.height);
-    }
+    QSize size() const;
     bool createStream(uint nodeid);
     void setActive(bool active);
 
@@ -72,10 +68,7 @@ public:
     void process();
 
     bool setAllowDmaBuf(bool allowed);
-    std::optional<std::chrono::nanoseconds> currentPresentationTimestamp() const
-    {
-        return m_currentPresentationTimestamp;
-    }
+    std::optional<std::chrono::nanoseconds> currentPresentationTimestamp() const;
 
 Q_SIGNALS:
     void streamReady();
@@ -87,20 +80,7 @@ Q_SIGNALS:
 
 private:
     void coreFailed(const QString &errorMessage);
-
-    QSharedPointer<PipeWireCore> pwCore;
-    pw_stream *pwStream = nullptr;
-    spa_hook streamListener;
-    pw_stream_events pwStreamEvents = {};
-
-    uint32_t pwNodeId = 0;
-    std::optional<std::chrono::nanoseconds> m_currentPresentationTimestamp;
-
-    QAtomicInt m_stopped = false;
-
-    spa_video_info_raw videoFormat;
-    QString m_error;
-    bool m_allowDmaBuf = true;
+    QScopedPointer<PipeWireSourceStreamPrivate> d;
 };
 
 Q_DECLARE_METATYPE(QVector<DmaBufPlane>);

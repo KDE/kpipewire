@@ -22,6 +22,7 @@
 #include <QOpenGLTexture>
 #include <QSocketNotifier>
 #include <QVersionNumber>
+#include <QThread>
 #include <qpa/qplatformnativeinterface.h>
 
 #include <KLocalizedString>
@@ -38,6 +39,24 @@
 #if !PW_CHECK_VERSION(0, 3, 33)
 #define SPA_POD_PROP_FLAG_DONT_FIXATE (1u << 4)
 #endif
+
+pw_stream_events pwStreamEvents = {};
+
+struct PipeWireSourceStreamPrivate
+{
+    QSharedPointer<PipeWireCore> pwCore;
+    pw_stream *pwStream = nullptr;
+    spa_hook streamListener;
+
+    uint32_t pwNodeId = 0;
+    std::optional<std::chrono::nanoseconds> m_currentPresentationTimestamp;
+
+    QAtomicInt m_stopped = false;
+
+    spa_video_info_raw videoFormat;
+    QString m_error;
+    bool m_allowDmaBuf = true;
+};
 
 static uint32_t SpaPixelFormatToDrmFormat(uint32_t spa_format)
 {
@@ -125,7 +144,7 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
     case PW_STREAM_STATE_CONNECTING:
         break;
     case PW_STREAM_STATE_UNCONNECTED:
-        if (!pw->m_stopped) {
+        if (!pw->d->m_stopped) {
             Q_EMIT pw->stopStreaming();
         }
         break;
@@ -175,11 +194,11 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
     }
 
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
-    spa_format_video_raw_parse(format, &pw->videoFormat);
+    spa_format_video_raw_parse(format, &pw->d->videoFormat);
 
-    const int32_t width = pw->videoFormat.size.width;
-    const int32_t height = pw->videoFormat.size.height;
-    const int bpp = pw->videoFormat.format == SPA_VIDEO_FORMAT_RGB || pw->videoFormat.format == SPA_VIDEO_FORMAT_BGR ? 3 : 4;
+    const int32_t width = pw->d->videoFormat.size.width;
+    const int32_t height = pw->d->videoFormat.size.height;
+    const int bpp = pw->d->videoFormat.format == SPA_VIDEO_FORMAT_RGB || pw->d->videoFormat.format == SPA_VIDEO_FORMAT_BGR ? 3 : 4;
     const quint32 stride = SPA_ROUND_UP_N(width * bpp, 4);
     qCDebug(PIPEWIRE_LOGGING) << "Stream format changed";
     const int32_t size = height * stride;
@@ -187,7 +206,7 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
     uint8_t paramsBuffer[1024];
     spa_pod_builder pod_builder = SPA_POD_BUILDER_INIT(paramsBuffer, sizeof(paramsBuffer));
 
-    const auto bufferTypes = pw->m_allowDmaBuf && spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier)
+    const auto bufferTypes = pw->d->m_allowDmaBuf && spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier)
         ? (1 << SPA_DATA_DmaBuf) | (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr)
         : (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr);
 
@@ -216,7 +235,7 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
                                               SPA_POD_Int(sizeof(struct spa_meta_header))),
 
     };
-    pw_stream_update_params(pw->pwStream, params.data(), params.count());
+    pw_stream_update_params(pw->d->pwStream, params.data(), params.count());
     Q_EMIT pw->streamParametersChanged();
 }
 
@@ -226,8 +245,26 @@ static void onProcess(void *data)
     stream->process();
 }
 
+QSize PipeWireSourceStream::size() const
+{
+    return QSize(d->videoFormat.size.width, d->videoFormat.size.height);
+}
+
+std::optional< std::chrono::nanoseconds > PipeWireSourceStream::currentPresentationTimestamp() const
+{
+    return d->m_currentPresentationTimestamp;
+}
+
+QString PipeWireSourceStream::error() const
+{
+    qDebug() << "about to check"<< thread() << QThread::currentThread();
+    qDebug() << "checking stream error" << d->m_error;
+    return d->m_error;
+}
+
 PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
     : QObject(parent)
+    , d(new PipeWireSourceStreamPrivate)
 {
     qRegisterMetaType<QVector<DmaBufPlane>>();
 
@@ -239,16 +276,16 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
 
 PipeWireSourceStream::~PipeWireSourceStream()
 {
-    m_stopped = true;
-    if (pwStream) {
-        pw_stream_destroy(pwStream);
+    d->m_stopped = true;
+    if (d->pwStream) {
+        pw_stream_destroy(d->pwStream);
     }
 }
 
 Fraction PipeWireSourceStream::framerate() const
 {
-    if (pwStream) {
-        return {videoFormat.max_framerate.num, videoFormat.max_framerate.denom};
+    if (d->pwStream) {
+        return {d->videoFormat.max_framerate.num, d->videoFormat.max_framerate.denom};
     }
 
     return {0, 1};
@@ -256,22 +293,23 @@ Fraction PipeWireSourceStream::framerate() const
 
 uint PipeWireSourceStream::nodeId()
 {
-    return pwNodeId;
+    return d->pwNodeId;
 }
 
 bool PipeWireSourceStream::createStream(uint nodeid)
 {
-    pwCore = PipeWireCore::self();
-    if (!pwCore->error().isEmpty()) {
-        m_error = pwCore->error();
+    d->pwCore = PipeWireCore::self();
+    if (!d->pwCore->error().isEmpty()) {
+        qDebug() << "received error while creating the stream" << d->pwCore->error();
+        d->m_error = d->pwCore->error();
         return false;
     }
 
-    connect(pwCore.data(), &PipeWireCore::pipewireFailed, this, &PipeWireSourceStream::coreFailed);
+    connect(d->pwCore.data(), &PipeWireCore::pipewireFailed, this, &PipeWireSourceStream::coreFailed);
 
-    pwStream = pw_stream_new(**pwCore, "plasma-screencast", nullptr);
-    pwNodeId = nodeid;
-    pw_stream_add_listener(pwStream, &streamListener, &pwStreamEvents, this);
+    d->pwStream = pw_stream_new(**d->pwCore, "plasma-screencast", nullptr);
+    d->pwNodeId = nodeid;
+    pw_stream_add_listener(d->pwStream, &d->streamListener, &pwStreamEvents, this);
 
     uint8_t buffer[4096];
     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
@@ -282,7 +320,7 @@ bool PipeWireSourceStream::createStream(uint nodeid)
     params.reserve(formats.size() * 2);
     const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
     for (spa_video_format format : formats) {
-        if (m_allowDmaBuf) {
+        if (d->m_allowDmaBuf) {
             if (auto modifiers = queryDmaBufModifiers(display, format); modifiers.size() > 0) {
                 params += buildFormat(&podBuilder, format, modifiers);
             }
@@ -292,11 +330,12 @@ bool PipeWireSourceStream::createStream(uint nodeid)
     }
 
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
-    if (pw_stream_connect(pwStream, PW_DIRECTION_INPUT, pwNodeId, s, params.data(), params.size()) != 0) {
+    if (pw_stream_connect(d->pwStream, PW_DIRECTION_INPUT, d->pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
-        pw_stream_destroy(pwStream);
+        pw_stream_destroy(d->pwStream);
         return false;
     }
+    qDebug() << "created successfully" << nodeid;
     return true;
 }
 
@@ -310,11 +349,11 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
     struct spa_meta_header *h = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*h));
     if (h && h->pts) {
-        m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
+        d->m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
     } else {
         using namespace std::chrono;
         auto now = system_clock::now();
-        m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
+        d->m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
     }
 
     if (spaBuffer->datas->type == SPA_DATA_MemFd) {
@@ -325,9 +364,9 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
             return;
         }
-        const QImage::Format format = spaBuffer->datas->chunk->stride / videoFormat.size.width == 3 ? QImage::Format_RGB888 : QImage::Format_ARGB32;
+        const QImage::Format format = spaBuffer->datas->chunk->stride / d->videoFormat.size.width == 3 ? QImage::Format_RGB888 : QImage::Format_ARGB32;
 
-        QImage img(map, videoFormat.size.width, videoFormat.size.height, spaBuffer->datas->chunk->stride, format);
+        QImage img(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, format);
         Q_EMIT imageTextureReceived(img.copy());
 
         munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);
@@ -348,8 +387,8 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         Q_EMIT dmabufTextureReceived(planes, DRM_FORMAT_ARGB8888);
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
         QImage img(static_cast<uint8_t *>(spaBuffer->datas->data),
-                   videoFormat.size.width,
-                   videoFormat.size.height,
+                   d->videoFormat.size.width,
+                   d->videoFormat.size.height,
                    spaBuffer->datas->chunk->stride,
                    QImage::Format_ARGB32);
         Q_EMIT imageTextureReceived(img);
@@ -363,24 +402,25 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
 void PipeWireSourceStream::coreFailed(const QString &errorMessage)
 {
-    m_error = errorMessage;
+    qDebug() << "received error message" << errorMessage;
+    d->m_error = errorMessage;
     Q_EMIT stopStreaming();
 }
 
 void PipeWireSourceStream::process()
 {
-    pw_buffer *buf = pw_stream_dequeue_buffer(pwStream);
+    pw_buffer *buf = pw_stream_dequeue_buffer(d->pwStream);
     if (!buf) {
         return;
     }
 
     handleFrame(buf);
 
-    pw_stream_queue_buffer(pwStream, buf);
+    pw_stream_queue_buffer(d->pwStream, buf);
 }
 
 void PipeWireSourceStream::setActive(bool active)
 {
-    Q_ASSERT(pwStream);
-    pw_stream_set_active(pwStream, active);
+    Q_ASSERT(d->pwStream);
+    pw_stream_set_active(d->pwStream, active);
 }
