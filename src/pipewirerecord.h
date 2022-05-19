@@ -10,7 +10,7 @@
 
 #include <kpipewire_export.h>
 
-class PipeWireRecordProduceThread;
+struct PipeWireRecordPrivate;
 
 class KPIPEWIRE_EXPORT PipeWireRecord : public QObject
 {
@@ -25,25 +25,13 @@ public:
     ~PipeWireRecord() override;
 
     void setNodeId(uint nodeId);
-    uint nodeId() const
-    {
-        return m_nodeId;
-    }
+    uint nodeId() const;
 
-    bool isRecording() const
-    {
-        return m_recordThread || !m_lastRecordThreadFinished;
-    }
-    bool isActive() const
-    {
-        return m_active;
-    }
+    bool isRecording() const;
+    bool isActive() const;
     void setActive(bool active);
 
-    QString output() const
-    {
-        return m_output;
-    }
+    QString output() const;
     void setOutput(const QString &output);
 
     /**
@@ -52,9 +40,7 @@ public:
      * They can be inspected using:
      * ffmpeg -encoders | grep "^ V"
      */
-    void setEncoder(const QByteArray &encoder) {
-        m_encoder = encoder;
-    }
+    void setEncoder(const QByteArray &encoder);
 
 Q_SIGNALS:
     void activeChanged(bool active);
@@ -64,11 +50,5 @@ Q_SIGNALS:
 
 private:
     void refresh();
-
-    uint m_nodeId = 0;
-    bool m_active = false;
-    QString m_output;
-    PipeWireRecordProduceThread *m_recordThread = nullptr;
-    bool m_lastRecordThreadFinished = true;
-    QByteArray m_encoder;
+    QScopedPointer<PipeWireRecordPrivate> d;
 };

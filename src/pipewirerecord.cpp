@@ -84,8 +84,9 @@ public:
 
 PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
-    , m_encoder("libx264rgb")
+    , d(new PipeWireRecordPrivate)
 {
+    d->m_encoder = "libx264rgb";
     av_log_set_level(AV_LOG_DEBUG);
 }
 
@@ -96,20 +97,20 @@ PipeWireRecord::~PipeWireRecord()
 
 void PipeWireRecord::setNodeId(uint nodeId)
 {
-    if (nodeId == m_nodeId)
+    if (nodeId == d->m_nodeId)
         return;
 
-    m_nodeId = nodeId;
+    d->m_nodeId = nodeId;
     refresh();
     Q_EMIT nodeIdChanged(nodeId);
 }
 
 void PipeWireRecord::setActive(bool active)
 {
-    if (m_active == active)
+    if (d->m_active == active)
         return;
 
-    m_active = active;
+    d->m_active = active;
     refresh();
     Q_EMIT activeChanged(active);
 }
@@ -118,10 +119,10 @@ void PipeWireRecord::setOutput(const QString &_output)
 {
     const QString output = KShell::tildeExpand(_output);
 
-    if (m_output == output)
+    if (d->m_output == output)
         return;
 
-    m_output = output;
+    d->m_output = output;
     refresh();
     Q_EMIT outputChanged(output);
 }
@@ -338,24 +339,24 @@ void PipeWireRecordProduce::setupStream()
 
 void PipeWireRecord::refresh()
 {
-    if (!m_output.isEmpty() && m_active && m_nodeId > 0) {
-        m_recordThread = new PipeWireRecordProduceThread(m_encoder, m_nodeId, m_output);
-        connect(m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
+    if (!d->m_output.isEmpty() && d->m_active && d->m_nodeId > 0) {
+        d->m_recordThread = new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_output);
+        connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
         });
-        m_recordThread->start();
-    } else if (m_recordThread) {
-        m_recordThread->deactivate();
-        m_recordThread->quit();
+        d->m_recordThread->start();
+    } else if (d->m_recordThread) {
+        d->m_recordThread->deactivate();
+        d->m_recordThread->quit();
 
-        connect(m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
-            qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << m_output;
-            delete m_recordThread;
-            m_lastRecordThreadFinished = true;
+        connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
+            qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << d->m_output;
+            delete d->m_recordThread;
+            d->m_lastRecordThreadFinished = true;
             Q_EMIT recordingChanged(isRecording());
         });
-        m_lastRecordThreadFinished = false;
-        m_recordThread = nullptr;
+        d->m_lastRecordThreadFinished = false;
+        d->m_recordThread = nullptr;
     }
     Q_EMIT recordingChanged(isRecording());
 }
@@ -447,7 +448,8 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 
     static int i = 0;
     ++i;
-    qCDebug(PIPEWIRERECORD_LOGGING) << "sending frame" << i << av_ts2str(m_frame->m_avFrame->pts) << "fps: " << double(i * 1000) / double(m_frame->m_avFrame->pts);
+    qCDebug(PIPEWIRERECORD_LOGGING) << "sending frame" << i << av_ts2str(m_frame->m_avFrame->pts)
+                                    << "fps: " << double(i * 1000) / double(m_frame->m_avFrame->pts);
     int ret = avcodec_send_frame(m_avCodecContext, m_frame->m_avFrame);
     qCDebug(PIPEWIRERECORD_LOGGING) << "sent frames" << i << av_ts2str(m_frame->m_avFrame->pts) << t.elapsed();
     if (ret < 0) {
@@ -461,14 +463,41 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
 {
     AVRational *time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
 
-    qCDebug(PIPEWIRERECORD_LOGGING, "pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s stream_index:%d",
-           av_ts2str(pkt->pts),
-           av_ts2timestr(pkt->pts, time_base),
-           av_ts2str(pkt->dts),
-           av_ts2timestr(pkt->dts, time_base),
-           av_ts2str(pkt->duration),
-           av_ts2timestr(pkt->duration, time_base),
-           pkt->stream_index);
+    qCDebug(PIPEWIRERECORD_LOGGING,
+            "pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s "
+            "stream_index:%d",
+            av_ts2str(pkt->pts),
+            av_ts2timestr(pkt->pts, time_base),
+            av_ts2str(pkt->dts),
+            av_ts2timestr(pkt->dts, time_base),
+            av_ts2str(pkt->duration),
+            av_ts2timestr(pkt->duration, time_base),
+            pkt->stream_index);
+}
+
+void PipeWireRecord::setEncoder(const QByteArray &encoder)
+{
+    d->m_encoder = encoder;
+}
+
+QString PipeWireRecord::output() const
+{
+    return d->m_output;
+}
+
+bool PipeWireRecord::isActive() const
+{
+    return d->m_active;
+}
+
+bool PipeWireRecord::isRecording() const
+{
+    return d->m_recordThread || !d->m_lastRecordThreadFinished;
+}
+
+uint PipeWireRecord::nodeId() const
+{
+    return d->m_nodeId;
 }
 
 PipeWireRecordWriteThread::PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext)

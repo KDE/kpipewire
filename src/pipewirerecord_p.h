@@ -103,3 +103,12 @@ private:
     PipeWireRecordProduce *m_producer = nullptr;
     const QByteArray m_encoder;
 };
+
+struct PipeWireRecordPrivate {
+    uint m_nodeId = 0;
+    bool m_active = false;
+    QString m_output;
+    PipeWireRecordProduceThread *m_recordThread = nullptr;
+    bool m_lastRecordThreadFinished = true;
+    QByteArray m_encoder;
+};
