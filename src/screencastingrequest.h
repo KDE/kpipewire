@@ -12,6 +12,7 @@
 #include <kpipewire_export.h>
 
 class ScreencastingStream;
+struct ScreencastingRequestPrivate;
 
 /**
  * Allows us to request a stream for a window identified by its universally
@@ -61,7 +62,5 @@ private:
     void adopt(ScreencastingStream *stream);
     void setNodeid(uint nodeId);
 
-    QString m_uuid;
-    QString m_outputName;
-    quint32 m_nodeId = 0;
+    QScopedPointer<ScreencastingRequestPrivate> d;
 };
