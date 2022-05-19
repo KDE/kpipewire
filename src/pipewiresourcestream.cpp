@@ -348,7 +348,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
     }
 
     struct spa_meta_header *h = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*h));
-    if (h && h->pts) {
+    if (h) {
         d->m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
     } else {
         using namespace std::chrono;
