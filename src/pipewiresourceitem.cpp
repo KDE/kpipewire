@@ -6,7 +6,9 @@
 */
 
 #include "pipewiresourceitem.h"
+#include "logging.h"
 #include "pipewiresourcestream.h"
+
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QOpenGLTexture>
@@ -21,7 +23,9 @@
 #include <EGL/eglext.h>
 #include <libdrm/drm_fourcc.h>
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QtPlatformHeaders/QEGLNativeContext>
+#endif
 
 static void pwInit()
 {
@@ -59,6 +63,7 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     setFlag(ItemHasContents, true);
 
     connect(this, &QQuickItem::visibleChanged, this, [this]() {
+        setEnabled(isVisible());
         if (m_stream)
             m_stream->setActive(isVisible());
     });
@@ -72,8 +77,13 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
 {
     switch (change) {
     case ItemVisibleHasChanged:
+        setEnabled(isVisible());
         if (m_stream)
             m_stream->setActive(isVisible() && data.boolValue && isComponentComplete());
+        break;
+    case ItemSceneChange:
+        m_needsRecreateTexture = true;
+        releaseResources();
         break;
     default:
         break;
@@ -94,6 +104,7 @@ void PipeWireSourceItem::setNodeId(uint nodeId)
         return;
 
     m_nodeId = nodeId;
+    setEnabled(false);
 
     if (m_nodeId == 0) {
         m_stream.reset(nullptr);
@@ -201,7 +212,7 @@ static EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &plan
 
     EGLImage ret = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
     if (ret == EGL_NO_IMAGE_KHR) {
-        qWarning() << "invalid image" << glGetError();
+        qCWarning(PIPEWIRE_LOGGING) << "invalid image" << glGetError();
     }
     //     Q_ASSERT(ret);
     return ret;
@@ -209,14 +220,18 @@ static EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &plan
 
 void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes, uint32_t format)
 {
-    Q_ASSERT(!planes.isEmpty());
     static auto s_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
     if (!s_glEGLImageTargetTexture2DOES) {
-        qWarning() << "glEGLImageTargetTexture2DOES is not available" << window();
+        qCWarning(PIPEWIRE_LOGGING) << "glEGLImageTargetTexture2DOES is not available" << window();
         return;
     }
-    if (!window() || !window()->openglContext() || !m_stream) {
-        qWarning() << "need a window and a context" << window();
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    const auto openglContext = window()->openglContext();
+#else
+    const auto openglContext = static_cast<QOpenGLContext *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::OpenGLContextResource));
+#endif
+    if (!window() || !openglContext || !m_stream) {
+        qCWarning(PIPEWIRE_LOGGING) << "need a window and a context" << window();
         return;
     }
 
@@ -253,7 +268,13 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
 
         int textureId = m_texture->textureId();
         QQuickWindow::CreateTextureOption textureOption = format == DRM_FORMAT_ARGB8888 ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
+        setEnabled(true);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         return window()->createTextureFromNativeObject(QQuickWindow::NativeObjectTexture, &textureId, 0 /*a vulkan thing?*/, size, textureOption);
+#else
+        return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
+#endif
+        ;
     };
     if (window()->isVisible()) {
         update();
@@ -263,11 +284,12 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
 void PipeWireSourceItem::updateTextureImage(const QImage &image)
 {
     if (!window()) {
-        qWarning() << "pass";
+        qCWarning(PIPEWIRE_LOGGING) << "pass";
         return;
     }
 
     m_createNextTexture = [this, image] {
+        setEnabled(true);
         return window()->createTextureFromImage(image, QQuickWindow::TextureIsOpaque);
     };
     if (window()->isVisible())
