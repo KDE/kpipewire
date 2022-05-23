@@ -61,7 +61,7 @@ private:
     friend class PipeWireRecordProduceThread;
     void setupEGL();
     void setupStream();
-    void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t format);
+    void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format);
     void updateTextureImage(const QImage &image);
 
     AVCodecContext *m_avCodecContext = nullptr;

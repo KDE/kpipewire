@@ -59,13 +59,17 @@ struct PipeWireSourceStreamPrivate
     spa_video_info_raw videoFormat;
     QString m_error;
     bool m_allowDmaBuf = true;
+
+    QHash<spa_video_format, QVector<uint64_t>> m_availableModifiers;
+    spa_source *m_renegotiateEvent = nullptr;
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
 static const QVersionNumber kDmaBufMinVersion = {0, 3, 24};
 static const QVersionNumber kDmaBufModifierMinVersion = {0, 3, 33};
+static const QVersionNumber kDropSingleModifierMinVersion = {0, 3, 40};
 
-static uint32_t SpaPixelFormatToDrmFormat(uint32_t spa_format)
+uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_format)
 {
     switch (spa_format) {
     case SPA_VIDEO_FORMAT_RGBA:
@@ -76,22 +80,27 @@ static uint32_t SpaPixelFormatToDrmFormat(uint32_t spa_format)
         return DRM_FORMAT_ARGB8888;
     case SPA_VIDEO_FORMAT_BGRx:
         return DRM_FORMAT_XRGB8888;
+    case SPA_VIDEO_FORMAT_BGR:
+        return DRM_FORMAT_BGR888;
+    case SPA_VIDEO_FORMAT_RGB:
+        return DRM_FORMAT_RGB888;
     default:
+        qDebug() << "unknown format" << spa_format;
         return DRM_FORMAT_INVALID;
     }
 }
 
 Q_GLOBAL_STATIC_WITH_ARGS(bool, hasEglImageDmaBufImportExt, (GLHelpers::hasEglExtension("EGL_EXT_image_dma_buf_import")))
 
-static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t format)
+static QVector<uint64_t> queryDmaBufModifiers(EGLDisplay display, spa_video_format format)
 {
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
     static auto eglQueryDmaBufFormatsEXT = (PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress("eglQueryDmaBufFormatsEXT");
     if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT) {
-        return hasEglImageDmaBufImportExt ? std::vector<uint64_t>{DRM_FORMAT_MOD_INVALID} : std::vector<uint64_t>{};
+        return hasEglImageDmaBufImportExt ? QVector<uint64_t>{DRM_FORMAT_MOD_INVALID} : QVector<uint64_t>{};
     }
 
-    uint32_t drm_format = SpaPixelFormatToDrmFormat(format);
+    uint32_t drm_format = PipeWireSourceStream::spaVideoFormatToDrmFormat(format);
     if (drm_format == DRM_FORMAT_INVALID) {
         qCDebug(PIPEWIRE_LOGGING) << "Failed to find matching DRM format." << format;
         return {DRM_FORMAT_MOD_INVALID};
@@ -105,7 +114,7 @@ static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t f
         return {DRM_FORMAT_MOD_INVALID};
     }
 
-    std::vector<uint32_t> formats(count);
+    QVector<uint32_t> formats(count);
     if (!eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(formats.data()), &count)) {
         if (!success)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
@@ -123,7 +132,7 @@ static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t f
         return {DRM_FORMAT_MOD_INVALID};
     }
 
-    std::vector<uint64_t> modifiers(count);
+    QVector<uint64_t> modifiers(count);
     if (count > 0) {
         if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, modifiers.data(), nullptr, &count)) {
             qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifiers.";
@@ -160,7 +169,25 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
     }
 }
 
-static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, const std::vector<uint64_t> &modifiers, bool withDontFixate)
+void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
+{
+    PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
+    QVector<const spa_pod *> params = pw->createFormatsParams();
+    pw_stream_update_params(pw->d->pwStream, params.data(), params.size());
+}
+
+void PipeWireSourceStream::renegotiateModifierFailed(spa_video_format format, quint64 modifier)
+{
+    if (d->pwCore->serverVersion() >= kDropSingleModifierMinVersion) {
+        d->m_availableModifiers[format].removeAll(modifier);
+    } else {
+        d->m_allowDmaBuf = false;
+    }
+    qCDebug(PIPEWIRE_LOGGING) << "renegotiating, modifier didn't work" << format << modifier << "now only offering" << d->m_availableModifiers[format].count();
+    pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
+}
+
+static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, const QVector<uint64_t> &modifiers, bool withDontFixate)
 {
     spa_pod_frame f[2];
     const spa_rectangle pw_min_screen_bounds{1, 1};
@@ -170,8 +197,13 @@ static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, c
     spa_pod_builder_add(builder, SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video), 0);
     spa_pod_builder_add(builder, SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw), 0);
     spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_format, SPA_POD_Id(format), 0);
+    spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_size, SPA_POD_CHOICE_RANGE_Rectangle(&pw_min_screen_bounds, &pw_min_screen_bounds, &pw_max_screen_bounds), 0);
 
-    if (modifiers.size()) {
+    if (modifiers.size() == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
+        // we only support implicit modifiers, use shortpath to skip fixation phase
+        spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY);
+        spa_pod_builder_long(builder, modifiers[0]);
+    } else if (modifiers.size()) {
         // SPA_POD_PROP_FLAG_DONT_FIXATE can be used with PipeWire >= 0.3.33
         if (withDontFixate) {
             spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY | SPA_POD_PROP_FLAG_DONT_FIXATE);
@@ -189,8 +221,6 @@ static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, c
         spa_pod_builder_pop(builder, &f[1]);
     }
 
-    spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_size, SPA_POD_CHOICE_RANGE_Rectangle(&pw_min_screen_bounds, &pw_min_screen_bounds, &pw_max_screen_bounds), 0);
-
     return static_cast<spa_pod *>(spa_pod_builder_pop(builder, &f[0]));
 }
 
@@ -203,15 +233,12 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
     spa_format_video_raw_parse(format, &pw->d->videoFormat);
 
-    const int32_t width = pw->d->videoFormat.size.width;
-    const int32_t height = pw->d->videoFormat.size.height;
-    const int bpp = pw->d->videoFormat.format == SPA_VIDEO_FORMAT_RGB || pw->d->videoFormat.format == SPA_VIDEO_FORMAT_BGR ? 3 : 4;
-    const quint32 stride = SPA_ROUND_UP_N(width * bpp, 4);
-    qCDebug(PIPEWIRE_LOGGING) << "Stream format changed";
-    const int32_t size = height * stride;
-
     uint8_t paramsBuffer[1024];
     spa_pod_builder pod_builder = SPA_POD_BUILDER_INIT(paramsBuffer, sizeof(paramsBuffer));
+
+    // When SPA_FORMAT_VIDEO_modifier is present we can use DMA-BUFs as
+    // the server announces support for it.
+    // See https://github.com/PipeWire/pipewire/blob/master/doc/dma-buf.dox
 
     const auto bufferTypes = pw->d->m_allowDmaBuf && spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier)
         ? (1 << SPA_DATA_DmaBuf) | (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr)
@@ -223,12 +250,6 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
                                               SPA_PARAM_Buffers,
                                               SPA_PARAM_BUFFERS_buffers,
                                               SPA_POD_CHOICE_RANGE_Int(16, 2, 16),
-                                              SPA_PARAM_BUFFERS_blocks,
-                                              SPA_POD_Int(1),
-                                              SPA_PARAM_BUFFERS_size,
-                                              SPA_POD_Int(size),
-                                              SPA_PARAM_BUFFERS_stride,
-                                              SPA_POD_CHOICE_RANGE_Int(stride, stride, INT32_MAX),
                                               SPA_PARAM_BUFFERS_align,
                                               SPA_POD_Int(16),
                                               SPA_PARAM_BUFFERS_dataType,
@@ -282,6 +303,9 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
 PipeWireSourceStream::~PipeWireSourceStream()
 {
     d->m_stopped = true;
+    if (d->m_renegotiateEvent) {
+        pw_loop_destroy_source(d->pwCore->loop(), d->m_renegotiateEvent);
+    }
     if (d->pwStream) {
         pw_stream_destroy(d->pwStream);
     }
@@ -301,8 +325,39 @@ uint PipeWireSourceStream::nodeId()
     return d->pwNodeId;
 }
 
+QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams()
+{
+    const auto pwServerVersion = d->pwCore->serverVersion();
+    uint8_t buffer[4096];
+    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    const QVector<spa_video_format> formats =
+        {SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_RGBA, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGB, SPA_VIDEO_FORMAT_BGR};
+    QVector<const spa_pod *> params;
+    params.reserve(formats.size() * 2);
+    const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+
+    d->m_allowDmaBuf = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion);
+    const bool withDontFixate = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion);
+
+    if (d->m_availableModifiers.isEmpty()) {
+        for (spa_video_format format : formats) {
+            d->m_availableModifiers[format] = queryDmaBufModifiers(display, format);
+        }
+    }
+
+    for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
+        if (d->m_allowDmaBuf && !it->isEmpty()) {
+            params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate);
+        }
+
+        params += buildFormat(&podBuilder, it.key(), {}, withDontFixate);
+    }
+    return params;
+}
+
 bool PipeWireSourceStream::createStream(uint nodeid, int fd)
 {
+    d->m_availableModifiers.clear();
     d->pwCore = PipeWireCore::fetch(fd);
     if (!d->pwCore->error().isEmpty()) {
         qCDebug(PIPEWIRE_LOGGING) << "received error while creating the stream" << d->pwCore->error();
@@ -319,30 +374,11 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
     const auto pwServerVersion = d->pwCore->serverVersion();
     d->pwStream = pw_stream_new(**d->pwCore, objectName().toUtf8().constData(), nullptr);
     d->pwNodeId = nodeid;
-    d->m_allowDmaBuf = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion);
     pw_stream_add_listener(d->pwStream, &d->streamListener, &pwStreamEvents, this);
 
-    uint8_t buffer[4096];
-    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    d->m_renegotiateEvent = pw_loop_add_event(d->pwCore->loop(), onRenegotiate, this);
 
-    const QVector<spa_video_format> formats =
-        {SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_RGBA, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGB, SPA_VIDEO_FORMAT_BGR};
-    QVector<const spa_pod *> params;
-    params.reserve(formats.size() * 2);
-    const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-
-    const bool withDontFixate = pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion;
-
-    for (spa_video_format format : formats) {
-        if (d->m_allowDmaBuf) {
-            if (auto modifiers = queryDmaBufModifiers(display, format); modifiers.size() > 0) {
-                params += buildFormat(&podBuilder, format, modifiers, withDontFixate);
-            }
-        }
-
-        params += buildFormat(&podBuilder, format, {}, withDontFixate);
-    }
-
+    QVector<const spa_pod *> params = createFormatsParams();
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
     if (pw_stream_connect(d->pwStream, PW_DIRECTION_INPUT, d->pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
@@ -357,10 +393,6 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
 void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 {
     spa_buffer *spaBuffer = buffer->buffer;
-
-    if (spaBuffer->datas->chunk->size == 0) {
-        return;
-    }
 
     struct spa_meta_header *h = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*h));
     if (h) {
@@ -398,11 +430,11 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             plane.fd = data.fd;
             plane.stride = data.chunk->stride;
             plane.offset = data.chunk->offset;
-            plane.modifier = DRM_FORMAT_MOD_INVALID;
+            plane.modifier = d->videoFormat.modifier;
             planes += plane;
         }
         Q_ASSERT(!planes.isEmpty());
-        Q_EMIT dmabufTextureReceived(planes, DRM_FORMAT_ARGB8888);
+        Q_EMIT dmabufTextureReceived(planes, d->videoFormat.format);
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
         QImage img(static_cast<uint8_t *>(spaBuffer->datas->data),
                    d->videoFormat.size.width,
@@ -411,7 +443,10 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
                    QImage::Format_ARGB32);
         Q_EMIT imageTextureReceived(img);
     } else {
-        qWarning() << "unsupported buffer type" << spaBuffer->datas->type;
+        if (spaBuffer->datas->type == SPA_ID_INVALID)
+            qWarning() << "invalid buffer type";
+        else
+            qWarning() << "unsupported buffer type" << spaBuffer->datas->type;
         QImage errorImage(200, 200, QImage::Format_ARGB32_Premultiplied);
         errorImage.fill(Qt::red);
         Q_EMIT imageTextureReceived(errorImage);

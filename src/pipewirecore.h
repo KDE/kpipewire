@@ -29,6 +29,11 @@ public:
         return m_serverVersion;
     }
 
+    pw_loop *loop() const
+    {
+        return m_pwMainLoop;
+    }
+
     pw_core *operator*() const { return m_pwCore; };
     static QSharedPointer<PipeWireCore> fetch(int fd);
 

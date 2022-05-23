@@ -179,7 +179,7 @@ QString PipeWireSourceItem::error() const
     return m_stream->error();
 }
 
-void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes, uint32_t format)
+void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes, spa_video_format format)
 {
     static auto s_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
     if (!s_glEGLImageTargetTexture2DOES) {
@@ -208,11 +208,9 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
     }
 
     const auto size = m_stream->size();
-    m_image = GLHelpers::createImage(display, planes, format, size);
+    m_image = GLHelpers::createImage(display, planes, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
     if (m_image == EGL_NO_IMAGE_KHR) {
-        QImage img(200, 200, QImage::Format_ARGB32_Premultiplied);
-        img.fill(Qt::blue);
-        updateTextureImage(img);
+        m_stream->renegotiateModifierFailed(format, planes.constFirst().modifier);
         return;
     }
 
@@ -234,14 +232,14 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         m_texture->setSize(size.width(), size.height());
 
         int textureId = m_texture->textureId();
-        QQuickWindow::CreateTextureOption textureOption = format == DRM_FORMAT_ARGB8888 ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
+        QQuickWindow::CreateTextureOption textureOption =
+            format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
         setEnabled(true);
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         return window()->createTextureFromNativeObject(QQuickWindow::NativeObjectTexture, &textureId, 0 /*a vulkan thing?*/, size, textureOption);
 #else
         return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
 #endif
-        ;
     };
     if (window()->isVisible()) {
         update();

@@ -426,7 +426,7 @@ void PipeWireRecord::refresh()
     Q_EMIT stateChanged();
 }
 
-void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t format)
+void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format)
 {
     Q_ASSERT(qGuiApp->thread() != QThread::currentThread());
     const QSize streamSize = m_stream->size();
@@ -434,10 +434,11 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     // bind context to render thread
     eglMakeCurrent(m_egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_egl.context);
 
-    EGLImageKHR image = GLHelpers::createImage(m_egl.display, plane, format, m_stream->size());
+    EGLImageKHR image = GLHelpers::createImage(m_egl.display, plane, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), m_stream->size());
 
     if (image == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
+        m_stream->renegotiateModifierFailed(format, plane.constFirst().modifier);
         return;
     }
 

@@ -57,7 +57,7 @@ Q_SIGNALS:
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
-    void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t format);
+    void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format);
     void updateTextureImage(const QImage &image);
     void refresh();
 

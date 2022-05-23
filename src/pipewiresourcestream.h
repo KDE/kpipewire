@@ -48,9 +48,6 @@ public:
     explicit PipeWireSourceStream(QObject *parent);
     ~PipeWireSourceStream();
 
-    static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
-    static void onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message);
-
     Fraction framerate() const;
     uint nodeId();
     QString error() const;
@@ -61,19 +58,26 @@ public:
 
     void handleFrame(struct pw_buffer *buffer);
     void process();
+    void renegotiateModifierFailed(spa_video_format format, quint64 modifier);
 
-    bool setAllowDmaBuf(bool allowed);
     std::optional<std::chrono::nanoseconds> currentPresentationTimestamp() const;
+
+    static uint32_t spaVideoFormatToDrmFormat(spa_video_format spa_format);
 
 Q_SIGNALS:
     void streamReady();
     void startStreaming();
     void stopStreaming();
     void streamParametersChanged();
-    void dmabufTextureReceived(const QVector<DmaBufPlane> &planes, uint32_t format);
+    void dmabufTextureReceived(const QVector<DmaBufPlane> &planes, spa_video_format format);
     void imageTextureReceived(const QImage &image);
 
 private:
+    static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
+    static void onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message);
+    static void onRenegotiate(void *data, uint64_t);
+    QVector<const spa_pod *> createFormatsParams();
+
     void coreFailed(const QString &errorMessage);
     QScopedPointer<PipeWireSourceStreamPrivate> d;
 };
