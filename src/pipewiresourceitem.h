@@ -28,6 +28,7 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
     Q_OBJECT
     /// Specify the pipewire node id that we want to play
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
+    Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
 public:
     PipeWireSourceItem(QQuickItem *parent = nullptr);
     ~PipeWireSourceItem() override;
@@ -41,18 +42,27 @@ public:
         return m_nodeId;
     }
 
+    void setFd(uint fd);
+    uint fd() const
+    {
+        return m_fd;
+    }
+
     void componentComplete() override;
     void releaseResources() override;
 
 Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
+    void fdChanged(uint fd);
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
     void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t format);
     void updateTextureImage(const QImage &image);
+    void refresh();
 
     uint m_nodeId = 0;
+    uint m_fd = 0;
     std::function<QSGTexture *()> m_createNextTexture;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QScopedPointer<QOpenGLTexture> m_texture;

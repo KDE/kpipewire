@@ -22,7 +22,7 @@ public:
 
     ~PipeWireCore();
 
-    bool init();
+    bool init(int fd);
     QString error() const;
     QVersionNumber serverVersion() const
     {
@@ -30,7 +30,7 @@ public:
     }
 
     pw_core *operator*() const { return m_pwCore; };
-    static QSharedPointer<PipeWireCore> self();
+    static QSharedPointer<PipeWireCore> fetch(int fd);
 
 private:
     pw_core *m_pwCore = nullptr;

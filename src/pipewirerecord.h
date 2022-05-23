@@ -20,6 +20,7 @@ class KPIPEWIRE_EXPORT PipeWireRecord : public QObject
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
+    Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
 public:
     PipeWireRecord(QObject *parent = nullptr);
     ~PipeWireRecord() override;
@@ -33,6 +34,9 @@ public:
 
     void setNodeId(uint nodeId);
     uint nodeId() const;
+
+    void setFd(uint fd);
+    uint fd() const;
 
     bool isActive() const;
     void setActive(bool active);
@@ -52,6 +56,7 @@ public:
 Q_SIGNALS:
     void activeChanged(bool active);
     void nodeIdChanged(uint nodeId);
+    void fdChanged(uint fd);
     void outputChanged(const QString &output);
     void stateChanged();
 

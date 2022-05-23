@@ -302,9 +302,9 @@ uint PipeWireSourceStream::nodeId()
     return d->pwNodeId;
 }
 
-bool PipeWireSourceStream::createStream(uint nodeid)
+bool PipeWireSourceStream::createStream(uint nodeid, int fd)
 {
-    d->pwCore = PipeWireCore::self();
+    d->pwCore = PipeWireCore::fetch(fd);
     if (!d->pwCore->error().isEmpty()) {
         qDebug() << "received error while creating the stream" << d->pwCore->error();
         d->m_error = d->pwCore->error();

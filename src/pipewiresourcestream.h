@@ -61,7 +61,7 @@ public:
     QString error() const;
 
     QSize size() const;
-    bool createStream(uint nodeid);
+    bool createStream(uint nodeid, int fd);
     void setActive(bool active);
 
     void handleFrame(struct pw_buffer *buffer);

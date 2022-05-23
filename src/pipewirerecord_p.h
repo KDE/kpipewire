@@ -48,7 +48,7 @@ private:
 class PipeWireRecordProduce : public QObject
 {
 public:
-    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, const QString &output);
+    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
     ~PipeWireRecordProduce() override;
 
     void finish();
@@ -87,8 +87,9 @@ private:
 class PipeWireRecordProduceThread : public QThread
 {
 public:
-    PipeWireRecordProduceThread(const QByteArray &encoder, uint nodeId, const QString &output)
+    PipeWireRecordProduceThread(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
         : m_nodeId(nodeId)
+        , m_fd(fd)
         , m_output(output)
         , m_encoder(encoder)
     {
@@ -98,6 +99,7 @@ public:
 
 private:
     const uint m_nodeId;
+    const uint m_fd;
     const QString m_output;
     PipeWireRecordProduce *m_producer = nullptr;
     const QByteArray m_encoder;
@@ -105,6 +107,7 @@ private:
 
 struct PipeWireRecordPrivate {
     uint m_nodeId = 0;
+    uint m_fd = 0;
     bool m_active = false;
     QString m_output;
     PipeWireRecordProduceThread *m_recordThread = nullptr;

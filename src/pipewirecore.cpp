@@ -62,7 +62,7 @@ PipeWireCore::~PipeWireCore()
     }
 }
 
-bool PipeWireCore::init()
+bool PipeWireCore::init(int fd)
 {
     m_pwMainLoop = pw_loop_new(nullptr);
     pw_loop_enter(m_pwMainLoop);
@@ -81,7 +81,11 @@ bool PipeWireCore::init()
         return false;
     }
 
-    m_pwCore = pw_context_connect(m_pwContext, nullptr, 0);
+    if (fd > 0) {
+        m_pwCore = pw_context_connect_fd(m_pwContext, fd, nullptr, 0);
+    } else {
+        m_pwCore = pw_context_connect(m_pwContext, nullptr, 0);
+    }
     if (!m_pwCore) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to connect PipeWire context";
         m_error = i18n("Failed to connect PipeWire context");
@@ -98,14 +102,14 @@ bool PipeWireCore::init()
     return true;
 }
 
-QSharedPointer<PipeWireCore> PipeWireCore::self()
+QSharedPointer<PipeWireCore> PipeWireCore::fetch(int fd)
 {
-    static QThreadStorage<QWeakPointer<PipeWireCore>> global;
-    QSharedPointer<PipeWireCore> ret = global.localData().toStrongRef();
+    static QThreadStorage<QHash<int, QWeakPointer<PipeWireCore>>> global;
+    QSharedPointer<PipeWireCore> ret = global.localData().value(fd).toStrongRef();
     if (!ret) {
         ret.reset(new PipeWireCore);
-        if (ret->init()) {
-            global.setLocalData(ret);
+        if (ret->init(fd)) {
+            global.localData().insert(fd, ret);
         }
     }
     return ret;

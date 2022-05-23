@@ -98,12 +98,18 @@ void PipeWireSourceItem::releaseResources()
     }
 }
 
-void PipeWireSourceItem::setNodeId(uint nodeId)
+void PipeWireSourceItem::setFd(uint fd)
 {
-    if (nodeId == m_nodeId)
+    if (fd == m_fd)
         return;
 
-    m_nodeId = nodeId;
+    m_fd = fd;
+    refresh();
+    Q_EMIT fdChanged(fd);
+}
+
+void PipeWireSourceItem::refresh()
+{
     setEnabled(false);
 
     if (m_nodeId == 0) {
@@ -113,7 +119,7 @@ void PipeWireSourceItem::setNodeId(uint nodeId)
         };
     } else {
         m_stream.reset(new PipeWireSourceStream(this));
-        m_stream->createStream(m_nodeId);
+        m_stream->createStream(m_nodeId, m_fd);
         if (!m_stream->error().isEmpty()) {
             m_stream.reset(nullptr);
             m_nodeId = 0;
@@ -124,7 +130,15 @@ void PipeWireSourceItem::setNodeId(uint nodeId)
         connect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireSourceItem::updateTextureDmaBuf);
         connect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireSourceItem::updateTextureImage);
     }
+}
 
+void PipeWireSourceItem::setNodeId(uint nodeId)
+{
+    if (nodeId == m_nodeId)
+        return;
+
+    m_nodeId = nodeId;
+    refresh();
     Q_EMIT nodeIdChanged(nodeId);
 }
 

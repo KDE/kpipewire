@@ -95,6 +95,16 @@ void PipeWireRecord::setNodeId(uint nodeId)
     Q_EMIT nodeIdChanged(nodeId);
 }
 
+void PipeWireRecord::setFd(uint fd)
+{
+    if (fd == d->m_fd)
+        return;
+
+    d->m_fd = fd;
+    refresh();
+    Q_EMIT fdChanged(fd);
+}
+
 void PipeWireRecord::setActive(bool active)
 {
     if (d->m_active == active)
@@ -208,7 +218,7 @@ void PipeWireRecordProduce::setupEGL()
     m_eglInitialized = true;
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, const QString &output)
+PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
     : QObject()
     , m_output(output)
     , m_nodeId(nodeId)
@@ -217,7 +227,7 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
     setupEGL();
 
     m_stream.reset(new PipeWireSourceStream(nullptr));
-    bool created = m_stream->createStream(m_nodeId);
+    bool created = m_stream->createStream(m_nodeId, fd);
     if (!created || !m_stream->error().isEmpty()) {
         qWarning() << "failed to set up stream for" << m_nodeId << m_stream->error();
         m_stream.reset(nullptr);
@@ -234,7 +244,7 @@ PipeWireRecordProduce::~PipeWireRecordProduce() noexcept
 
 void PipeWireRecordProduceThread::run()
 {
-    PipeWireRecordProduce produce(m_encoder, m_nodeId, m_output);
+    PipeWireRecordProduce produce(m_encoder, m_nodeId, m_fd, m_output);
     if (!produce.m_stream) {
         return;
     }
@@ -356,7 +366,7 @@ void PipeWireRecordProduce::setupStream()
 void PipeWireRecord::refresh()
 {
     if (!d->m_output.isEmpty() && d->m_active && d->m_nodeId > 0) {
-        d->m_recordThread = new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_output);
+        d->m_recordThread = new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd, d->m_output);
         connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
         });
@@ -509,6 +519,11 @@ bool PipeWireRecord::isActive() const
 uint PipeWireRecord::nodeId() const
 {
     return d->m_nodeId;
+}
+
+uint PipeWireRecord::fd() const
+{
+    return d->m_fd;
 }
 
 PipeWireRecordWriteThread::PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext)
