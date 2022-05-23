@@ -161,7 +161,7 @@ void PipeWireRecordProduce::setupEGL()
     }
 
     m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
-    if (!m_egl.display) {
+    if (m_egl.display == EGL_NO_DISPLAY) {
         const QByteArray renderNode = fetchRenderNode();
         m_drmFd = open(renderNode, O_RDWR);
 
