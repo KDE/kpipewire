@@ -68,7 +68,6 @@ private:
     QScopedPointer<PipeWireSourceStream> m_stream;
 
     struct EGLStruct {
-        QList<QByteArray> extensions;
         EGLDisplay display = EGL_NO_DISPLAY;
         EGLContext context = EGL_NO_CONTEXT;
     };

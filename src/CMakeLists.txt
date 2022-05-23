@@ -38,12 +38,13 @@ add_library(KPipeWire
     pipewiresourcestream.cpp
     screencasting.cpp
     screencastingrequest.cpp
+    glhelpers.cpp
     ${kpipewire_SRCS}
 )
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
     Wayland::Client KF5::WaylandClient Qt5::Gui_EGL KF5::CoreAddons
-    PkgConfig::PipeWire Qt::WaylandClient)
+    PkgConfig::PipeWire Qt::WaylandClient epoxy::epoxy)
 
 if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GLESv2)
@@ -74,10 +75,10 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
-add_library(KPipeWireRecord pipewirerecord.cpp ${kpipewirerecord_SRCS})
+add_library(KPipeWireRecord pipewirerecord.cpp glhelpers.cpp ${kpipewirerecord_SRCS})
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF5::CoreAddons
-    PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale epoxy::epoxy # PipeWireRecord
+    PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale epoxy::epoxy
 )
 
 ecm_generate_headers(KPipeWireRecord_HEADERS

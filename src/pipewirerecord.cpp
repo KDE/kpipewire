@@ -5,11 +5,12 @@
 */
 
 #include "pipewirerecord.h"
+#include "glhelpers.h"
 #include "pipewirerecord_p.h"
 #include "pipewiresourcestream.h"
-#include <logging_record.h>
 #include <epoxy/egl.h>
 #include <epoxy/gl.h>
+#include <logging_record.h>
 
 #include <QDateTime>
 #include <QDebug>
@@ -33,28 +34,6 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libavutil/timestamp.h>
 #include <libswscale/swscale.h>
-}
-
-QByteArray formatGLError(GLenum err)
-{
-    switch (err) {
-    case GL_NO_ERROR:
-        return "GL_NO_ERROR";
-    case GL_INVALID_ENUM:
-        return "GL_INVALID_ENUM";
-    case GL_INVALID_VALUE:
-        return "GL_INVALID_VALUE";
-    case GL_INVALID_OPERATION:
-        return "GL_INVALID_OPERATION";
-    case GL_STACK_OVERFLOW:
-        return "GL_STACK_OVERFLOW";
-    case GL_STACK_UNDERFLOW:
-        return "GL_STACK_UNDERFLOW";
-    case GL_OUT_OF_MEMORY:
-        return "GL_OUT_OF_MEMORY";
-    default:
-        return QByteArray("0x") + QByteArray::number(err, 16);
-    }
 }
 
 class CustomAVFrame
@@ -156,21 +135,11 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    // Get the list of client extensions
-    const char *clientExtensionsCString = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
-    const QByteArray clientExtensionsString = QByteArray::fromRawData(clientExtensionsCString, qstrlen(clientExtensionsCString));
-    if (clientExtensionsString.isEmpty()) {
-        // If eglQueryString() returned NULL, the implementation doesn't support
-        // EGL_EXT_client_extensions. Expect an EGL_BAD_DISPLAY error.
-        qWarning() << "No client extensions defined! " << formatGLError(eglGetError());
-        return;
-    }
-
-    m_egl.extensions = clientExtensionsString.split(' ');
+    const QList<QByteArray> extensions = GLHelpers::eglExtensions();
 
     // Use eglGetPlatformDisplayEXT() to get the display pointer
     // if the implementation supports it.
-    if (!m_egl.extensions.contains(QByteArrayLiteral("EGL_EXT_platform_base")) || !m_egl.extensions.contains(QByteArrayLiteral("EGL_MESA_platform_gbm"))) {
+    if (!extensions.contains(QByteArrayLiteral("EGL_EXT_platform_base")) || !extensions.contains(QByteArrayLiteral("EGL_MESA_platform_gbm"))) {
         qWarning() << "One of required EGL extensions is missing";
         return;
     }
@@ -178,13 +147,13 @@ void PipeWireRecordProduce::setupEGL()
     m_egl.display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, m_gbmDevice, nullptr);
 
     if (m_egl.display == EGL_NO_DISPLAY) {
-        qWarning() << "Error during obtaining EGL display: " << formatGLError(eglGetError());
+        qWarning() << "Error during obtaining EGL display: " << GLHelpers::formatGLError(eglGetError());
         return;
     }
 
     EGLint major, minor;
     if (eglInitialize(m_egl.display, &major, &minor) == EGL_FALSE) {
-        qWarning() << "Error during eglInitialize: " << formatGLError(eglGetError());
+        qWarning() << "Error during eglInitialize: " << GLHelpers::formatGLError(eglGetError());
         return;
     }
 
@@ -196,7 +165,7 @@ void PipeWireRecordProduce::setupEGL()
     m_egl.context = eglCreateContext(m_egl.display, nullptr, EGL_NO_CONTEXT, nullptr);
 
     if (m_egl.context == EGL_NO_CONTEXT) {
-        qWarning() << "Couldn't create EGL context: " << formatGLError(eglGetError());
+        qWarning() << "Couldn't create EGL context: " << GLHelpers::formatGLError(eglGetError());
         return;
     }
 
@@ -389,7 +358,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     EGLImageKHR image = eglCreateImageKHR(m_egl.display, nullptr, EGL_NATIVE_PIXMAP_KHR, imported, nullptr);
 
     if (image == EGL_NO_IMAGE_KHR) {
-        qWarning() << "Failed to record frame: Error creating EGLImageKHR - " << formatGLError(glGetError());
+        qWarning() << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
         gbm_bo_destroy(imported);
         return;
     }
