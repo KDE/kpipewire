@@ -52,7 +52,7 @@ else()
 endif()
 
 target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
-                                     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+                                     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>" ${PipeWire_INCLUDE_DIRS}
                                      INTERFACE "$<INSTALL_INTERFACE:${KDE_INSTALL_INCLUDEDIR}/KPipeWire>")
 
 ecm_generate_export_header(KPipeWire
