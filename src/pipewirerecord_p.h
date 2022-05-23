@@ -111,6 +111,6 @@ struct PipeWireRecordPrivate {
     bool m_active = false;
     QString m_output;
     PipeWireRecordProduceThread *m_recordThread = nullptr;
-    bool m_lastRecordThreadFinished = true;
+    bool m_produceThreadFinished = true;
     QByteArray m_encoder;
 };

@@ -79,7 +79,7 @@ PipeWireRecord::State PipeWireRecord::state() const
 {
     if (d->m_active)
         return Recording;
-    else if (d->m_recordThread || !d->m_lastRecordThreadFinished)
+    else if (d->m_recordThread || !d->m_produceThreadFinished)
         return Rendering;
 
     return Idle;
@@ -386,10 +386,10 @@ void PipeWireRecord::refresh()
         connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
             qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << d->m_output;
             delete d->m_recordThread;
-            d->m_lastRecordThreadFinished = true;
+            d->m_produceThreadFinished = true;
             Q_EMIT stateChanged();
         });
-        d->m_lastRecordThreadFinished = false;
+        d->m_produceThreadFinished = false;
         d->m_recordThread = nullptr;
     }
     Q_EMIT stateChanged();
