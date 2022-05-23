@@ -19,6 +19,8 @@
 #include <QMutex>
 #include <QThreadPool>
 #include <QTimer>
+#include <qpa/qplatformnativeinterface.h>
+
 #include <KShell>
 
 #include <fcntl.h>
@@ -47,7 +49,7 @@ public:
 
     ~CustomAVFrame()
     {
-        av_freep(&m_avFrame->data);
+        av_freep(m_avFrame->data);
         av_frame_free(&m_avFrame);
     }
 
@@ -170,7 +172,10 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
+    m_egl.display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+    if (m_egl.display == EGL_NO_DISPLAY) {
+        m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
+    }
     if (m_egl.display == EGL_NO_DISPLAY) {
         const QByteArray renderNode = fetchRenderNode();
         m_drmFd = open(renderNode, O_RDWR);

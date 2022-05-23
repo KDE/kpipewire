@@ -79,7 +79,7 @@ add_library(KPipeWireRecord pipewirerecord.cpp glhelpers.cpp ${kpipewirerecord_S
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF5::CoreAddons
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale
-    epoxy::epoxy Libdrm::Libdrm
+    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
 )
 
 ecm_generate_headers(KPipeWireRecord_HEADERS
