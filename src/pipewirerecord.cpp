@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include <gbm.h>
+#include <xf86drm.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -116,15 +117,45 @@ void PipeWireRecord::setOutput(const QString &_output)
     Q_EMIT outputChanged(output);
 }
 
+QByteArray fetchRenderNode()
+{
+    int max_devices = drmGetDevices2(0, nullptr, 0);
+    if (max_devices <= 0) {
+        qWarning() << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
+        return "/dev/dri/renderD128";
+    }
+
+    std::vector<drmDevicePtr> devices(max_devices);
+    int ret = drmGetDevices2(0, devices.data(), max_devices);
+    if (ret < 0) {
+        qWarning() << "drmGetDevices2() returned an error " << ret;
+        return "/dev/dri/renderD128";
+    }
+
+    QByteArray render_node;
+
+    for (const drmDevicePtr &device : devices) {
+        if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
+            render_node = device->nodes[DRM_NODE_RENDER];
+            break;
+        }
+    }
+
+    drmFreeDevices(devices.data(), ret);
+    return render_node;
+}
+
 void PipeWireRecordProduce::setupEGL()
 {
     if (m_eglInitialized) {
         return;
     }
-    m_drmFd = open("/dev/dri/renderD128", O_RDWR);
+
+    const QByteArray renderNode = fetchRenderNode();
+    m_drmFd = open(renderNode, O_RDWR);
 
     if (m_drmFd < 0) {
-        qWarning() << "Failed to open drm render node: " << strerror(errno);
+        qWarning() << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
         return;
     }
 
