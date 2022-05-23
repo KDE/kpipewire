@@ -30,6 +30,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include "glhelpers.h"
 #include <QtPlatformHeaders/QEGLNativeContext>
 #undef Status
 
@@ -74,18 +75,20 @@ static uint32_t SpaPixelFormatToDrmFormat(uint32_t spa_format)
     }
 }
 
+Q_GLOBAL_STATIC_WITH_ARGS(bool, hasEglImageDmaBufImportExt, (GLHelpers::hasEglExtension("EGL_EXT_image_dma_buf_import")))
+
 static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t format)
 {
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
     static auto eglQueryDmaBufFormatsEXT = (PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress("eglQueryDmaBufFormatsEXT");
     if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT) {
-        return {};
+        return hasEglImageDmaBufImportExt ? std::vector<uint64_t>{DRM_FORMAT_MOD_INVALID} : std::vector<uint64_t>{};
     }
 
     uint32_t drm_format = SpaPixelFormatToDrmFormat(format);
     if (drm_format == DRM_FORMAT_INVALID) {
         qCDebug(PIPEWIRE_LOGGING) << "Failed to find matching DRM format." << format;
-        return {};
+        return {DRM_FORMAT_MOD_INVALID};
     }
 
     EGLint count = 0;
@@ -93,14 +96,14 @@ static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t f
 
     if (!success || count == 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF format count.";
-        return {};
+        return {DRM_FORMAT_MOD_INVALID};
     }
 
     std::vector<uint32_t> formats(count);
     if (!eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(formats.data()), &count)) {
         if (!success)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
-        return {};
+        return {DRM_FORMAT_MOD_INVALID};
     }
 
     if (std::find(formats.begin(), formats.end(), drm_format) == formats.end()) {
@@ -111,7 +114,7 @@ static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t f
     success = eglQueryDmaBufModifiersEXT(display, drm_format, 0, nullptr, nullptr, &count);
     if (!success) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifier count.";
-        return {};
+        return {DRM_FORMAT_MOD_INVALID};
     }
 
     std::vector<uint64_t> modifiers(count);
