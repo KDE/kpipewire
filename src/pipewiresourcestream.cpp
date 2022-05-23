@@ -59,6 +59,10 @@ struct PipeWireSourceStreamPrivate
     bool m_allowDmaBuf = true;
 };
 
+static const QVersionNumber pwClientVersion = QVersionNumber::fromString(pw_get_library_version());
+static const QVersionNumber kDmaBufMinVersion = {0, 3, 24};
+static const QVersionNumber kDmaBufModifierMinVersion = {0, 3, 33};
+
 static uint32_t SpaPixelFormatToDrmFormat(uint32_t spa_format)
 {
     switch (spa_format) {
@@ -103,6 +107,7 @@ static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t f
     if (!eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(formats.data()), &count)) {
         if (!success)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
+        auto pw_version = QVersionNumber::fromString(pw_get_library_version());
         return {DRM_FORMAT_MOD_INVALID};
     }
 
@@ -154,7 +159,7 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
     }
 }
 
-static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, const std::vector<uint64_t> &modifiers = {})
+static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, const std::vector<uint64_t> &modifiers, bool withDontFixate)
 {
     spa_pod_frame f[2];
     const spa_rectangle pw_min_screen_bounds{1, 1};
@@ -166,10 +171,8 @@ static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, c
     spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_format, SPA_POD_Id(format), 0);
 
     if (modifiers.size()) {
-        auto pw_version = QVersionNumber::fromString(pw_get_library_version());
-
         // SPA_POD_PROP_FLAG_DONT_FIXATE can be used with PipeWire >= 0.3.33
-        if (pw_version >= QVersionNumber(0, 3, 33)) {
+        if (withDontFixate) {
             spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY | SPA_POD_PROP_FLAG_DONT_FIXATE);
         } else {
             spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY);
@@ -310,8 +313,10 @@ bool PipeWireSourceStream::createStream(uint nodeid)
 
     connect(d->pwCore.data(), &PipeWireCore::pipewireFailed, this, &PipeWireSourceStream::coreFailed);
 
+    const auto pwServerVersion = d->pwCore->serverVersion();
     d->pwStream = pw_stream_new(**d->pwCore, "plasma-screencast", nullptr);
     d->pwNodeId = nodeid;
+    d->m_allowDmaBuf = pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion;
     pw_stream_add_listener(d->pwStream, &d->streamListener, &pwStreamEvents, this);
 
     uint8_t buffer[4096];
@@ -322,14 +327,17 @@ bool PipeWireSourceStream::createStream(uint nodeid)
     QVector<const spa_pod *> params;
     params.reserve(formats.size() * 2);
     const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+
+    const bool withDontFixate = pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion;
+
     for (spa_video_format format : formats) {
         if (d->m_allowDmaBuf) {
             if (auto modifiers = queryDmaBufModifiers(display, format); modifiers.size() > 0) {
-                params += buildFormat(&podBuilder, format, modifiers);
+                params += buildFormat(&podBuilder, format, modifiers, withDontFixate);
             }
         }
 
-        params += buildFormat(&podBuilder, format, {});
+        params += buildFormat(&podBuilder, format, {}, withDontFixate);
     }
 
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);

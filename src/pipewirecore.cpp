@@ -16,6 +16,7 @@
 
 pw_core_events PipeWireCore::s_pwCoreEvents = {
     .version = PW_VERSION_CORE_EVENTS,
+    .info = &PipeWireCore::onCoreInfo,
     .error = &PipeWireCore::onCoreError,
 };
 
@@ -34,6 +35,12 @@ void PipeWireCore::onCoreError(void *data, uint32_t id, int seq, int res, const 
         PipeWireCore *pw = static_cast<PipeWireCore *>(data);
         Q_EMIT pw->pipewireFailed(QString::fromUtf8(message));
     }
+}
+
+void PipeWireCore::onCoreInfo(void *data, const struct pw_core_info *info)
+{
+    PipeWireCore *pw = static_cast<PipeWireCore *>(data);
+    pw->m_serverVersion = QVersionNumber::fromString(info->version);
 }
 
 PipeWireCore::~PipeWireCore()
