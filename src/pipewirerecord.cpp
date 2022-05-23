@@ -263,6 +263,10 @@ void PipeWireRecordProduce::finish()
     avcodec_close(m_avCodecContext);
     av_free(m_avCodecContext);
     avformat_free_context(m_avFormatContext);
+
+    if (m_drmFd) {
+        close(m_drmFd);
+    }
 }
 
 void PipeWireRecordProduce::setupStream()
