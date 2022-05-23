@@ -29,7 +29,7 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
-#include <libavcodec/packet.h>
+// #include <libavcodec/packet.h>
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
@@ -328,13 +328,17 @@ void PipeWireRecordProduce::setupStream()
     m_frame.reset(new CustomAVFrame);
     int ret = m_frame->alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
     if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
         qWarning() << "Could not allocate raw picture buffer" << av_err2str(ret);
+#endif
         return;
     }
 
     ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output), AVIO_FLAG_WRITE);
     if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
         qWarning() << "Could not open" << m_output << av_err2str(ret);
+#endif
         return;
     }
 
@@ -347,13 +351,17 @@ void PipeWireRecordProduce::setupStream()
 
     ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
     if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
         qWarning() << "Error occurred when passing the codec:" << av_err2str(ret);
+#endif
         return;
     }
 
     ret = avformat_write_header(m_avFormatContext, NULL);
     if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
         qWarning() << "Error occurred when writing header:" << av_err2str(ret);
+#endif
         return;
     }
 
@@ -472,14 +480,21 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
         m_frame->m_avFrame->pts = AV_NOPTS_VALUE;
     }
 
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     static int i = 0;
     ++i;
     qCDebug(PIPEWIRERECORD_LOGGING) << "sending frame" << i << av_ts2str(m_frame->m_avFrame->pts)
                                     << "fps: " << double(i * 1000) / double(m_frame->m_avFrame->pts);
-    int ret = avcodec_send_frame(m_avCodecContext, m_frame->m_avFrame);
+#endif
+    const int ret = avcodec_send_frame(m_avCodecContext, m_frame->m_avFrame);
+
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     qCDebug(PIPEWIRERECORD_LOGGING) << "sent frames" << i << av_ts2str(m_frame->m_avFrame->pts) << t.elapsed();
+#endif
     if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
         qWarning() << "Error sending a frame for encoding:" << av_err2str(ret);
+#endif
         return;
     }
     m_bufferNotEmpty.wakeAll();
@@ -487,6 +502,7 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 
 static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
 {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     AVRational *time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
 
     qCDebug(PIPEWIRERECORD_LOGGING,
@@ -499,6 +515,10 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
             av_ts2str(pkt->duration),
             av_ts2timestr(pkt->duration, time_base),
             pkt->stream_index);
+#else
+    Q_UNUSED(fmt_ctx)
+    Q_UNUSED(pkt)
+#endif
 }
 
 void PipeWireRecord::setEncoder(const QByteArray &encoder)
@@ -557,26 +577,34 @@ void PipeWireRecordWriteThread::run()
             }
             continue;
         } else if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
             qWarning() << "Error encoding a frame: " << av_err2str(ret);
+#endif
             continue;
         }
 
+#if LIBAVUTIL_VERSION_MAJOR >= 57
         static int i = 0;
         ++i;
         qCDebug(PIPEWIRERECORD_LOGGING) << "receiving packets" << i << m_active << av_ts2str(m_packet->pts) << (*m_avFormatContext->streams)->index;
+#endif
         m_packet->stream_index = (*m_avFormatContext->streams)->index;
         av_packet_rescale_ts(m_packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
         log_packet(m_avFormatContext, m_packet);
         ret = av_interleaved_write_frame(m_avFormatContext, m_packet);
         if (ret < 0) {
+#if LIBAVUTIL_VERSION_MAJOR >= 57
             qWarning() << "Error while writing output packet:" << av_err2str(ret);
+#endif
             continue;
         }
     }
     ret = av_write_trailer(m_avFormatContext);
+#if LIBAVUTIL_VERSION_MAJOR >= 57
     if (ret < 0) {
         qWarning() << "failed to write trailer" << av_err2str(ret);
     }
+#endif
 }
 
 void PipeWireRecordWriteThread::drain()
