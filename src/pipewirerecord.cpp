@@ -151,21 +151,6 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    const QByteArray renderNode = fetchRenderNode();
-    m_drmFd = open(renderNode, O_RDWR);
-
-    if (m_drmFd < 0) {
-        qWarning() << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
-        return;
-    }
-
-    m_gbmDevice = gbm_create_device(m_drmFd);
-
-    if (!m_gbmDevice) {
-        qWarning() << "Cannot create GBM device: " << strerror(errno);
-        return;
-    }
-
     const QList<QByteArray> extensions = GLHelpers::eglExtensions();
 
     // Use eglGetPlatformDisplayEXT() to get the display pointer
@@ -175,7 +160,24 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    m_egl.display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, m_gbmDevice, nullptr);
+    m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
+    if (!m_egl.display) {
+        const QByteArray renderNode = fetchRenderNode();
+        m_drmFd = open(renderNode, O_RDWR);
+
+        if (m_drmFd < 0) {
+            qWarning() << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
+            return;
+        }
+
+        m_gbmDevice = gbm_create_device(m_drmFd);
+
+        if (!m_gbmDevice) {
+            qWarning() << "Cannot create GBM device: " << strerror(errno);
+            return;
+        }
+        m_egl.display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, m_gbmDevice, nullptr);
+    }
 
     if (m_egl.display == EGL_NO_DISPLAY) {
         qWarning() << "Error during obtaining EGL display: " << GLHelpers::formatGLError(eglGetError());
