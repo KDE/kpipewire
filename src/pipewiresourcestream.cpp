@@ -265,8 +265,6 @@ std::optional< std::chrono::nanoseconds > PipeWireSourceStream::currentPresentat
 
 QString PipeWireSourceStream::error() const
 {
-    qDebug() << "about to check"<< thread() << QThread::currentThread();
-    qDebug() << "checking stream error" << d->m_error;
     return d->m_error;
 }
 
