@@ -67,6 +67,7 @@ ecm_generate_headers(KPipeWire_HEADERS
   PipeWireSourceItem
   Screencasting
   ScreencastingRequest
+  REQUIRED_HEADERS KPipeWire_HEADERS
 )
 
 install(FILES
@@ -85,6 +86,7 @@ target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
 ecm_generate_headers(KPipeWireRecord_HEADERS
   HEADER_NAMES
   PipeWireRecord
+  REQUIRED_HEADERS KPipeWireRecord_HEADERS
 )
 
 install(FILES
@@ -101,7 +103,7 @@ ecm_setup_version(PROJECT VARIABLE_PREFIX KPIPEWIRE
                         SOVERSION 5)
 
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/KPipeWire")
-install(EXPORT KPipeWireTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE KPipewireTargets.cmake NAMESPACE K::)
+install(EXPORT KPipeWireTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE KPipeWireTargets.cmake NAMESPACE K::)
 
 configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/KPipeWireConfig.cmake.in"
                               "${CMAKE_CURRENT_BINARY_DIR}/KPipeWireConfig.cmake"
