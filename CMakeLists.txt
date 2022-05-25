@@ -12,12 +12,16 @@ include(KDEClangFormat)
 include(KDEGitCommitHooks)
 include(ECMQtDeclareLoggingCategory)
 
-find_package(Qt5 REQUIRED COMPONENTS DBus Quick WaylandClient)
+find_package(Qt${QT_MAJOR_VERSION} REQUIRED COMPONENTS DBus Quick WaylandClient)
 find_package(KF5 REQUIRED COMPONENTS Wayland I18n CoreAddons)
 find_package(Wayland REQUIRED COMPONENTS Client)
 
 find_package(PlasmaWaylandProtocols REQUIRED)
-find_package(QtWaylandScanner REQUIRED)
+if (QT_MAJOR_VERSION EQUAL "5")
+    find_package(QtWaylandScanner REQUIRED)
+else()
+    find_package(EGL REQUIRED)
+endif()
 
 pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3)
 

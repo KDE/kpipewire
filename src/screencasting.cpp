@@ -132,7 +132,7 @@ ScreencastingStream *Screencasting::createOutputStream(Output *output, CursorMod
 
 ScreencastingStream *Screencasting::createRegionStream(const QRect &geometry, qreal scaling, CursorMode mode)
 {
-    Q_ASSERT(d->version() >= ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION);
+    Q_ASSERT(d->QWaylandClientExtension::version() >= ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION);
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(QStringLiteral("region-%1,%2 (%3x%4)").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
     stream->d->init(d->stream_region(geometry.x(), geometry.y(), geometry.width(), geometry.height(), wl_fixed_from_double(scaling), mode));

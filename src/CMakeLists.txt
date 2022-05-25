@@ -3,6 +3,8 @@ include(ECMQmlModule)
 include(ECMGenerateHeaders)
 include(ECMSetupVersion)
 
+add_library(KPipeWire)
+
 ecm_qt_declare_logging_category(kpipewire_SRCS
                             HEADER logging.h
                             IDENTIFIER PIPEWIRE_LOGGING
@@ -27,12 +29,17 @@ ecm_qt_install_logging_categories(
     DESTINATION "${KDE_INSTALL_LOGGINGCATEGORIESDIR}"
 )
 
-ecm_add_qtwayland_client_protocol(kpipewire_SRCS
-    PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/screencast.xml
-    BASENAME zkde-screencast-unstable-v1
-)
+if (QT_MAJOR_VERSION EQUAL "5")
+    ecm_add_qtwayland_client_protocol(kpipewire_SRCS
+        PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml
+        BASENAME zkde-screencast-unstable-v1
+    )
+else()
+    qt6_generate_wayland_protocol_client_sources(KPipeWire FILES
+        ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml)
+endif()
 
-add_library(KPipeWire
+target_sources(KPipeWire PRIVATE
     pipewirecore.cpp
     pipewiresourceitem.cpp
     pipewiresourcestream.cpp
@@ -43,13 +50,18 @@ add_library(KPipeWire
 )
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
-    Wayland::Client KF5::WaylandClient Qt5::Gui_EGL KF5::CoreAddons
+    Wayland::Client KF5::WaylandClient KF5::CoreAddons
     PkgConfig::PipeWire Qt::WaylandClient epoxy::epoxy)
 
-if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
-    target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GLESv2)
+if (QT_MAJOR_VERSION EQUAL "5")
+    target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)
+    if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
+        target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GLESv2)
+    else()
+        target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GL)
+    endif()
 else()
-    target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GL)
+    target_link_libraries(KPipeWire PRIVATE EGL::EGL)
 endif()
 
 target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
