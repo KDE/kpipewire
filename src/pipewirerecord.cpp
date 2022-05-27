@@ -266,6 +266,10 @@ void PipeWireRecordProduceThread::deactivate()
 
 void PipeWireRecordProduce::finish()
 {
+    if (!m_stream) {
+        return;
+    }
+
     disconnect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
     disconnect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
     if (m_writeThread) {
