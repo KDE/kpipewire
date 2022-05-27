@@ -87,8 +87,8 @@ bool PipeWireCore::init(int fd)
         m_pwCore = pw_context_connect(m_pwContext, nullptr, 0);
     }
     if (!m_pwCore) {
-        qCWarning(PIPEWIRE_LOGGING) << "Failed to connect PipeWire context";
-        m_error = i18n("Failed to connect PipeWire context");
+        m_error = i18n("Failed to connect to PipeWire");
+        qCWarning(PIPEWIRE_LOGGING) << "error:" << m_error << fd;
         return false;
     }
 
