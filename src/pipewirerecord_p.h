@@ -52,6 +52,10 @@ public:
     ~PipeWireRecordProduce() override;
 
     void finish();
+    QString error() const
+    {
+        return m_error;
+    }
 
 private:
     friend class PipeWireRecordProduceThread;
@@ -66,6 +70,7 @@ private:
     const QString m_output;
     const uint m_nodeId;
     QScopedPointer<PipeWireSourceStream> m_stream;
+    QString m_error;
 
     struct EGLStruct {
         EGLDisplay display = EGL_NO_DISPLAY;
@@ -86,6 +91,7 @@ private:
 
 class PipeWireRecordProduceThread : public QThread
 {
+    Q_OBJECT
 public:
     PipeWireRecordProduceThread(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
         : m_nodeId(nodeId)
@@ -96,6 +102,9 @@ public:
     }
     void run() override;
     void deactivate();
+
+Q_SIGNALS:
+    void errorFound(const QString &error);
 
 private:
     const uint m_nodeId;

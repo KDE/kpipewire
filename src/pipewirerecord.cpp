@@ -234,6 +234,7 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
     bool created = m_stream->createStream(m_nodeId, fd);
     if (!created || !m_stream->error().isEmpty()) {
         qWarning() << "failed to set up stream for" << m_nodeId << m_stream->error();
+        m_error = m_stream->error();
         m_stream.reset(nullptr);
         return;
     }
@@ -250,6 +251,7 @@ void PipeWireRecordProduceThread::run()
 {
     PipeWireRecordProduce produce(m_encoder, m_nodeId, m_fd, m_output);
     if (!produce.m_stream) {
+        Q_EMIT errorFound(produce.error());
         return;
     }
     m_producer = &produce;
@@ -383,6 +385,7 @@ void PipeWireRecord::refresh()
 {
     if (!d->m_output.isEmpty() && d->m_active && d->m_nodeId > 0) {
         d->m_recordThread = new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd, d->m_output);
+        connect(d->m_recordThread, &PipeWireRecordProduceThread::errorFound, this, &PipeWireRecord::errorFound);
         connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
         });

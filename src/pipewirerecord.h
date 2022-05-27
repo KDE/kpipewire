@@ -58,6 +58,7 @@ Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
     void outputChanged(const QString &output);
+    void errorFound(const QString &error);
     void stateChanged();
 
 private:
