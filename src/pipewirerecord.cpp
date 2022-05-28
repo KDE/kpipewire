@@ -303,11 +303,13 @@ void PipeWireRecordProduce::finish()
         Q_ASSERT(done);
     }
 
-    qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
-    avio_closep(&m_avFormatContext->pb);
-    avcodec_close(m_avCodecContext);
-    av_free(m_avCodecContext);
-    avformat_free_context(m_avFormatContext);
+    qDebug() << "finished";
+    if (m_avCodecContext) {
+        avio_closep(&m_avFormatContext->pb);
+        avcodec_close(m_avCodecContext);
+        av_free(m_avCodecContext);
+        avformat_free_context(m_avFormatContext);
+    }
 
     if (m_drmFd) {
         close(m_drmFd);
