@@ -269,6 +269,7 @@ void PipeWireRecordProduceThread::deactivate()
 void PipeWireRecordProduce::finish()
 {
     if (!m_stream) {
+        qDebug() << "finished without a stream";
         return;
     }
 

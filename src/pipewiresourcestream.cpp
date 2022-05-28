@@ -344,6 +344,7 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
     if (pw_stream_connect(d->pwStream, PW_DIRECTION_INPUT, d->pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
         pw_stream_destroy(d->pwStream);
+        d->pwStream = nullptr;
         return false;
     }
     qDebug() << "created successfully" << nodeid;

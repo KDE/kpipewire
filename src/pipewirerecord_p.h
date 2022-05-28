@@ -82,7 +82,7 @@ private:
     gbm_device *m_gbmDevice = nullptr; // for passed GBM buffer retrieval
 
     EGLStruct m_egl;
-    PipeWireRecordWriteThread *m_writeThread;
+    PipeWireRecordWriteThread *m_writeThread = nullptr;
     QWaitCondition m_bufferNotEmpty;
     const QByteArray m_encoder;
 
