@@ -7,16 +7,16 @@
 #pragma once
 
 #include <QByteArray>
+#include <kpipewire_export.h>
 
 typedef unsigned int GLenum;
 
 namespace GLHelpers
 {
 
-void initDebugOutput();
-QByteArray formatGLError(GLenum err);
+KPIPEWIRE_EXPORT void initDebugOutput();
+KPIPEWIRE_EXPORT QByteArray formatGLError(GLenum err);
 
-QList<QByteArray> eglExtensions();
-bool hasEglExtension(const QByteArray &name);
-
+KPIPEWIRE_EXPORT QList<QByteArray> eglExtensions();
+KPIPEWIRE_EXPORT bool hasEglExtension(const QByteArray &name);
 }

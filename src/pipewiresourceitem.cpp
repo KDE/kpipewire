@@ -68,7 +68,6 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
         if (m_stream)
             m_stream->setActive(isVisible());
     });
-    GLHelpers::initDebugOutput();
 }
 
 PipeWireSourceItem::~PipeWireSourceItem()
@@ -257,6 +256,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         eglDestroyImageKHR(display, m_image);
     }
 
+    GLHelpers::initDebugOutput();
     const auto size = m_stream->size();
     m_image = createImage(display, planes, format, size);
     if (m_image == EGL_NO_IMAGE_KHR) {

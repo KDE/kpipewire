@@ -18,6 +18,7 @@ namespace GLHelpers
 
 void initDebugOutputOnce()
 {
+    qDebug() << "AAAAAAAAAA";
     // Set the callback function
     auto callback = [](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam) {
         Q_UNUSED(source)
@@ -46,14 +47,14 @@ void initDebugOutputOnce()
     glEnable(GL_DEBUG_OUTPUT);
 }
 
+static std::once_flag initDebugOnce;
 void initDebugOutput()
 {
     if (!PIPEWIRE_LOGGING().isDebugEnabled()) {
         return;
     }
 
-    static std::once_flag flag1;
-    std::call_once(flag1, initDebugOutputOnce);
+    std::call_once(initDebugOnce, initDebugOutputOnce);
 }
 
 QByteArray formatGLError(GLenum err)

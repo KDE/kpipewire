@@ -91,8 +91,6 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
 {
     d->m_encoder = "libx264rgb";
     av_log_set_level(AV_LOG_DEBUG);
-
-    GLHelpers::initDebugOutput();
 }
 
 PipeWireRecord::~PipeWireRecord()
@@ -451,6 +449,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
         return;
     }
 
+    GLHelpers::initDebugOutput();
     // create GL 2D texture for framebuffer
     GLuint texture;
     glGenTextures(1, &texture);
