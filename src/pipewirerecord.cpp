@@ -483,7 +483,7 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 {
     QElapsedTimer t;
     t.start();
-    const std::uint8_t *buffers[] = {image.constBits(), 0};
+    const std::uint8_t *buffers[] = {image.constBits(), nullptr};
     const int strides[] = {image.bytesPerLine(), 0, 0, 0};
     struct SwsContext *sws_context = nullptr;
     sws_context = sws_getCachedContext(sws_context,
@@ -494,9 +494,9 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
                                        m_avCodecContext->height,
                                        m_avCodecContext->pix_fmt,
                                        0,
-                                       NULL,
-                                       NULL,
-                                       NULL);
+                                       nullptr,
+                                       nullptr,
+                                       nullptr);
     sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, m_frame->m_avFrame->data, m_frame->m_avFrame->linesize);
 
     if (auto v = m_stream->currentPresentationTimestamp(); v.has_value()) {
@@ -592,7 +592,7 @@ void PipeWireRecordWriteThread::run()
             if (m_active) {
                 m_bufferNotEmpty->wait(&mutex);
             } else {
-                int sent = avcodec_send_frame(m_avCodecContext, NULL);
+                int sent = avcodec_send_frame(m_avCodecContext, nullptr);
                 qCDebug(PIPEWIRERECORD_LOGGING) << "draining" << sent;
             }
             continue;
