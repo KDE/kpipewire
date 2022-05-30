@@ -30,7 +30,7 @@ ecm_qt_install_logging_categories(
 )
 
 if (QT_MAJOR_VERSION EQUAL "5")
-    ecm_add_qtwayland_client_protocol(kpipewire_SRCS
+    ecm_add_qtwayland_client_protocol(KPipeWire
         PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml
         BASENAME zkde-screencast-unstable-v1
     )
