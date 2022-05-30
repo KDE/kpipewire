@@ -69,6 +69,10 @@ endif()
 target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
                                      PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>" ${PipeWire_INCLUDE_DIRS}
                                      INTERFACE "$<INSTALL_INTERFACE:${KDE_INSTALL_INCLUDEDIR}/KPipeWire>")
+set_target_properties(KPipeWire PROPERTIES
+                             VERSION ${PROJECT_VERSION}
+                             SOVERSION ${PROJECT_VERSION_MAJOR}
+                      )
 
 ecm_generate_export_header(KPipeWire
     BASE_NAME KPipeWire
@@ -99,6 +103,10 @@ ecm_generate_headers(KPipeWireRecord_HEADERS
   PipeWireRecord
   REQUIRED_HEADERS KPipeWireRecord_HEADERS
 )
+set_target_properties(KPipeWireRecord PROPERTIES
+                             VERSION ${PROJECT_VERSION}
+                             SOVERSION ${PROJECT_VERSION_MAJOR}
+                      )
 
 install(FILES
   ${KPipeWireRecord_HEADERS}
