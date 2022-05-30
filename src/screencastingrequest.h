@@ -56,7 +56,6 @@ Q_SIGNALS:
     void nodeIdChanged(quint32 nodeId);
     void uuidChanged(const QString &uuid);
     void outputNameChanged(const QString &outputNames);
-    void cursorModeChanged(Screencasting::CursorMode cursorMode);
 
 private:
     void adopt(ScreencastingStream *stream);
