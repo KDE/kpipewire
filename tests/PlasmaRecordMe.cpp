@@ -115,7 +115,11 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
         const auto roots = m_engine->rootObjects();
         for (auto root : roots) {
             auto mo = root->metaObject();
-            mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<int>(node)), Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)));
+            mo->invokeMethod(root,
+                             "addStream",
+                             Q_ARG(QVariant, QVariant::fromValue<int>(node)),
+                             Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)),
+                             Q_ARG(QVariant, 0));
         }
     }
 }
@@ -155,7 +159,11 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
             const auto roots = m_engine->rootObjects();
             for (auto root : roots) {
                 auto mo = root->metaObject();
-                mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)), Q_ARG(QVariant, stream->objectName()));
+                mo->invokeMethod(root,
+                                 "addStream",
+                                 Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)),
+                                 Q_ARG(QVariant, stream->objectName()),
+                                 Q_ARG(QVariant, 0));
             }
         }
     );

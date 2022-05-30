@@ -21,8 +21,10 @@ Kirigami.ApplicationWindow
     readonly property int cursorMode: cursorCombo.model[cursorCombo.currentIndex].value
     property QtObject app
 
-    function addStream(nodeid, displayText) {
-        rep.model.append({nodeId: nodeid, uuid: "", display: displayText})
+    function addStream(nodeid, displayText, fd) {
+        if (fd == null)
+            fd = 0;
+        rep.model.append({nodeId: nodeid, uuid: "", display: displayText, fd: fd})
     }
     function removeStream(nodeid) {
         for(var i=0; i<rep.model.count; ++i) {
@@ -74,6 +76,7 @@ Kirigami.ApplicationWindow
                 PipeWire.PipeWireSourceItem {
                     id: sourceItem
                     nodeId: model.nodeId
+                    fd: model.fd
                     visible: record.state !== PipeWire.PipeWireRecord.Recording
                     anchors.fill: parent
 
@@ -88,6 +91,7 @@ Kirigami.ApplicationWindow
                     PWRec.PipeWireRecord {
                         id: record
                         nodeId: model.nodeId
+                        fd: model.fd
                         output: "~/clementine.mp4"
                         active: butt.checked
                     }
