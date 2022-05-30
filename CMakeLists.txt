@@ -24,7 +24,7 @@ else()
     find_package(EGL REQUIRED)
 endif()
 
-pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3)
+pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
 
 # ffmpeg, for recording
 pkg_check_modules(AVCodec IMPORTED_TARGET libavcodec)
