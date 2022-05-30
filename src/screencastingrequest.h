@@ -37,7 +37,7 @@ class KPIPEWIRE_EXPORT ScreencastingRequest : public QObject
     /**
      * The output name as define in Screen.name
      */
-    Q_PROPERTY(QString outputName READ outputName WRITE setOutputName NOTIFY uuidChanged)
+    Q_PROPERTY(QString outputName READ outputName WRITE setOutputName NOTIFY outputNameChanged)
 
     /** The offered nodeId to give to a source */
     Q_PROPERTY(quint32 nodeId READ nodeId NOTIFY nodeIdChanged)
