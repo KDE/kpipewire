@@ -113,6 +113,10 @@ void PipeWireSourceItem::refresh()
 {
     setEnabled(false);
 
+    if (!isComponentComplete()) {
+        return;
+    }
+
     if (m_nodeId == 0) {
         m_stream.reset(nullptr);
         m_createNextTexture = [] {
@@ -319,7 +323,8 @@ void PipeWireSourceItem::updateTextureImage(const QImage &image)
 
 void PipeWireSourceItem::componentComplete()
 {
-    if (m_stream)
-        m_stream->setActive(isVisible());
     QQuickItem::componentComplete();
+    if (m_nodeId != 0) {
+        refresh();
+    }
 }
