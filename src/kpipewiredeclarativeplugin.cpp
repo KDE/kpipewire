@@ -14,4 +14,5 @@
 void KPipewireDeclarativePlugin::registerTypes(const char *uri)
 {
     qmlRegisterType<PipeWireSourceItem>(uri, 0, 1, "PipeWireSourceItem");
+    qmlRegisterType<ScreencastingRequest>(uri, 0, 1, "ScreencastingRequest");
 }
