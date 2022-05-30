@@ -306,7 +306,7 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
 {
     d->pwCore = PipeWireCore::fetch(fd);
     if (!d->pwCore->error().isEmpty()) {
-        qDebug() << "received error while creating the stream" << d->pwCore->error();
+        qCDebug(PIPEWIRE_LOGGING) << "received error while creating the stream" << d->pwCore->error();
         d->m_error = d->pwCore->error();
         return false;
     }
@@ -347,7 +347,7 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
         d->pwStream = nullptr;
         return false;
     }
-    qDebug() << "created successfully" << nodeid;
+    qCDebug(PIPEWIRE_LOGGING) << "created successfully" << nodeid;
     return true;
 }
 
@@ -414,7 +414,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
 void PipeWireSourceStream::coreFailed(const QString &errorMessage)
 {
-    qDebug() << "received error message" << errorMessage;
+    qCDebug(PIPEWIRE_LOGGING) << "received error message" << errorMessage;
     d->m_error = errorMessage;
     Q_EMIT stopStreaming();
 }

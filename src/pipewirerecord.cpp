@@ -154,14 +154,14 @@ QByteArray fetchRenderNode()
 {
     int max_devices = drmGetDevices2(0, nullptr, 0);
     if (max_devices <= 0) {
-        qWarning() << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
         return "/dev/dri/renderD128";
     }
 
     std::vector<drmDevicePtr> devices(max_devices);
     int ret = drmGetDevices2(0, devices.data(), max_devices);
     if (ret < 0) {
-        qWarning() << "drmGetDevices2() returned an error " << ret;
+        qCWarning(PIPEWIRERECORD_LOGGING) << "drmGetDevices2() returned an error " << ret;
         return "/dev/dri/renderD128";
     }
 
@@ -189,7 +189,7 @@ void PipeWireRecordProduce::setupEGL()
     // Use eglGetPlatformDisplayEXT() to get the display pointer
     // if the implementation supports it.
     if (!extensions.contains(QByteArrayLiteral("EGL_EXT_platform_base")) || !extensions.contains(QByteArrayLiteral("EGL_MESA_platform_gbm"))) {
-        qWarning() << "One of required EGL extensions is missing";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "One of required EGL extensions is missing";
         return;
     }
 
@@ -202,39 +202,39 @@ void PipeWireRecordProduce::setupEGL()
         m_drmFd = open(renderNode.constData(), O_RDWR);
 
         if (m_drmFd < 0) {
-            qWarning() << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
             return;
         }
 
         m_gbmDevice = gbm_create_device(m_drmFd);
 
         if (!m_gbmDevice) {
-            qWarning() << "Cannot create GBM device: " << strerror(errno);
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Cannot create GBM device: " << strerror(errno);
             return;
         }
         m_egl.display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, m_gbmDevice, nullptr);
     }
 
     if (m_egl.display == EGL_NO_DISPLAY) {
-        qWarning() << "Error during obtaining EGL display: " << GLHelpers::formatGLError(eglGetError());
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error during obtaining EGL display: " << GLHelpers::formatGLError(eglGetError());
         return;
     }
 
     EGLint major, minor;
     if (eglInitialize(m_egl.display, &major, &minor) == EGL_FALSE) {
-        qWarning() << "Error during eglInitialize: " << GLHelpers::formatGLError(eglGetError());
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error during eglInitialize: " << GLHelpers::formatGLError(eglGetError());
         return;
     }
 
     if (eglBindAPI(EGL_OPENGL_API) == EGL_FALSE) {
-        qWarning() << "bind OpenGL API failed";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "bind OpenGL API failed";
         return;
     }
 
     m_egl.context = eglCreateContext(m_egl.display, nullptr, EGL_NO_CONTEXT, nullptr);
 
     if (m_egl.context == EGL_NO_CONTEXT) {
-        qWarning() << "Couldn't create EGL context: " << GLHelpers::formatGLError(eglGetError());
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Couldn't create EGL context: " << GLHelpers::formatGLError(eglGetError());
         return;
     }
 
@@ -255,7 +255,7 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
     m_stream.reset(new PipeWireSourceStream(nullptr));
     bool created = m_stream->createStream(m_nodeId, fd);
     if (!created || !m_stream->error().isEmpty()) {
-        qWarning() << "failed to set up stream for" << m_nodeId << m_stream->error();
+        qCWarning(PIPEWIRERECORD_LOGGING) << "failed to set up stream for" << m_nodeId << m_stream->error();
         m_error = m_stream->error();
         m_stream.reset(nullptr);
         return;
@@ -291,7 +291,7 @@ void PipeWireRecordProduceThread::deactivate()
 void PipeWireRecordProduce::finish()
 {
     if (!m_stream) {
-        qDebug() << "finished without a stream";
+        qCDebug(PIPEWIRERECORD_LOGGING) << "finished without a stream";
         return;
     }
 
@@ -303,7 +303,7 @@ void PipeWireRecordProduce::finish()
         Q_ASSERT(done);
     }
 
-    qDebug() << "finished";
+    qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
     if (m_avCodecContext) {
         avio_closep(&m_avFormatContext->pb);
         avcodec_close(m_avCodecContext);
@@ -318,24 +318,27 @@ void PipeWireRecordProduce::finish()
 
 void PipeWireRecordProduce::setupStream()
 {
+    qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
     disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireRecordProduce::setupStream);
     avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
     if (!m_avFormatContext) {
-        qWarning() << "Could not deduce output format from file: using MPEG." << m_output;
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using MPEG." << m_output;
         avformat_alloc_output_context2(&m_avFormatContext, nullptr, "mpeg", m_output.toUtf8().constData());
     }
-    if (!m_avFormatContext)
+    if (!m_avFormatContext) {
+        qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
         return;
+    }
 
     m_codec = avcodec_find_encoder_by_name(m_encoder.constData());
     if (!m_codec) {
-        qWarning() << "Codec not found";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Codec not found";
         return;
     }
 
     m_avCodecContext = avcodec_alloc_context3(m_codec);
     if (!m_avCodecContext) {
-        qWarning() << "Could not allocate video codec context";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate video codec context";
         return;
     }
     m_avCodecContext->bit_rate = 50000000;
@@ -355,21 +358,21 @@ void PipeWireRecordProduce::setupStream()
     }
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    if (avcodec_open2(m_avCodecContext, m_codec, NULL) < 0) {
-        qWarning() << "Could not open codec";
+    if (avcodec_open2(m_avCodecContext, m_codec, nullptr) < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec";
         return;
     }
 
     m_frame.reset(new CustomAVFrame);
     int ret = m_frame->alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
     if (ret < 0) {
-        qWarning() << "Could not allocate raw picture buffer" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
         return;
     }
 
     ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output).constData(), AVIO_FLAG_WRITE);
     if (ret < 0) {
-        qWarning() << "Could not open" << m_output << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open" << m_output << av_err2str(ret);
         return;
     }
 
@@ -382,13 +385,13 @@ void PipeWireRecordProduce::setupStream()
 
     ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
     if (ret < 0) {
-        qWarning() << "Error occurred when passing the codec:" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when passing the codec:" << av_err2str(ret);
         return;
     }
 
-    ret = avformat_write_header(m_avFormatContext, NULL);
+    ret = avformat_write_header(m_avFormatContext, nullptr);
     if (ret < 0) {
-        qWarning() << "Error occurred when writing header:" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when writing header:" << av_err2str(ret);
         return;
     }
 
@@ -430,7 +433,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     gbm_import_fd_data importInfo = {int(plane[0].fd), uint32_t(streamSize.width()), uint32_t(streamSize.height()), plane[0].stride, GBM_BO_FORMAT_ARGB8888};
     gbm_bo *imported = gbm_bo_import(m_gbmDevice, GBM_BO_IMPORT_FD, &importInfo, GBM_BO_USE_SCANOUT);
     if (!imported) {
-        qWarning() << "Failed to process buffer: Cannot import passed GBM fd - " << strerror(errno);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to process buffer: Cannot import passed GBM fd - " << strerror(errno);
         return;
     }
 
@@ -441,7 +444,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     EGLImageKHR image = eglCreateImageKHR(m_egl.display, nullptr, EGL_NATIVE_PIXMAP_KHR, imported, nullptr);
 
     if (image == EGL_NO_IMAGE_KHR) {
-        qWarning() << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
         gbm_bo_destroy(imported);
         return;
     }
@@ -460,7 +463,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     glGetTexImage(GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_BYTE, src);
 
     if (!src) {
-        qWarning() << "Failed to get image from DMA buffer.";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to get image from DMA buffer.";
         gbm_bo_destroy(imported);
         return;
     }
@@ -516,7 +519,7 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 
     qCDebug(PIPEWIRERECORD_LOGGING) << "sent frames" << i << av_ts2str(m_frame->m_avFrame->pts) << t.elapsed();
     if (ret < 0) {
-        qWarning() << "Error sending a frame for encoding:" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
         return;
     }
     m_bufferNotEmpty.wakeAll();
@@ -594,7 +597,7 @@ void PipeWireRecordWriteThread::run()
             }
             continue;
         } else if (ret < 0) {
-            qWarning() << "Error encoding a frame: " << av_err2str(ret);
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
             continue;
         }
 
@@ -606,13 +609,13 @@ void PipeWireRecordWriteThread::run()
         log_packet(m_avFormatContext, m_packet);
         ret = av_interleaved_write_frame(m_avFormatContext, m_packet);
         if (ret < 0) {
-            qWarning() << "Error while writing output packet:" << av_err2str(ret);
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Error while writing output packet:" << av_err2str(ret);
             continue;
         }
     }
     ret = av_write_trailer(m_avFormatContext);
     if (ret < 0) {
-        qWarning() << "failed to write trailer" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "failed to write trailer" << av_err2str(ret);
     }
 }
 
