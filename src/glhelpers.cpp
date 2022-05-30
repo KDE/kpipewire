@@ -18,8 +18,6 @@ namespace GLHelpers
 
 void initDebugOutputOnce()
 {
-    qDebug() << "AAAAAAAAAA";
-    // Set the callback function
     auto callback = [](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam) {
         Q_UNUSED(source)
         Q_UNUSED(severity)
