@@ -61,6 +61,7 @@ RecordMe::RecordMe(QObject* parent)
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     m_engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
 
+    qDebug() << "woooooooooooooooop";
     // create session
     const auto sessionParameters = QVariantMap {
         { QLatin1String("session_handle_token"), m_handleToken },
@@ -120,7 +121,7 @@ void RecordMe::init(const QDBusObjectPath& path)
 void RecordMe::response(uint code, const QVariantMap& results)
 {
     if (code > 0) {
-        qWarning() << "error!!!" << results;
+        qWarning() << "error!!!" << code << results;
         exit(666);
         return;
     }

@@ -368,6 +368,8 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         d->m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
     }
 
+    qDebug() << "xxxx";
+
     if (spaBuffer->datas->type == SPA_DATA_MemFd) {
         uint8_t *map =
             static_cast<uint8_t *>(mmap(nullptr, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
