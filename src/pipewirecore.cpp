@@ -17,7 +17,13 @@
 pw_core_events PipeWireCore::s_pwCoreEvents = {
     .version = PW_VERSION_CORE_EVENTS,
     .info = &PipeWireCore::onCoreInfo,
+    .done = nullptr,
+    .ping = nullptr,
     .error = &PipeWireCore::onCoreError,
+    .remove_id = nullptr,
+    .bound_id = nullptr,
+    .add_mem = nullptr,
+    .remove_mem = nullptr,
 };
 
 PipeWireCore::PipeWireCore()
