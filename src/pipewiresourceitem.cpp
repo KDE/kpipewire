@@ -261,7 +261,6 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         eglDestroyImageKHR(display, m_image);
     }
 
-    GLHelpers::initDebugOutput();
     const auto size = m_stream->size();
     m_image = createImage(display, planes, format, size);
     if (m_image == EGL_NO_IMAGE_KHR) {
@@ -278,6 +277,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
             Q_ASSERT(created);
         }
 
+        GLHelpers::initDebugOutput();
         m_texture->bind();
 
         s_glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)m_image);
