@@ -75,10 +75,7 @@ ecm_generate_export_header(KPipeWire
 
 ecm_generate_headers(KPipeWire_HEADERS
   HEADER_NAMES
-  PipeWireCore
-  PipeWireSourceItem
-  Screencasting
-  ScreencastingRequest
+  PipeWireSourceStream
   REQUIRED_HEADERS KPipeWire_HEADERS
 )
 
