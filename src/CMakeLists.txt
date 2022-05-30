@@ -3,6 +3,8 @@ include(ECMQmlModule)
 include(ECMGenerateHeaders)
 include(ECMSetupVersion)
 
+add_definitions(-DTRANSLATION_DOMAIN=\"kpipewire5\")
+
 add_library(KPipeWire)
 
 ecm_qt_declare_logging_category(kpipewire_SRCS
