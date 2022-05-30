@@ -28,8 +28,9 @@
 
 using namespace KWayland::Client;
 
-PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
+PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QString &source, QObject *parent)
     : QObject(parent)
+    , m_cursorMode(cursorMode)
     , m_durationTimer(new QTimer(this))
     , m_sourceName(source)
     , m_engine(new QQmlApplicationEngine(this))
@@ -173,12 +174,6 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
 void PlasmaRecordMe::setDuration(int duration)
 {
     m_durationTimer->setInterval(duration);
-}
-
-void PlasmaRecordMe::setCursorMode(Screencasting::CursorMode mode)
-{
-    m_cursorMode = mode;
-    Q_EMIT cursorModeChanged(mode);
 }
 
 void PlasmaRecordMe::createVirtualMonitor()

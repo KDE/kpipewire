@@ -19,11 +19,23 @@ int main(int argc, char **argv)
                                           QStringLiteral("use KWayland::Screencasting to record instead of xdg-desktop-portals"),
                                           QStringLiteral("source"),
                                           {});
+
+        const QMap<QString, Screencasting::CursorMode> cursorOptions = {
+            {QStringLiteral("hidden"), Screencasting::CursorMode::Hidden},
+            {QStringLiteral("embedded"), Screencasting::CursorMode::Embedded},
+            {QStringLiteral("metadata"), Screencasting::CursorMode::Metadata},
+        };
+
+        QCommandLineOption cursor(QStringLiteral("cursor"),
+                                  QStringList(cursorOptions.keys()).join(QStringLiteral(", ")),
+                                  QStringLiteral("mode"),
+                                  QStringLiteral("embedded"));
         parser.addOption(duration);
         parser.addOption(kwaylandSource);
+        parser.addOption(cursor);
         parser.process(app);
 
-        PlasmaRecordMe *me = new PlasmaRecordMe(parser.value(kwaylandSource), &app);
+        PlasmaRecordMe *me = new PlasmaRecordMe(cursorOptions[parser.value(cursor).toLower()], parser.value(kwaylandSource), &app);
         if (parser.isSet(duration)) {
             me->setDuration(parser.value(duration).toInt() * 1000);
         }

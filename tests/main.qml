@@ -18,7 +18,6 @@ Kirigami.ApplicationWindow
     width: 500
     height: 500
     visible: true
-    readonly property int cursorMode: cursorCombo.model[cursorCombo.currentIndex].value
     property QtObject app
 
     function addStream(nodeid, displayText, fd) {
@@ -37,7 +36,6 @@ Kirigami.ApplicationWindow
 
     signal record(int nodeId, bool capture)
 
-    onCursorModeChanged: app.cursorMode = root.cursorMode
     ColumnLayout {
         id: pipes
         anchors.fill: parent
@@ -45,25 +43,6 @@ Kirigami.ApplicationWindow
         Button {
             text: "Add Virtual Monitor"
             onClicked: app.createVirtualMonitor()
-        }
-
-        ComboBox {
-            id: cursorCombo
-            Layout.fillWidth: true
-            textRole: "text"
-            currentIndex: 0
-            model: [
-                {
-                    text: "Hidden",
-                    value: PipeWire.Screencasting.Hidden
-                }, {
-                    text: "Embedded",
-                    value: PipeWire.Screencasting.Embedded
-                }, {
-                    text: "Metadata",
-                    value: PipeWire.Screencasting.Metadata
-                }
-            ]
         }
 
         Repeater {
