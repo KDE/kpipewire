@@ -13,6 +13,7 @@ typedef unsigned int GLenum;
 namespace GLHelpers
 {
 
+void initDebugOutput();
 QByteArray formatGLError(GLenum err);
 
 QList<QByteArray> eglExtensions();

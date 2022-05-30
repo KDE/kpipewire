@@ -6,6 +6,7 @@
 */
 
 #include "pipewiresourceitem.h"
+#include "glhelpers.h"
 #include "logging.h"
 #include "pipewiresourcestream.h"
 
@@ -67,6 +68,7 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
         if (m_stream)
             m_stream->setActive(isVisible());
     });
+    GLHelpers::initDebugOutput();
 }
 
 PipeWireSourceItem::~PipeWireSourceItem()

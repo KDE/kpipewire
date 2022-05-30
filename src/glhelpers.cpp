@@ -7,11 +7,54 @@
 #include "glhelpers.h"
 #include <QDebug>
 #include <QList>
+#include <QVersionNumber>
 #include <epoxy/egl.h>
 #include <epoxy/gl.h>
+#include <logging.h>
+#include <mutex>
 
 namespace GLHelpers
 {
+
+void initDebugOutputOnce()
+{
+    // Set the callback function
+    auto callback = [](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam) {
+        Q_UNUSED(source)
+        Q_UNUSED(severity)
+        Q_UNUSED(userParam)
+        while (length && std::isspace(message[length - 1])) {
+            --length;
+        }
+
+        switch (type) {
+        case GL_DEBUG_TYPE_ERROR:
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+            qCWarning(PIPEWIRE_LOGGING, "%#x: %.*s", id, length, message);
+            break;
+
+        case GL_DEBUG_TYPE_OTHER:
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+        case GL_DEBUG_TYPE_PORTABILITY:
+        case GL_DEBUG_TYPE_PERFORMANCE:
+        default:
+            qCDebug(PIPEWIRE_LOGGING, "%#x: %.*s", id, length, message);
+            break;
+        }
+    };
+    glDebugMessageCallback(callback, nullptr);
+    glEnable(GL_DEBUG_OUTPUT);
+}
+
+void initDebugOutput()
+{
+    if (!PIPEWIRE_LOGGING().isDebugEnabled()) {
+        return;
+    }
+
+    static std::once_flag flag1;
+    std::call_once(flag1, initDebugOutputOnce);
+}
 
 QByteArray formatGLError(GLenum err)
 {

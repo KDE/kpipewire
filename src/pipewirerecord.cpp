@@ -91,6 +91,8 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
 {
     d->m_encoder = "libx264rgb";
     av_log_set_level(AV_LOG_DEBUG);
+
+    GLHelpers::initDebugOutput();
 }
 
 PipeWireRecord::~PipeWireRecord()
