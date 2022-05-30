@@ -199,7 +199,7 @@ void PipeWireRecordProduce::setupEGL()
     }
     if (m_egl.display == EGL_NO_DISPLAY) {
         const QByteArray renderNode = fetchRenderNode();
-        m_drmFd = open(renderNode, O_RDWR);
+        m_drmFd = open(renderNode.constData(), O_RDWR);
 
         if (m_drmFd < 0) {
             qWarning() << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
@@ -319,15 +319,15 @@ void PipeWireRecordProduce::finish()
 void PipeWireRecordProduce::setupStream()
 {
     disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireRecordProduce::setupStream);
-    avformat_alloc_output_context2(&m_avFormatContext, NULL, NULL, m_output.toUtf8());
+    avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
     if (!m_avFormatContext) {
         qWarning() << "Could not deduce output format from file: using MPEG." << m_output;
-        avformat_alloc_output_context2(&m_avFormatContext, NULL, "mpeg", m_output.toUtf8());
+        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "mpeg", m_output.toUtf8().constData());
     }
     if (!m_avFormatContext)
         return;
 
-    m_codec = avcodec_find_encoder_by_name(m_encoder);
+    m_codec = avcodec_find_encoder_by_name(m_encoder.constData());
     if (!m_codec) {
         qWarning() << "Codec not found";
         return;
@@ -367,7 +367,7 @@ void PipeWireRecordProduce::setupStream()
         return;
     }
 
-    ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output), AVIO_FLAG_WRITE);
+    ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output).constData(), AVIO_FLAG_WRITE);
     if (ret < 0) {
         qWarning() << "Could not open" << m_output << av_err2str(ret);
         return;

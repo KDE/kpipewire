@@ -14,8 +14,11 @@ int main(int argc, char **argv)
 
     {
         QCommandLineParser parser;
-        QCommandLineOption duration("duration", "seconds length of the video", "duration");
-        QCommandLineOption kwaylandSource("source", "use KWayland::Screencasting to record instead of xdg-desktop-portals", "source", {});
+        QCommandLineOption duration(QStringLiteral("duration"), QStringLiteral("seconds length of the video"), QStringLiteral("duration"));
+        QCommandLineOption kwaylandSource(QStringLiteral("source"),
+                                          QStringLiteral("use KWayland::Screencasting to record instead of xdg-desktop-portals"),
+                                          QStringLiteral("source"),
+                                          {});
         parser.addOption(duration);
         parser.addOption(kwaylandSource);
         parser.process(app);

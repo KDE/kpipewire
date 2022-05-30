@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 
     {
         QCommandLineParser parser;
-        QCommandLineOption duration("duration", "seconds length of the video", "duration");
+        QCommandLineOption duration(QStringLiteral("duration"), QStringLiteral("seconds length of the video"), QStringLiteral("duration"));
         parser.addOption(duration);
         parser.process(app);
 

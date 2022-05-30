@@ -15,5 +15,5 @@ void KPipewireDeclarativePlugin::registerTypes(const char *uri)
 {
     qmlRegisterType<PipeWireSourceItem>(uri, 0, 1, "PipeWireSourceItem");
     qmlRegisterType<ScreencastingRequest>(uri, 0, 1, "ScreencastingRequest");
-    qmlRegisterUncreatableType<Screencasting>(uri, 0, 1, "Screencasting", "Use PipeWireSourceItem");
+    qmlRegisterUncreatableType<Screencasting>(uri, 0, 1, "Screencasting", QStringLiteral("Use PipeWireSourceItem"));
 }

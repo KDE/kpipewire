@@ -46,7 +46,7 @@ void PipeWireCore::onCoreError(void *data, uint32_t id, int seq, int res, const 
 void PipeWireCore::onCoreInfo(void *data, const struct pw_core_info *info)
 {
     PipeWireCore *pw = static_cast<PipeWireCore *>(data);
-    pw->m_serverVersion = QVersionNumber::fromString(info->version);
+    pw->m_serverVersion = QVersionNumber::fromString(QString::fromUtf8(info->version));
 }
 
 PipeWireCore::~PipeWireCore()

@@ -59,7 +59,7 @@ RecordMe::RecordMe(QObject* parent)
     , m_engine(new QQmlApplicationEngine(this))
 {
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
-    m_engine->load(QUrl("qrc:/main.qml"));
+    m_engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
 
     // create session
     const auto sessionParameters = QVariantMap {
@@ -125,7 +125,7 @@ void RecordMe::response(uint code, const QVariantMap& results)
         return;
     }
 
-    const auto streamsIt = results.constFind("streams");
+    const auto streamsIt = results.constFind(QStringLiteral("streams"));
     if (streamsIt != results.constEnd()) {
         QVector<Stream> streams;
         streamsIt->value<QDBusArgument>() >> streams;

@@ -37,7 +37,7 @@ PlasmaRecordMe::PlasmaRecordMe(const QString &source, QObject* parent)
     m_engine->setInitialProperties({
         { QStringLiteral("app"), QVariant::fromValue<QObject *>(this) },
     });
-    m_engine->load(QUrl("qrc:/main.qml"));
+    m_engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
 
     auto connection = ConnectionThread::fromApplication(this);
     if (!connection) {
@@ -175,5 +175,5 @@ void PlasmaRecordMe::setCursorMode(Screencasting::CursorMode mode)
 
 void PlasmaRecordMe::createVirtualMonitor()
 {
-    m_screencasting->createVirtualMonitorStream("recordme", {1920, 1080}, 1, m_cursorMode);
+    m_screencasting->createVirtualMonitorStream(QStringLiteral("recordme"), {1920, 1080}, 1, m_cursorMode);
 }
