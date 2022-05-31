@@ -22,6 +22,7 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -104,7 +105,7 @@ void PipeWireSourceItem::setFd(uint fd)
     if (fd == m_fd)
         return;
 
-    m_fd = fd;
+    m_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
     refresh();
     Q_EMIT fdChanged(fd);
 }
