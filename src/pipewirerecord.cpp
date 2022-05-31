@@ -426,26 +426,18 @@ void PipeWireRecord::refresh()
     Q_EMIT stateChanged();
 }
 
-void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t /*format*/)
+void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, uint32_t format)
 {
     Q_ASSERT(qGuiApp->thread() != QThread::currentThread());
     const QSize streamSize = m_stream->size();
-    gbm_import_fd_data importInfo = {int(plane[0].fd), uint32_t(streamSize.width()), uint32_t(streamSize.height()), plane[0].stride, GBM_BO_FORMAT_ARGB8888};
-    gbm_bo *imported = gbm_bo_import(m_gbmDevice, GBM_BO_IMPORT_FD, &importInfo, GBM_BO_USE_SCANOUT);
-    if (!imported) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to process buffer: Cannot import passed GBM fd - " << strerror(errno);
-        return;
-    }
 
     // bind context to render thread
     eglMakeCurrent(m_egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_egl.context);
 
-    // create EGL image from imported BO
-    EGLImageKHR image = eglCreateImageKHR(m_egl.display, nullptr, EGL_NATIVE_PIXMAP_KHR, imported, nullptr);
+    EGLImageKHR image = GLHelpers::createImage(m_egl.display, plane, format, m_stream->size());
 
     if (image == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
-        gbm_bo_destroy(imported);
         return;
     }
 
@@ -465,7 +457,6 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
 
     if (!src) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to get image from DMA buffer.";
-        gbm_bo_destroy(imported);
         return;
     }
 
@@ -474,8 +465,6 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
 
     glDeleteTextures(1, &texture);
     eglDestroyImageKHR(m_egl.display, image);
-
-    gbm_bo_destroy(imported);
 
     free(src);
 }

@@ -7,6 +7,7 @@
 */
 
 #include "pipewiresourcestream.h"
+#include "glhelpers.h"
 #include "logging.h"
 #include "pipewirecore.h"
 
@@ -30,7 +31,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "glhelpers.h"
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QtPlatformHeaders/QEGLNativeContext>
 #endif
