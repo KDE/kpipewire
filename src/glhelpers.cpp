@@ -56,23 +56,32 @@ void initDebugOutput()
     std::call_once(initDebugOnce, initDebugOutputOnce);
 }
 
+#define ENUM_STRING(x) case x: return #x;
+
 QByteArray formatGLError(GLenum err)
 {
     switch (err) {
-    case GL_NO_ERROR:
-        return "GL_NO_ERROR";
-    case GL_INVALID_ENUM:
-        return "GL_INVALID_ENUM";
-    case GL_INVALID_VALUE:
-        return "GL_INVALID_VALUE";
-    case GL_INVALID_OPERATION:
-        return "GL_INVALID_OPERATION";
-    case GL_STACK_OVERFLOW:
-        return "GL_STACK_OVERFLOW";
-    case GL_STACK_UNDERFLOW:
-        return "GL_STACK_UNDERFLOW";
-    case GL_OUT_OF_MEMORY:
-        return "GL_OUT_OF_MEMORY";
+    ENUM_STRING(GL_NO_ERROR)
+    ENUM_STRING(GL_INVALID_ENUM)
+    ENUM_STRING(GL_INVALID_VALUE)
+    ENUM_STRING(GL_INVALID_OPERATION)
+    ENUM_STRING(GL_STACK_OVERFLOW)
+    ENUM_STRING(GL_STACK_UNDERFLOW)
+    ENUM_STRING(GL_OUT_OF_MEMORY)
+    default:
+        return QByteArray("0x") + QByteArray::number(err, 16);
+    }
+}
+
+QByteArray formatEGLError(GLenum err)
+{
+    switch (err) {
+    ENUM_STRING(EGL_BAD_DISPLAY)
+    ENUM_STRING(EGL_BAD_CONTEXT)
+    ENUM_STRING(EGL_BAD_PARAMETER)
+    ENUM_STRING(EGL_BAD_MATCH)
+    ENUM_STRING(EGL_BAD_ACCESS)
+    ENUM_STRING(EGL_BAD_ALLOC)
     default:
         return QByteArray("0x") + QByteArray::number(err, 16);
     }
@@ -149,7 +158,7 @@ EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &planes, uin
 
     EGLImage ret = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
     if (ret == EGL_NO_IMAGE_KHR) {
-        qCWarning(PIPEWIRE_LOGGING) << "invalid image" << glGetError();
+        qCWarning(PIPEWIRE_LOGGING) << "invalid image" << GLHelpers::formatEGLError(eglGetError());
     }
     //     Q_ASSERT(ret);
     return ret;

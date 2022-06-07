@@ -18,6 +18,7 @@ namespace GLHelpers
 
 KPIPEWIRE_EXPORT void initDebugOutput();
 KPIPEWIRE_EXPORT QByteArray formatGLError(GLenum err);
+KPIPEWIRE_EXPORT QByteArray formatEGLError(GLenum err);
 
 KPIPEWIRE_EXPORT QList<QByteArray> eglExtensions();
 KPIPEWIRE_EXPORT bool hasEglExtension(const QByteArray &name);
