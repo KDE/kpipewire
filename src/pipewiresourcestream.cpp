@@ -315,7 +315,7 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
     const auto pwServerVersion = d->pwCore->serverVersion();
     d->pwStream = pw_stream_new(**d->pwCore, "plasma-screencast", nullptr);
     d->pwNodeId = nodeid;
-    d->m_allowDmaBuf = pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion;
+    d->m_allowDmaBuf = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion);
     pw_stream_add_listener(d->pwStream, &d->streamListener, &pwStreamEvents, this);
 
     uint8_t buffer[4096];
