@@ -109,7 +109,6 @@ static std::vector<uint64_t> queryDmaBufModifiers(EGLDisplay display, uint32_t f
     if (!eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(formats.data()), &count)) {
         if (!success)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
-        auto pw_version = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
         return {DRM_FORMAT_MOD_INVALID};
     }
 
