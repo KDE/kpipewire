@@ -95,11 +95,14 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
                 }
             });
     });
-    connect(this, &PlasmaRecordMe::workspaceChanged, this, [this] {
-        delete m_workspaceStream;
-        m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
-        start(m_workspaceStream);
-    });
+
+    if (m_sourceName.isEmpty() || m_sourceName == QLatin1String("region")) {
+        connect(this, &PlasmaRecordMe::workspaceChanged, this, [this] {
+            delete m_workspaceStream;
+            m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
+            start(m_workspaceStream);
+        });
+    }
     connect(registry, &KWayland::Client::Registry::interfacesAnnounced, this, [this, registry] {
         const auto xdgOMData = registry->interface(Registry::Interface::XdgOutputUnstableV1);
         m_xdgOutputManager = registry->createXdgOutputManager(xdgOMData.name, xdgOMData.version);
