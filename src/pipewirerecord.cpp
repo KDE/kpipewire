@@ -184,7 +184,8 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    const QList<QByteArray> extensions = GLHelpers::eglExtensions();
+    m_egl.display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+    const QList<QByteArray> extensions = GLHelpers::eglExtensions(m_egl.display);
 
     // Use eglGetPlatformDisplayEXT() to get the display pointer
     // if the implementation supports it.
@@ -193,7 +194,6 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    m_egl.display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
     if (m_egl.display == EGL_NO_DISPLAY) {
         m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
     }
@@ -434,7 +434,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     // bind context to render thread
     eglMakeCurrent(m_egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_egl.context);
 
-    EGLImageKHR image = GLHelpers::createImage(m_egl.display, plane, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), m_stream->size());
+    EGLImageKHR image = GLHelpers::createImage(m_egl.display, m_egl.context, plane, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), m_stream->size());
 
     if (image == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());

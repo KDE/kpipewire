@@ -90,10 +90,9 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     }
 }
 
-Q_GLOBAL_STATIC_WITH_ARGS(bool, hasEglImageDmaBufImportExt, (GLHelpers::hasEglExtension("EGL_EXT_image_dma_buf_import")))
-
 static QVector<uint64_t> queryDmaBufModifiers(EGLDisplay display, spa_video_format format)
 {
+    bool hasEglImageDmaBufImportExt = GLHelpers::hasEglExtension(display, "EGL_EXT_image_dma_buf_import");
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
     static auto eglQueryDmaBufFormatsEXT = (PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress("eglQueryDmaBufFormatsEXT");
     if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT) {

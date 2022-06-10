@@ -20,7 +20,7 @@ KPIPEWIRE_EXPORT void initDebugOutput();
 KPIPEWIRE_EXPORT QByteArray formatGLError(GLenum err);
 KPIPEWIRE_EXPORT QByteArray formatEGLError(GLenum err);
 
-KPIPEWIRE_EXPORT QList<QByteArray> eglExtensions();
-KPIPEWIRE_EXPORT bool hasEglExtension(const QByteArray &name);
-KPIPEWIRE_EXPORT EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &planes, uint32_t format, const QSize &size);
+KPIPEWIRE_EXPORT QList<QByteArray> eglExtensions(EGLDisplay display);
+KPIPEWIRE_EXPORT bool hasEglExtension(EGLDisplay display, const QByteArray &name);
+KPIPEWIRE_EXPORT EGLImage createImage(EGLDisplay display, EGLContext context, const QVector<DmaBufPlane> &planes, uint32_t format, const QSize &size);
 }

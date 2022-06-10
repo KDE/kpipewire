@@ -201,20 +201,19 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         return;
     }
 
-    const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-    if (m_image) {
-        static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
-        eglDestroyImageKHR(display, m_image);
-    }
-
-    const auto size = m_stream->size();
-    m_image = GLHelpers::createImage(display, planes, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
-    if (m_image == EGL_NO_IMAGE_KHR) {
-        m_stream->renegotiateModifierFailed(format, planes.constFirst().modifier);
-        return;
-    }
-
-    m_createNextTexture = [this, size, format] {
+    m_createNextTexture = [this, format, planes]() -> QSGTexture * {
+        const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+        if (m_image) {
+            static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
+            eglDestroyImageKHR(display, m_image);
+        }
+        const auto size = m_stream->size();
+        const EGLContext context = static_cast<EGLContext>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("eglcontext"));
+        m_image = GLHelpers::createImage(display, context, planes, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
+        if (m_image == EGL_NO_IMAGE_KHR) {
+            m_stream->renegotiateModifierFailed(format, planes.constFirst().modifier);
+            return nullptr;
+        }
         if (!m_texture) {
             m_texture.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
             bool created = m_texture->create();

@@ -87,14 +87,14 @@ QByteArray formatEGLError(GLenum err)
     }
 }
 
-bool hasEglExtension(const QByteArray &name)
+bool hasEglExtension(EGLDisplay display, const QByteArray &name)
 {
-    return eglExtensions().contains(name);
+    return eglExtensions(display).contains(name);
 }
 
-QList<QByteArray> eglExtensions()
+QList<QByteArray> eglExtensions(EGLDisplay display)
 {
-    const char *clientExtensionsCString = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+    const char *clientExtensionsCString = eglQueryString(display, EGL_EXTENSIONS);
     const QByteArray clientExtensionsString = QByteArray::fromRawData(clientExtensionsCString, qstrlen(clientExtensionsCString));
     if (clientExtensionsString.isEmpty()) {
         // If eglQueryString() returned NULL, the implementation doesn't support
@@ -106,7 +106,7 @@ QList<QByteArray> eglExtensions()
     return clientExtensionsString.split(' ');
 }
 
-EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &planes, uint32_t format, const QSize &size)
+EGLImage createImage(EGLDisplay display, EGLContext context, const QVector<DmaBufPlane> &planes, uint32_t format, const QSize &size)
 {
     const bool hasModifiers = planes[0].modifier != DRM_FORMAT_MOD_INVALID;
 
@@ -156,11 +156,10 @@ EGLImage createImage(EGLDisplay display, const QVector<DmaBufPlane> &planes, uin
     static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
     Q_ASSERT(eglCreateImageKHR);
 
-    EGLImage ret = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
+    EGLImage ret = eglCreateImageKHR(display, context, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
     if (ret == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRE_LOGGING) << "invalid image" << GLHelpers::formatEGLError(eglGetError());
     }
-    //     Q_ASSERT(ret);
     return ret;
 }
 }
