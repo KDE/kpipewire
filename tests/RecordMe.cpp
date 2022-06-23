@@ -124,7 +124,7 @@ void RecordMe::init(const QDBusObjectPath& path)
 void RecordMe::response(uint code, const QVariantMap& results)
 {
     if (code > 0) {
-        qWarning() << "error!!!" << results;
+        qWarning() << "error!!!" << code << results;
         exit(666);
         return;
     }
