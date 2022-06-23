@@ -23,11 +23,6 @@
 
 #undef Status
 
-namespace KWin
-{
-class AbstractEglBackend;
-class GLTexture;
-}
 class PipeWireCore;
 
 typedef void *EGLDisplay;
