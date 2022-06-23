@@ -29,7 +29,7 @@ int main(int argc, char **argv)
         QCommandLineOption cursor(QStringLiteral("cursor"),
                                   QStringList(cursorOptions.keys()).join(QStringLiteral(", ")),
                                   QStringLiteral("mode"),
-                                  QStringLiteral("embedded"));
+                                  QStringLiteral("metadata"));
         parser.addOption(duration);
         parser.addOption(kwaylandSource);
         parser.addOption(cursor);

@@ -43,6 +43,9 @@
 #define SPA_POD_PROP_FLAG_DONT_FIXATE (1u << 4)
 #endif
 
+#define CURSOR_BPP 4
+#define CURSOR_META_SIZE(w, h) (sizeof(struct spa_meta_cursor) + sizeof(struct spa_meta_bitmap) + w * h * CURSOR_BPP)
+
 pw_stream_events pwStreamEvents = {};
 
 struct PipeWireSourceStreamPrivate
@@ -87,6 +90,19 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     default:
         qDebug() << "unknown format" << spa_format;
         return DRM_FORMAT_INVALID;
+    }
+}
+static QImage::Format SpaToQImageFormat(quint32 format)
+{
+    switch (format) {
+    case SPA_VIDEO_FORMAT_BGR:
+        return QImage::Format_BGR888;
+    case SPA_VIDEO_FORMAT_RGBx:
+        return QImage::Format_RGBX8888;
+    case SPA_VIDEO_FORMAT_RGBA:
+        return QImage::Format_RGBA8888_Premultiplied;
+    default:
+        return QImage::Format_RGB32;
     }
 }
 
@@ -260,6 +276,13 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
                                               SPA_POD_Id(SPA_META_Header),
                                               SPA_PARAM_META_size,
                                               SPA_POD_Int(sizeof(struct spa_meta_header))),
+        (spa_pod *)spa_pod_builder_add_object(&pod_builder,
+                                              SPA_TYPE_OBJECT_ParamMeta,
+                                              SPA_PARAM_Meta,
+                                              SPA_PARAM_META_type,
+                                              SPA_POD_Id(SPA_META_Cursor),
+                                              SPA_PARAM_META_size,
+                                              SPA_POD_CHOICE_RANGE_Int(CURSOR_META_SIZE(64, 64), CURSOR_META_SIZE(1, 1), CURSOR_META_SIZE(1024, 1024))),
 
     };
     pw_stream_update_params(pw->d->pwStream, params.data(), params.count());
@@ -402,6 +425,30 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         d->m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
     }
 
+    { // process cursor
+        struct spa_meta_cursor *cursor = static_cast<struct spa_meta_cursor *>(spa_buffer_find_meta_data(spaBuffer, SPA_META_Cursor, sizeof(*cursor)));
+        if (spa_meta_cursor_is_valid(cursor)) {
+            struct spa_meta_bitmap *bitmap = nullptr;
+
+            if (cursor->bitmap_offset)
+                bitmap = SPA_MEMBER(cursor, cursor->bitmap_offset, struct spa_meta_bitmap);
+
+            QImage cursorTexture;
+            if (bitmap && bitmap->size.width > 0 && bitmap->size.height > 0) {
+                const uint8_t *bitmap_data = SPA_MEMBER(bitmap, bitmap->offset, uint8_t);
+                cursorTexture = QImage(bitmap_data, bitmap->size.width, bitmap->size.height, bitmap->stride, SpaToQImageFormat(bitmap->format));
+            }
+            Q_EMIT cursorChanged({cursor->position.x, cursor->position.y}, {cursor->hotspot.x, cursor->hotspot.y}, cursorTexture);
+        } else {
+            Q_EMIT cursorChanged({}, {}, {});
+        }
+    }
+
+    if (spaBuffer->datas->chunk->size == 0) {
+        Q_EMIT noVisibleFrame();
+        return;
+    }
+
     if (spaBuffer->datas->type == SPA_DATA_MemFd) {
         if (spaBuffer->datas->chunk->size == 0)
             return;
@@ -413,9 +460,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
             return;
         }
-        const QImage::Format format = spaBuffer->datas->chunk->stride / d->videoFormat.size.width == 3 ? QImage::Format_RGB888 : QImage::Format_ARGB32;
-
-        QImage img(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, format);
+        QImage img(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, SpaToQImageFormat(d->videoFormat.format));
         Q_EMIT imageTextureReceived(img.copy());
 
         munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);

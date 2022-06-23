@@ -9,7 +9,9 @@
 #pragma once
 
 #include <QHash>
+#include <QImage>
 #include <QObject>
+#include <QPoint>
 #include <QSharedPointer>
 #include <QSize>
 #include <optional>
@@ -71,6 +73,8 @@ Q_SIGNALS:
     void streamParametersChanged();
     void dmabufTextureReceived(const QVector<DmaBufPlane> &planes, spa_video_format format);
     void imageTextureReceived(const QImage &image);
+    void noVisibleFrame();
+    void cursorChanged(const QPoint &position, const QPoint &hotspot, const QImage &texture);
 
 private:
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);

@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <QImage>
 #include <QQuickItem>
 #include <functional>
+#include <optional>
 
 #include <pipewire/pipewire.h>
 #include <spa/param/format-utils.h>
@@ -60,6 +62,7 @@ private:
     void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format);
     void updateTextureImage(const QImage &image);
     void refresh();
+    void moveCursor(const std::optional<QPoint> &position, const QPoint &hotspot, const QImage &texture);
 
     uint m_nodeId = 0;
     uint m_fd = 0;
@@ -69,4 +72,11 @@ private:
 
     EGLImage m_image = nullptr;
     bool m_needsRecreateTexture = false;
+
+    struct {
+        QImage texture;
+        std::optional<QPoint> position;
+        QPoint hotspot;
+        bool dirty = false;
+    } m_cursor;
 };

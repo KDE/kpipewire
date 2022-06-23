@@ -13,6 +13,7 @@
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QOpenGLTexture>
+#include <QPainter>
 #include <QQuickWindow>
 #include <QRunnable>
 #include <QSGImageNode>
@@ -134,6 +135,12 @@ void PipeWireSourceItem::refresh()
 
         connect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireSourceItem::updateTextureDmaBuf);
         connect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireSourceItem::updateTextureImage);
+        connect(m_stream.data(), &PipeWireSourceStream::cursorChanged, this, &PipeWireSourceItem::moveCursor);
+        connect(m_stream.data(), &PipeWireSourceStream::noVisibleFrame, this, [this] {
+            if (window()->isVisible()) {
+                update();
+            }
+        });
     }
 }
 
@@ -147,6 +154,40 @@ void PipeWireSourceItem::setNodeId(uint nodeId)
     Q_EMIT nodeIdChanged(nodeId);
 }
 
+class PipeWireRenderNode : public QSGNode
+{
+public:
+    QSGImageNode *screenNode(QQuickWindow *window)
+    {
+        if (!m_screenNode) {
+            m_screenNode = window->createImageNode();
+            appendChildNode(m_screenNode);
+        }
+        return m_screenNode;
+    }
+    QSGImageNode *cursorNode(QQuickWindow *window)
+    {
+        if (!m_cursorNode) {
+            m_cursorNode = window->createImageNode();
+            appendChildNode(m_cursorNode);
+        }
+        return m_cursorNode;
+    }
+
+    void discardCursor()
+    {
+        if (m_cursorNode) {
+            removeChildNode(m_cursorNode);
+            delete m_cursorNode;
+            m_cursorNode = nullptr;
+        }
+    }
+
+private:
+    QSGImageNode *m_screenNode = nullptr;
+    QSGImageNode *m_cursorNode = nullptr;
+};
+
 QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePaintNodeData *)
 {
     if (Q_UNLIKELY(!m_createNextTexture)) {
@@ -159,19 +200,37 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         return nullptr;
     }
 
-    QSGImageNode *textureNode = static_cast<QSGImageNode *>(node);
-    if (!textureNode) {
-        textureNode = window()->createImageNode();
-        textureNode->setOwnsTexture(true);
+    QSGImageNode *screenNode;
+    auto pwNode = dynamic_cast<PipeWireRenderNode *>(node);
+    if (!pwNode) {
+        delete node;
+        pwNode = new PipeWireRenderNode;
+        screenNode = window()->createImageNode();
+        screenNode->setOwnsTexture(true);
+        pwNode->appendChildNode(screenNode);
+    } else {
+        screenNode = static_cast<QSGImageNode *>(pwNode->childAtIndex(0));
     }
-    textureNode->setTexture(texture);
+    screenNode->setTexture(texture);
 
     const auto br = boundingRect().toRect();
     QRect rect({0, 0}, texture->textureSize().scaled(br.size(), Qt::KeepAspectRatio));
     rect.moveCenter(br.center());
-    textureNode->setRect(rect);
+    screenNode->setRect(rect);
 
-    return textureNode;
+    if (!m_cursor.position.has_value() || m_cursor.texture.isNull()) {
+        pwNode->discardCursor();
+    } else {
+        QSGImageNode *cursorNode = pwNode->cursorNode(window());
+        if (m_cursor.dirty) {
+            cursorNode->setTexture(window()->createTextureFromImage(m_cursor.texture));
+            m_cursor.dirty = false;
+        }
+        const qreal scale = qreal(rect.width()) / texture->textureSize().width();
+        cursorNode->setRect(QRectF{rect.topLeft() + (m_cursor.position.value() * scale), m_cursor.texture.size() * scale});
+        Q_ASSERT(cursorNode->texture());
+    }
+    return pwNode;
 }
 
 QString PipeWireSourceItem::error() const
@@ -258,6 +317,17 @@ void PipeWireSourceItem::updateTextureImage(const QImage &image)
     };
     if (window()->isVisible())
         update();
+}
+
+void PipeWireSourceItem::moveCursor(const std::optional<QPoint> &position, const QPoint &hotspot, const QImage &texture)
+{
+    // we don't need to schedule a new repaint because we should be getting a new texture anyway
+    m_cursor.position = position;
+    m_cursor.hotspot = hotspot;
+    if (!texture.isNull()) {
+        m_cursor.dirty = true;
+        m_cursor.texture = texture;
+    }
 }
 
 void PipeWireSourceItem::componentComplete()
