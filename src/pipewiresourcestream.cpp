@@ -372,6 +372,9 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
     }
 
     if (spaBuffer->datas->type == SPA_DATA_MemFd) {
+        if (spaBuffer->datas->chunk->size == 0)
+            return;
+
         uint8_t *map =
             static_cast<uint8_t *>(mmap(nullptr, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
 
