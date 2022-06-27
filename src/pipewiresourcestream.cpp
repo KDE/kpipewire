@@ -65,6 +65,9 @@ struct PipeWireSourceStreamPrivate
 
     QHash<spa_video_format, QVector<uint64_t>> m_availableModifiers;
     spa_source *m_renegotiateEvent = nullptr;
+
+    bool m_withDamage = false;
+    QRegion m_damage;
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
@@ -239,6 +242,8 @@ static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, c
     return static_cast<spa_pod *>(spa_pod_builder_pop(builder, &f[0]));
 }
 
+static const int videoDamageRegionCount = 16;
+
 void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format)
 {
     if (!format || id != SPA_PARAM_Format) {
@@ -283,8 +288,20 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
                                               SPA_POD_Id(SPA_META_Cursor),
                                               SPA_PARAM_META_size,
                                               SPA_POD_CHOICE_RANGE_Int(CURSOR_META_SIZE(64, 64), CURSOR_META_SIZE(1, 1), CURSOR_META_SIZE(1024, 1024))),
-
     };
+
+    if (pw->d->m_withDamage) {
+        params.append((spa_pod *)spa_pod_builder_add_object(&pod_builder,
+                                                            SPA_TYPE_OBJECT_ParamMeta,
+                                                            SPA_PARAM_Meta,
+                                                            SPA_PARAM_META_type,
+                                                            SPA_POD_Id(SPA_META_VideoDamage),
+                                                            SPA_PARAM_META_size,
+                                                            SPA_POD_CHOICE_RANGE_Int(sizeof(struct spa_meta_region) * videoDamageRegionCount,
+                                                                                     sizeof(struct spa_meta_region) * 1,
+                                                                                     sizeof(struct spa_meta_region) * videoDamageRegionCount)));
+    }
+
     pw_stream_update_params(pw->d->pwStream, params.data(), params.count());
     Q_EMIT pw->streamParametersChanged();
 }
@@ -298,6 +315,11 @@ static void onProcess(void *data)
 QSize PipeWireSourceStream::size() const
 {
     return QSize(d->videoFormat.size.width, d->videoFormat.size.height);
+}
+
+QRegion PipeWireSourceStream::damage() const
+{
+    return d->m_damage;
 }
 
 std::optional< std::chrono::nanoseconds > PipeWireSourceStream::currentPresentationTimestamp() const
@@ -425,6 +447,15 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         d->m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
     }
 
+    if (spa_meta *vd = spa_buffer_find_meta(spaBuffer, SPA_META_VideoDamage)) {
+        d->m_damage = {};
+        spa_meta_region *mr;
+        spa_meta_for_each(mr, vd)
+        {
+            d->m_damage += QRect(mr->region.position.x, mr->region.position.y, mr->region.size.width, mr->region.size.height);
+        }
+    }
+
     { // process cursor
         struct spa_meta_cursor *cursor = static_cast<struct spa_meta_cursor *>(spa_buffer_find_meta_data(spaBuffer, SPA_META_Cursor, sizeof(*cursor)));
         if (spa_meta_cursor_is_valid(cursor)) {
@@ -508,6 +539,7 @@ void PipeWireSourceStream::process()
 {
     pw_buffer *buf = pw_stream_dequeue_buffer(d->pwStream);
     if (!buf) {
+        qCDebug(PIPEWIRE_LOGGING) << "out of buffers";
         return;
     }
 
@@ -520,4 +552,9 @@ void PipeWireSourceStream::setActive(bool active)
 {
     Q_ASSERT(d->pwStream);
     pw_stream_set_active(d->pwStream, active);
+}
+
+void PipeWireSourceStream::setDamageEnabled(bool withDamage)
+{
+    d->m_withDamage = withDamage;
 }

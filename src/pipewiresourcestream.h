@@ -55,8 +55,10 @@ public:
     QString error() const;
 
     QSize size() const;
+    QRegion damage() const;
     bool createStream(uint nodeid, int fd);
     void setActive(bool active);
+    void setDamageEnabled(bool withDamage);
 
     void handleFrame(struct pw_buffer *buffer);
     void process();

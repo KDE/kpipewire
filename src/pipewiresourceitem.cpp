@@ -174,6 +174,15 @@ public:
         return m_cursorNode;
     }
 
+    QSGImageNode *damageNode(QQuickWindow *window)
+    {
+        if (!m_damageNode) {
+            m_damageNode = window->createImageNode();
+            appendChildNode(m_damageNode);
+        }
+        return m_damageNode;
+    }
+
     void discardCursor()
     {
         if (m_cursorNode) {
@@ -183,9 +192,19 @@ public:
         }
     }
 
+    void discardDamage()
+    {
+        if (m_damageNode) {
+            removeChildNode(m_damageNode);
+            delete m_damageNode;
+            m_damageNode = nullptr;
+        }
+    }
+
 private:
     QSGImageNode *m_screenNode = nullptr;
     QSGImageNode *m_cursorNode = nullptr;
+    QSGImageNode *m_damageNode = nullptr;
 };
 
 QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePaintNodeData *)
@@ -229,6 +248,22 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         const qreal scale = qreal(rect.width()) / texture->textureSize().width();
         cursorNode->setRect(QRectF{rect.topLeft() + (m_cursor.position.value() * scale), m_cursor.texture.size() * scale});
         Q_ASSERT(cursorNode->texture());
+    }
+
+    if (m_stream->damage().isEmpty()) {
+        pwNode->discardDamage();
+    } else {
+        auto *damageNode = pwNode->damageNode(window());
+        QImage damageImage(texture->textureSize(), QImage::Format_RGBA64_Premultiplied);
+        damageImage.fill(Qt::transparent);
+        QPainter p(&damageImage);
+        p.setBrush(Qt::red);
+        for (auto rect : m_stream->damage()) {
+            p.drawRect(rect);
+        }
+        damageNode->setTexture(window()->createTextureFromImage(damageImage));
+        damageNode->setRect(rect);
+        Q_ASSERT(damageNode->texture());
     }
     return pwNode;
 }
