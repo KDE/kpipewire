@@ -17,6 +17,7 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QMutex>
+#include <QPainter>
 #include <QThreadPool>
 #include <QTimer>
 #include <qpa/qplatformnativeinterface.h>
@@ -297,6 +298,7 @@ void PipeWireRecordProduce::finish()
 
     disconnect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
     disconnect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
+    disconnect(m_stream.data(), &PipeWireSourceStream::cursorChanged, this, &PipeWireRecordProduce::moveCursor);
     if (m_writeThread) {
         m_writeThread->drain();
         bool done = QThreadPool::globalInstance()->waitForDone(-1);
@@ -397,8 +399,21 @@ void PipeWireRecordProduce::setupStream()
 
     connect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
     connect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
+    connect(m_stream.data(), &PipeWireSourceStream::noVisibleFrame, this, &PipeWireRecordProduce::render);
+    connect(m_stream.data(), &PipeWireSourceStream::cursorChanged, this, &PipeWireRecordProduce::moveCursor);
     m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avFormatContext, m_avCodecContext);
     QThreadPool::globalInstance()->start(m_writeThread);
+}
+
+void PipeWireRecordProduce::moveCursor(const QPoint &position, const QPoint &hotspot, const QImage &texture)
+{
+    // we don't need to schedule a new repaint because we should be getting a new texture anyway
+    m_cursor.position = position;
+    m_cursor.hotspot = hotspot;
+    if (!texture.isNull()) {
+        m_cursor.dirty = true;
+        m_cursor.texture = texture;
+    }
 }
 
 void PipeWireRecord::refresh()
@@ -472,6 +487,19 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
 
 void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 {
+    m_frameWithoutMetadataCursor = image;
+    render();
+}
+
+void PipeWireRecordProduce::render()
+{
+    QImage image(m_frameWithoutMetadataCursor);
+    if (!image.isNull() && m_cursor.position && !m_cursor.texture.isNull()) {
+        image = m_frameWithoutMetadataCursor.copy();
+        QPainter p(&image);
+        p.drawImage(*m_cursor.position, m_cursor.texture);
+    }
+
     QElapsedTimer t;
     t.start();
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};

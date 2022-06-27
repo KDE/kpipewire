@@ -7,10 +7,14 @@
 #pragma once
 
 #include <QFile>
+#include <QImage>
+#include <QPoint>
 #include <QRunnable>
 #include <QThread>
 #include <QWaitCondition>
+
 #include <functional>
+#include <optional>
 
 #include <epoxy/egl.h>
 #include <pipewire/pipewire.h>
@@ -63,6 +67,8 @@ private:
     void setupStream();
     void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format);
     void updateTextureImage(const QImage &image);
+    void moveCursor(const QPoint &position, const QPoint &hotspot, const QImage &texture);
+    void render();
 
     AVCodecContext *m_avCodecContext = nullptr;
     const AVCodec *m_codec = nullptr;
@@ -87,6 +93,14 @@ private:
     const QByteArray m_encoder;
 
     QScopedPointer<CustomAVFrame> m_frame;
+
+    struct {
+        QImage texture;
+        std::optional<QPoint> position;
+        QPoint hotspot;
+        bool dirty = false;
+    } m_cursor;
+    QImage m_frameWithoutMetadataCursor;
 };
 
 class PipeWireRecordProduceThread : public QThread
