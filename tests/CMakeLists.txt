@@ -1,15 +1,15 @@
+add_executable(recordme main.cpp recordme.qrc ${PW_SRCS} PlasmaRecordMe.cpp screencasting.cpp screencastingrequest.cpp)
+
 if (QT_MAJOR_VERSION EQUAL "5")
-    ecm_add_qtwayland_client_protocol(PW_SRCS
+    ecm_add_qtwayland_client_protocol(recordme
         PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml
         BASENAME zkde-screencast-unstable-v1
     )
 else()
-    qt6_generate_wayland_protocol_client_sources(PW_SRCS FILES
+    qt6_generate_wayland_protocol_client_sources(recordme FILES
         ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml)
 endif()
 
-
-add_executable(recordme main.cpp recordme.qrc ${PW_SRCS} PlasmaRecordMe.cpp screencasting.cpp screencastingrequest.cpp)
 target_link_libraries(recordme KF5::WaylandClient Wayland::Client Qt::Quick Qt::DBus Qt::GuiPrivate KPipeWire Wayland::Client KF5::WaylandClient Qt::WaylandClient )
 
 #########
