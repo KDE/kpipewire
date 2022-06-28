@@ -21,5 +21,5 @@ KPIPEWIRE_EXPORT QByteArray formatGLError(GLenum err);
 KPIPEWIRE_EXPORT QByteArray formatEGLError(GLenum err);
 
 KPIPEWIRE_EXPORT QList<QByteArray> eglExtensions(EGLDisplay display);
-KPIPEWIRE_EXPORT EGLImage createImage(EGLDisplay display, EGLContext context, const QVector<DmaBufPlane> &planes, uint32_t format, const QSize &size);
+KPIPEWIRE_EXPORT EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttributes &attribs, uint32_t format, const QSize &size);
 }

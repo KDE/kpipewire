@@ -296,9 +296,7 @@ void PipeWireRecordProduce::finish()
         return;
     }
 
-    disconnect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
-    disconnect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
-    disconnect(m_stream.data(), &PipeWireSourceStream::cursorChanged, this, &PipeWireRecordProduce::moveCursor);
+    disconnect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireRecordProduce::processFrame);
     if (m_writeThread) {
         m_writeThread->drain();
         bool done = QThreadPool::globalInstance()->waitForDone(-1);
@@ -397,22 +395,26 @@ void PipeWireRecordProduce::setupStream()
         return;
     }
 
-    connect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireRecordProduce::updateTextureDmaBuf);
-    connect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireRecordProduce::updateTextureImage);
-    connect(m_stream.data(), &PipeWireSourceStream::noVisibleFrame, this, &PipeWireRecordProduce::render);
-    connect(m_stream.data(), &PipeWireSourceStream::cursorChanged, this, &PipeWireRecordProduce::moveCursor);
+    connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireRecordProduce::processFrame);
     m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avFormatContext, m_avCodecContext);
     QThreadPool::globalInstance()->start(m_writeThread);
 }
 
-void PipeWireRecordProduce::moveCursor(const QPoint &position, const QPoint &hotspot, const QImage &texture)
+void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 {
-    // we don't need to schedule a new repaint because we should be getting a new texture anyway
-    m_cursor.position = position;
-    m_cursor.hotspot = hotspot;
-    if (!texture.isNull()) {
-        m_cursor.dirty = true;
-        m_cursor.texture = texture;
+    if (frame.cursor) {
+        m_cursor.position = frame.cursor->position;
+        m_cursor.hotspot = frame.cursor->hotspot;
+        if (!frame.cursor->texture.isNull()) {
+            m_cursor.dirty = true;
+            m_cursor.texture = frame.cursor->texture;
+        }
+    }
+
+    if (frame.dmabuf) {
+        updateTextureDmaBuf(*frame.dmabuf, frame.format);
+    } else if (frame.image) {
+        updateTextureImage(*frame.image);
     }
 }
 
@@ -441,7 +443,7 @@ void PipeWireRecord::refresh()
     Q_EMIT stateChanged();
 }
 
-void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format)
+void PipeWireRecordProduce::updateTextureDmaBuf(const DmaBufAttributes &dmabuf, spa_video_format format)
 {
     Q_ASSERT(qGuiApp->thread() != QThread::currentThread());
     const QSize streamSize = m_stream->size();
@@ -449,11 +451,11 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     // bind context to render thread
     eglMakeCurrent(m_egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_egl.context);
 
-    EGLImageKHR image = GLHelpers::createImage(m_egl.display, m_egl.context, plane, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), m_stream->size());
+    EGLImageKHR image = GLHelpers::createImage(m_egl.display, m_egl.context, dmabuf, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), m_stream->size());
 
     if (image == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
-        m_stream->renegotiateModifierFailed(format, plane.constFirst().modifier);
+        m_stream->renegotiateModifierFailed(format, dmabuf.modifier);
         return;
     }
 
@@ -468,7 +470,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
     glBindTexture(GL_TEXTURE_2D, texture);
     glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
 
-    auto src = static_cast<uint8_t *>(malloc(plane[0].stride * streamSize.height()));
+    auto src = static_cast<uint8_t *>(malloc(dmabuf.planes[0].stride * streamSize.height()));
     glGetTexImage(GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_BYTE, src);
 
     if (!src) {
@@ -476,7 +478,7 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const QVector<DmaBufPlane> &plan
         return;
     }
 
-    QImage qimage(src, streamSize.width(), streamSize.height(), plane[0].stride, QImage::Format_ARGB32);
+    QImage qimage(src, streamSize.width(), streamSize.height(), dmabuf.planes[0].stride, QImage::Format_ARGB32);
     updateTextureImage(qimage);
 
     glDeleteTextures(1, &texture);

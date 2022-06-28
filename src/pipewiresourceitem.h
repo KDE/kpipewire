@@ -19,8 +19,9 @@
 
 #include <kpipewire_export.h>
 
-struct DmaBufPlane;
+struct DmaBufAttributes;
 class PipeWireSourceStream;
+struct PipeWireFrame;
 class QSGTexture;
 class QOpenGLTexture;
 typedef void *EGLImage;
@@ -59,10 +60,10 @@ Q_SIGNALS:
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
-    void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format);
+    void processFrame(const PipeWireFrame &frame);
+    void updateTextureDmaBuf(const DmaBufAttributes &attribs, spa_video_format format);
     void updateTextureImage(const QImage &image);
     void refresh();
-    void moveCursor(const std::optional<QPoint> &position, const QPoint &hotspot, const QImage &texture);
 
     uint m_nodeId = 0;
     uint m_fd = 0;
@@ -79,4 +80,5 @@ private:
         QPoint hotspot;
         bool dirty = false;
     } m_cursor;
+    std::optional<QRegion> m_damage;
 };

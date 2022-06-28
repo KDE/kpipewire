@@ -67,7 +67,6 @@ struct PipeWireSourceStreamPrivate
     spa_source *m_renegotiateEvent = nullptr;
 
     bool m_withDamage = false;
-    QRegion m_damage;
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
@@ -322,11 +321,6 @@ QSize PipeWireSourceStream::size() const
     return QSize(d->videoFormat.size.width, d->videoFormat.size.height);
 }
 
-QRegion PipeWireSourceStream::damage() const
-{
-    return d->m_damage;
-}
-
 std::optional< std::chrono::nanoseconds > PipeWireSourceStream::currentPresentationTimestamp() const
 {
     return d->m_currentPresentationTimestamp;
@@ -441,9 +435,14 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 {
     spa_buffer *spaBuffer = buffer->buffer;
 
+    PipeWireFrame frame;
+    frame.format = d->videoFormat.format;
+
     struct spa_meta_header *h = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*h));
     if (h) {
         d->m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
+        frame.presentationTimestamp = std::chrono::nanoseconds(h->pts);
+        frame.sequential = h->seq;
     } else {
         using namespace std::chrono;
         auto now = system_clock::now();
@@ -451,11 +450,11 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
     }
 
     if (spa_meta *vd = spa_buffer_find_meta(spaBuffer, SPA_META_VideoDamage)) {
-        d->m_damage = {};
+        frame.damage = QRegion();
         spa_meta_region *mr;
         spa_meta_for_each(mr, vd)
         {
-            d->m_damage += QRect(mr->region.position.x, mr->region.position.y, mr->region.size.width, mr->region.size.height);
+            *frame.damage += QRect(mr->region.position.x, mr->region.position.y, mr->region.size.width, mr->region.size.height);
         }
     }
 
@@ -472,18 +471,15 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
                 const uint8_t *bitmap_data = SPA_MEMBER(bitmap, bitmap->offset, uint8_t);
                 cursorTexture = QImage(bitmap_data, bitmap->size.width, bitmap->size.height, bitmap->stride, SpaToQImageFormat(bitmap->format));
             }
-            Q_EMIT cursorChanged({cursor->position.x, cursor->position.y}, {cursor->hotspot.x, cursor->hotspot.y}, cursorTexture);
+            frame.cursor = {{cursor->position.x, cursor->position.y}, {cursor->hotspot.x, cursor->hotspot.y}, cursorTexture};
         } else {
-            Q_EMIT cursorChanged({}, {}, {});
+            frame.cursor = {{}, {}, {}};
         }
     }
 
     if (spaBuffer->datas->chunk->size == 0) {
-        Q_EMIT noVisibleFrame();
-        return;
-    }
-
-    if (spaBuffer->datas->type == SPA_DATA_MemFd) {
+        // do not get a frame
+    } else if (spaBuffer->datas->type == SPA_DATA_MemFd) {
         if (spaBuffer->datas->chunk->size == 0)
             return;
 
@@ -495,12 +491,15 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             return;
         }
         QImage img(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, SpaToQImageFormat(d->videoFormat.format));
-        Q_EMIT imageTextureReceived(img.copy());
+        frame.image = img.copy();
 
         munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);
     } else if (spaBuffer->datas->type == SPA_DATA_DmaBuf) {
-        QVector<DmaBufPlane> planes;
-        planes.reserve(spaBuffer->n_datas);
+        DmaBufAttributes attribs;
+        attribs.planes.reserve(spaBuffer->n_datas);
+        attribs.format = spaVideoFormatToDrmFormat(d->videoFormat.format);
+        attribs.modifier = d->videoFormat.modifier;
+        ;
         for (uint i = 0; i < spaBuffer->n_datas; ++i) {
             const auto &data = spaBuffer->datas[i];
 
@@ -508,18 +507,16 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             plane.fd = data.fd;
             plane.stride = data.chunk->stride;
             plane.offset = data.chunk->offset;
-            plane.modifier = d->videoFormat.modifier;
-            planes += plane;
+            attribs.planes += plane;
         }
-        Q_ASSERT(!planes.isEmpty());
-        Q_EMIT dmabufTextureReceived(planes, d->videoFormat.format);
+        Q_ASSERT(!attribs.planes.isEmpty());
+        frame.dmabuf = attribs;
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
-        QImage img(static_cast<uint8_t *>(spaBuffer->datas->data),
-                   d->videoFormat.size.width,
-                   d->videoFormat.size.height,
-                   spaBuffer->datas->chunk->stride,
-                   QImage::Format_ARGB32);
-        Q_EMIT imageTextureReceived(img);
+        frame.image = QImage(static_cast<uint8_t *>(spaBuffer->datas->data),
+                             d->videoFormat.size.width,
+                             d->videoFormat.size.height,
+                             spaBuffer->datas->chunk->stride,
+                             SpaToQImageFormat(d->videoFormat.format));
     } else {
         if (spaBuffer->datas->type == SPA_ID_INVALID)
             qWarning() << "invalid buffer type";
@@ -527,8 +524,10 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             qWarning() << "unsupported buffer type" << spaBuffer->datas->type;
         QImage errorImage(200, 200, QImage::Format_ARGB32_Premultiplied);
         errorImage.fill(Qt::red);
-        Q_EMIT imageTextureReceived(errorImage);
+        frame.image = errorImage;
     }
+
+    Q_EMIT frameReceived(frame);
 }
 
 void PipeWireSourceStream::coreFailed(const QString &errorMessage)

@@ -33,7 +33,31 @@ struct DmaBufPlane {
     int fd; ///< The dmabuf file descriptor
     uint32_t offset; ///< The offset from the start of buffer
     uint32_t stride; ///< The distance from the start of a row to the next row in bytes
+};
+
+struct DmaBufAttributes {
+    int width = 0;
+    int height = 0;
+    uint32_t format = 0;
     uint64_t modifier = 0; ///< The layout modifier
+
+    QVector<DmaBufPlane> planes;
+};
+
+struct PipeWireCursor {
+    QPoint position;
+    QPoint hotspot;
+    QImage texture;
+};
+
+struct PipeWireFrame {
+    spa_video_format format;
+    std::optional<int> sequential;
+    std::optional<std::chrono::nanoseconds> presentationTimestamp;
+    std::optional<DmaBufAttributes> dmabuf;
+    std::optional<QImage> image;
+    std::optional<QRegion> damage;
+    std::optional<PipeWireCursor> cursor;
 };
 
 struct Fraction {
@@ -55,7 +79,6 @@ public:
     QString error() const;
 
     QSize size() const;
-    QRegion damage() const;
     bool createStream(uint nodeid, int fd);
     void setActive(bool active);
     void setDamageEnabled(bool withDamage);
@@ -73,10 +96,7 @@ Q_SIGNALS:
     void startStreaming();
     void stopStreaming();
     void streamParametersChanged();
-    void dmabufTextureReceived(const QVector<DmaBufPlane> &planes, spa_video_format format);
-    void imageTextureReceived(const QImage &image);
-    void noVisibleFrame();
-    void cursorChanged(const QPoint &position, const QPoint &hotspot, const QImage &texture);
+    void frameReceived(const PipeWireFrame &frame);
 
 private:
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);

@@ -22,8 +22,8 @@
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
 
-class PipeWireSourceStream;
-struct DmaBufPlane;
+#include "pipewiresourcestream.h"
+
 struct AVCodec;
 struct AVCodecContext;
 struct AVFrame;
@@ -65,9 +65,9 @@ private:
     friend class PipeWireRecordProduceThread;
     void setupEGL();
     void setupStream();
-    void updateTextureDmaBuf(const QVector<DmaBufPlane> &plane, spa_video_format format);
+    void processFrame(const PipeWireFrame &frame);
+    void updateTextureDmaBuf(const DmaBufAttributes &plane, spa_video_format format);
     void updateTextureImage(const QImage &image);
-    void moveCursor(const QPoint &position, const QPoint &hotspot, const QImage &texture);
     void render();
 
     AVCodecContext *m_avCodecContext = nullptr;

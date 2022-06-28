@@ -102,48 +102,48 @@ QList<QByteArray> eglExtensions(EGLDisplay display)
     return clientExtensionsString.split(' ');
 }
 
-EGLImage createImage(EGLDisplay display, EGLContext context, const QVector<DmaBufPlane> &planes, uint32_t format, const QSize &size)
+EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttributes &dmabufAttribs, uint32_t format, const QSize &size)
 {
-    const bool hasModifiers = planes[0].modifier != DRM_FORMAT_MOD_INVALID;
+    const bool hasModifiers = dmabufAttribs.modifier != DRM_FORMAT_MOD_INVALID;
 
     QVector<EGLint> attribs;
     attribs << EGL_WIDTH << size.width() << EGL_HEIGHT << size.height() << EGL_LINUX_DRM_FOURCC_EXT << EGLint(format)
 
-            << EGL_DMA_BUF_PLANE0_FD_EXT << planes[0].fd << EGL_DMA_BUF_PLANE0_OFFSET_EXT << EGLint(planes[0].offset) << EGL_DMA_BUF_PLANE0_PITCH_EXT
-            << EGLint(planes[0].stride);
+            << EGL_DMA_BUF_PLANE0_FD_EXT << dmabufAttribs.planes[0].fd << EGL_DMA_BUF_PLANE0_OFFSET_EXT << EGLint(dmabufAttribs.planes[0].offset)
+            << EGL_DMA_BUF_PLANE0_PITCH_EXT << EGLint(dmabufAttribs.planes[0].stride);
 
     if (hasModifiers) {
-        attribs << EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT << EGLint(planes[0].modifier & 0xffffffff) << EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT
-                << EGLint(planes[0].modifier >> 32);
+        attribs << EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT << EGLint(dmabufAttribs.modifier & 0xffffffff) << EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT
+                << EGLint(dmabufAttribs.modifier >> 32);
     }
 
-    if (planes.count() > 1) {
-        attribs << EGL_DMA_BUF_PLANE1_FD_EXT << planes[1].fd << EGL_DMA_BUF_PLANE1_OFFSET_EXT << EGLint(planes[1].offset) << EGL_DMA_BUF_PLANE1_PITCH_EXT
-                << EGLint(planes[1].stride);
+    if (dmabufAttribs.planes.count() > 1) {
+        attribs << EGL_DMA_BUF_PLANE1_FD_EXT << dmabufAttribs.planes[1].fd << EGL_DMA_BUF_PLANE1_OFFSET_EXT << EGLint(dmabufAttribs.planes[1].offset)
+                << EGL_DMA_BUF_PLANE1_PITCH_EXT << EGLint(dmabufAttribs.planes[1].stride);
 
         if (hasModifiers) {
-            attribs << EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT << EGLint(planes[1].modifier & 0xffffffff) << EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT
-                    << EGLint(planes[1].modifier >> 32);
+            attribs << EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT << EGLint(dmabufAttribs.modifier & 0xffffffff) << EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT
+                    << EGLint(dmabufAttribs.modifier >> 32);
         }
     }
 
-    if (planes.count() > 2) {
-        attribs << EGL_DMA_BUF_PLANE2_FD_EXT << planes[2].fd << EGL_DMA_BUF_PLANE2_OFFSET_EXT << EGLint(planes[2].offset) << EGL_DMA_BUF_PLANE2_PITCH_EXT
-                << EGLint(planes[2].stride);
+    if (dmabufAttribs.planes.count() > 2) {
+        attribs << EGL_DMA_BUF_PLANE2_FD_EXT << dmabufAttribs.planes[2].fd << EGL_DMA_BUF_PLANE2_OFFSET_EXT << EGLint(dmabufAttribs.planes[2].offset)
+                << EGL_DMA_BUF_PLANE2_PITCH_EXT << EGLint(dmabufAttribs.planes[2].stride);
 
         if (hasModifiers) {
-            attribs << EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT << EGLint(planes[2].modifier & 0xffffffff) << EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT
-                    << EGLint(planes[2].modifier >> 32);
+            attribs << EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT << EGLint(dmabufAttribs.modifier & 0xffffffff) << EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT
+                    << EGLint(dmabufAttribs.modifier >> 32);
         }
     }
 
-    if (planes.count() > 3) {
-        attribs << EGL_DMA_BUF_PLANE3_FD_EXT << planes[3].fd << EGL_DMA_BUF_PLANE3_OFFSET_EXT << EGLint(planes[3].offset) << EGL_DMA_BUF_PLANE3_PITCH_EXT
-                << EGLint(planes[3].stride);
+    if (dmabufAttribs.planes.count() > 3) {
+        attribs << EGL_DMA_BUF_PLANE3_FD_EXT << dmabufAttribs.planes[3].fd << EGL_DMA_BUF_PLANE3_OFFSET_EXT << EGLint(dmabufAttribs.planes[3].offset)
+                << EGL_DMA_BUF_PLANE3_PITCH_EXT << EGLint(dmabufAttribs.planes[3].stride);
 
         if (hasModifiers) {
-            attribs << EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT << EGLint(planes[3].modifier & 0xffffffff) << EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT
-                    << EGLint(planes[3].modifier >> 32);
+            attribs << EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT << EGLint(dmabufAttribs.modifier & 0xffffffff) << EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT
+                    << EGLint(dmabufAttribs.modifier >> 32);
         }
     }
 

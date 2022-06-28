@@ -132,14 +132,7 @@ void PipeWireSourceItem::refresh()
         }
         m_stream->setActive(isVisible() && isComponentComplete());
 
-        connect(m_stream.data(), &PipeWireSourceStream::dmabufTextureReceived, this, &PipeWireSourceItem::updateTextureDmaBuf);
-        connect(m_stream.data(), &PipeWireSourceStream::imageTextureReceived, this, &PipeWireSourceItem::updateTextureImage);
-        connect(m_stream.data(), &PipeWireSourceStream::cursorChanged, this, &PipeWireSourceItem::moveCursor);
-        connect(m_stream.data(), &PipeWireSourceStream::noVisibleFrame, this, [this] {
-            if (window()->isVisible()) {
-                update();
-            }
-        });
+        connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
     }
 }
 
@@ -249,7 +242,7 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         Q_ASSERT(cursorNode->texture());
     }
 
-    if (m_stream->damage().isEmpty()) {
+    if (!m_damage || m_damage->isEmpty()) {
         pwNode->discardDamage();
     } else {
         auto *damageNode = pwNode->damageNode(window());
@@ -257,7 +250,7 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         damageImage.fill(Qt::transparent);
         QPainter p(&damageImage);
         p.setBrush(Qt::red);
-        for (auto rect : m_stream->damage()) {
+        for (auto rect : *m_damage) {
             p.drawRect(rect);
         }
         damageNode->setTexture(window()->createTextureFromImage(damageImage));
@@ -272,7 +265,31 @@ QString PipeWireSourceItem::error() const
     return m_stream->error();
 }
 
-void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes, spa_video_format format)
+void PipeWireSourceItem::processFrame(const PipeWireFrame &frame)
+{
+    m_damage = frame.damage;
+
+    if (frame.cursor) {
+        m_cursor.position = frame.cursor->position;
+        m_cursor.hotspot = frame.cursor->hotspot;
+        if (!frame.cursor->texture.isNull()) {
+            m_cursor.dirty = true;
+            m_cursor.texture = frame.cursor->texture;
+        }
+    }
+
+    if (frame.dmabuf) {
+        updateTextureDmaBuf(*frame.dmabuf, frame.format);
+    } else if (frame.image) {
+        updateTextureImage(*frame.image);
+    }
+
+    if (window()->isVisible()) {
+        update();
+    }
+}
+
+void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, spa_video_format format)
 {
     if (!window()) {
         qCWarning(PIPEWIRE_LOGGING) << "Window not available" << this;
@@ -289,16 +306,16 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         return;
     }
 
-    m_createNextTexture = [this, format, planes]() -> QSGTexture * {
+    m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
         const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
         if (m_image) {
             eglDestroyImageKHR(display, m_image);
         }
         const auto size = m_stream->size();
         const EGLContext context = static_cast<EGLContext>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("eglcontext"));
-        m_image = GLHelpers::createImage(display, context, planes, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
+        m_image = GLHelpers::createImage(display, context, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
         if (m_image == EGL_NO_IMAGE_KHR) {
-            m_stream->renegotiateModifierFailed(format, planes.constFirst().modifier);
+            m_stream->renegotiateModifierFailed(format, attribs.modifier);
             return nullptr;
         }
         if (!m_texture) {
@@ -327,9 +344,6 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
 #endif
     };
-    if (window()->isVisible()) {
-        update();
-    }
 }
 
 void PipeWireSourceItem::updateTextureImage(const QImage &image)
@@ -343,19 +357,6 @@ void PipeWireSourceItem::updateTextureImage(const QImage &image)
         setEnabled(true);
         return window()->createTextureFromImage(image, QQuickWindow::TextureIsOpaque);
     };
-    if (window()->isVisible())
-        update();
-}
-
-void PipeWireSourceItem::moveCursor(const std::optional<QPoint> &position, const QPoint &hotspot, const QImage &texture)
-{
-    // we don't need to schedule a new repaint because we should be getting a new texture anyway
-    m_cursor.position = position;
-    m_cursor.hotspot = hotspot;
-    if (!texture.isNull()) {
-        m_cursor.dirty = true;
-        m_cursor.texture = texture;
-    }
 }
 
 void PipeWireSourceItem::componentComplete()
