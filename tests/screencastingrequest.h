@@ -51,7 +51,6 @@ public:
     QString outputName() const;
     quint32 nodeId() const;
 
-
 Q_SIGNALS:
     void nodeIdChanged(quint32 nodeId);
     void uuidChanged(const QString &uuid);

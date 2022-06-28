@@ -5,17 +5,17 @@
 */
 
 #include "screencasting.h"
+#include "logging.h"
 #include "qwayland-zkde-screencast-unstable-v1.h"
-#include <qtwaylandclientversion.h>
 #include <KWayland/Client/output.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
 #include <KWayland/Client/registry.h>
-#include <QtWaylandClient/QWaylandClientExtensionTemplate>
 #include <QGuiApplication>
 #include <QRect>
-#include <qscreen.h>
+#include <QtWaylandClient/QWaylandClientExtensionTemplate>
 #include <qpa/qplatformnativeinterface.h>
-#include "logging.h"
+#include <qscreen.h>
+#include <qtwaylandclientversion.h>
 
 using namespace KWayland::Client;
 
@@ -82,7 +82,7 @@ public:
 #endif
 
         if (!isInitialized()) {
-            qCWarning(PIPEWIRE_LOGGING) << "Remember requesting the interface on your desktop file: X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1";
+            qWarning() << "Remember requesting the interface on your desktop file: X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1";
         }
         Q_ASSERT(isInitialized());
     }
@@ -103,12 +103,12 @@ Screencasting::Screencasting(QObject *parent)
 
 Screencasting::~Screencasting() = default;
 
-ScreencastingStream * Screencasting::createOutputStream(const QString &outputName, Screencasting::CursorMode mode)
+ScreencastingStream *Screencasting::createOutputStream(const QString &outputName, Screencasting::CursorMode mode)
 {
     wl_output *output = nullptr;
     for (auto screen : qGuiApp->screens()) {
         if (screen->name() == outputName) {
-            output = (wl_output *) QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
+            output = (wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
         }
     }
 
@@ -153,7 +153,7 @@ ScreencastingStream *Screencasting::createWindowStream(const QString &uuid, Curs
     return stream;
 }
 
-ScreencastingStream* Screencasting::createVirtualMonitorStream(const QString &name, const QSize &size, qreal scale, CursorMode mode)
+ScreencastingStream *Screencasting::createVirtualMonitorStream(const QString &name, const QSize &size, qreal scale, CursorMode mode)
 {
     auto stream = new ScreencastingStream(this);
     stream->d->init(d->stream_virtual_output(name, size.width(), size.height(), wl_fixed_from_double(scale), mode));

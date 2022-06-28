@@ -31,29 +31,16 @@ ecm_qt_install_logging_categories(
     DESTINATION "${KDE_INSTALL_LOGGINGCATEGORIESDIR}"
 )
 
-if (QT_MAJOR_VERSION EQUAL "5")
-    ecm_add_qtwayland_client_protocol(KPipeWire
-        PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml
-        BASENAME zkde-screencast-unstable-v1
-    )
-else()
-    qt6_generate_wayland_protocol_client_sources(KPipeWire FILES
-        ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml)
-endif()
-
 target_sources(KPipeWire PRIVATE
     pipewirecore.cpp
     pipewiresourceitem.cpp
     pipewiresourcestream.cpp
-    screencasting.cpp
-    screencastingrequest.cpp
     glhelpers.cpp
     ${kpipewire_SRCS}
 )
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
-    Wayland::Client KF5::WaylandClient KF5::CoreAddons
-    PkgConfig::PipeWire Qt::WaylandClient epoxy::epoxy)
+    KF5::CoreAddons PkgConfig::PipeWire epoxy::epoxy)
 
 if (QT_MAJOR_VERSION EQUAL "5")
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)

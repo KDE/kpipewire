@@ -14,8 +14,7 @@
 #include <QPointer>
 #include <functional>
 
-struct ScreencastingRequestPrivate
-{
+struct ScreencastingRequestPrivate {
     QPointer<ScreencastingStream> m_stream;
     QString m_uuid;
     QString m_outputName;
