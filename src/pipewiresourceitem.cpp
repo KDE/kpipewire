@@ -47,7 +47,6 @@ public:
     void run() override
     {
         if (m_image != EGL_NO_IMAGE_KHR) {
-            static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
             eglDestroyImageKHR(eglGetCurrentDisplay(), m_image);
         }
 
@@ -275,11 +274,6 @@ QString PipeWireSourceItem::error() const
 
 void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes, spa_video_format format)
 {
-    static auto s_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
-    if (!s_glEGLImageTargetTexture2DOES) {
-        qCWarning(PIPEWIRE_LOGGING) << "glEGLImageTargetTexture2DOES is not available" << window();
-        return;
-    }
     if (!window()) {
         qCWarning(PIPEWIRE_LOGGING) << "Window not available" << this;
         return;
@@ -298,7 +292,6 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
     m_createNextTexture = [this, format, planes]() -> QSGTexture * {
         const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
         if (m_image) {
-            static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
             eglDestroyImageKHR(display, m_image);
         }
         const auto size = m_stream->size();
@@ -317,7 +310,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const QVector<DmaBufPlane> &planes,
         GLHelpers::initDebugOutput();
         m_texture->bind();
 
-        s_glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)m_image);
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)m_image);
 
         m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
         m_texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);

@@ -111,7 +111,7 @@ static QImage::Format SpaToQImageFormat(quint32 format)
 
 static QVector<uint64_t> queryDmaBufModifiers(EGLDisplay display, spa_video_format format)
 {
-    bool hasEglImageDmaBufImportExt = GLHelpers::hasEglExtension(display, "EGL_EXT_image_dma_buf_import");
+    bool hasEglImageDmaBufImportExt = epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import");
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
     static auto eglQueryDmaBufFormatsEXT = (PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress("eglQueryDmaBufFormatsEXT");
     if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT) {

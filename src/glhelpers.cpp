@@ -76,20 +76,16 @@ QByteArray formatGLError(GLenum err)
 QByteArray formatEGLError(GLenum err)
 {
     switch (err) {
-    ENUM_STRING(EGL_BAD_DISPLAY)
-    ENUM_STRING(EGL_BAD_CONTEXT)
-    ENUM_STRING(EGL_BAD_PARAMETER)
-    ENUM_STRING(EGL_BAD_MATCH)
-    ENUM_STRING(EGL_BAD_ACCESS)
-    ENUM_STRING(EGL_BAD_ALLOC)
+        ENUM_STRING(EGL_SUCCESS)
+        ENUM_STRING(EGL_BAD_DISPLAY)
+        ENUM_STRING(EGL_BAD_CONTEXT)
+        ENUM_STRING(EGL_BAD_PARAMETER)
+        ENUM_STRING(EGL_BAD_MATCH)
+        ENUM_STRING(EGL_BAD_ACCESS)
+        ENUM_STRING(EGL_BAD_ALLOC)
     default:
         return QByteArray("0x") + QByteArray::number(err, 16);
     }
-}
-
-bool hasEglExtension(EGLDisplay display, const QByteArray &name)
-{
-    return eglExtensions(display).contains(name);
 }
 
 QList<QByteArray> eglExtensions(EGLDisplay display)
@@ -152,9 +148,6 @@ EGLImage createImage(EGLDisplay display, EGLContext context, const QVector<DmaBu
     }
 
     attribs << EGL_NONE;
-
-    static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
-    Q_ASSERT(eglCreateImageKHR);
 
     EGLImage ret = eglCreateImageKHR(display, context, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
     if (ret == EGL_NO_IMAGE_KHR) {
