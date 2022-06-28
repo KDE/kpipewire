@@ -109,57 +109,62 @@ static QImage::Format SpaToQImageFormat(quint32 format)
     }
 }
 
-static QVector<uint64_t> queryDmaBufModifiers(EGLDisplay display, spa_video_format format)
+static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QVector<spa_video_format> &formats)
 {
-    bool hasEglImageDmaBufImportExt = epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import");
+    QHash<spa_video_format, QVector<uint64_t>> ret;
+    ret.reserve(formats.size());
+    const bool hasEglImageDmaBufImportExt = epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import");
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
     static auto eglQueryDmaBufFormatsEXT = (PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress("eglQueryDmaBufFormatsEXT");
-    if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT) {
-        return hasEglImageDmaBufImportExt ? QVector<uint64_t>{DRM_FORMAT_MOD_INVALID} : QVector<uint64_t>{};
-    }
-
-    uint32_t drm_format = PipeWireSourceStream::spaVideoFormatToDrmFormat(format);
-    if (drm_format == DRM_FORMAT_INVALID) {
-        qCDebug(PIPEWIRE_LOGGING) << "Failed to find matching DRM format." << format;
-        return {DRM_FORMAT_MOD_INVALID};
-    }
 
     EGLint count = 0;
-    EGLBoolean success = eglQueryDmaBufFormatsEXT(display, 0, nullptr, &count);
+    EGLBoolean successFormats = eglQueryDmaBufFormatsEXT(display, 0, nullptr, &count);
 
-    if (!success || count == 0) {
-        qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF format count.";
-        return {DRM_FORMAT_MOD_INVALID};
-    }
+    QVector<uint32_t> drmFormats(count);
+    successFormats &= eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(drmFormats.data()), &count);
+    if (!successFormats)
+        qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
 
-    QVector<uint32_t> formats(count);
-    if (!eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(formats.data()), &count)) {
-        if (!success)
-            qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
-        return {DRM_FORMAT_MOD_INVALID};
-    }
-
-    if (std::find(formats.begin(), formats.end(), drm_format) == formats.end()) {
-        qCDebug(PIPEWIRE_LOGGING) << "Format " << drm_format << " not supported for modifiers.";
-        return {DRM_FORMAT_MOD_INVALID};
-    }
-
-    success = eglQueryDmaBufModifiersEXT(display, drm_format, 0, nullptr, nullptr, &count);
-    if (!success) {
-        qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifier count.";
-        return {DRM_FORMAT_MOD_INVALID};
-    }
-
-    QVector<uint64_t> modifiers(count);
-    if (count > 0) {
-        if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, modifiers.data(), nullptr, &count)) {
-            qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifiers.";
+    const QVector<uint64_t> mods = hasEglImageDmaBufImportExt ? QVector<uint64_t>{DRM_FORMAT_MOD_INVALID} : QVector<uint64_t>{};
+    if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT || !hasEglImageDmaBufImportExt || !successFormats) {
+        for (spa_video_format format : formats) {
+            ret[format] = mods;
         }
+        return ret;
     }
 
-    // Support modifier-less buffers
-    modifiers.push_back(DRM_FORMAT_MOD_INVALID);
-    return modifiers;
+    for (spa_video_format format : formats) {
+        uint32_t drm_format = PipeWireSourceStream::spaVideoFormatToDrmFormat(format);
+        if (drm_format == DRM_FORMAT_INVALID) {
+            qCDebug(PIPEWIRE_LOGGING) << "Failed to find matching DRM format." << format;
+            break;
+        }
+
+        if (std::find(drmFormats.begin(), drmFormats.end(), drm_format) == drmFormats.end()) {
+            qCDebug(PIPEWIRE_LOGGING) << "Format " << drm_format << " not supported for modifiers.";
+            ret[format] = mods;
+            break;
+        }
+
+        successFormats = eglQueryDmaBufModifiersEXT(display, drm_format, 0, nullptr, nullptr, &count);
+        if (!successFormats) {
+            qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifier count.";
+            ret[format] = mods;
+            break;
+        }
+
+        QVector<uint64_t> modifiers(count);
+        if (count > 0) {
+            if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, modifiers.data(), nullptr, &count)) {
+                qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifiers.";
+            }
+        }
+
+        // Support modifier-less buffers
+        modifiers.push_back(DRM_FORMAT_MOD_INVALID);
+        ret[format] = modifiers;
+    }
+    return ret;
 }
 
 void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message)
@@ -384,9 +389,7 @@ QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams()
     const bool withDontFixate = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion);
 
     if (d->m_availableModifiers.isEmpty()) {
-        for (spa_video_format format : formats) {
-            d->m_availableModifiers[format] = queryDmaBufModifiers(display, format);
-        }
+        d->m_availableModifiers = queryDmaBufModifiers(display, formats);
     }
 
     for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
