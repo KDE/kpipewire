@@ -35,6 +35,27 @@ static void pwInit()
 }
 Q_COREAPP_STARTUP_FUNCTION(pwInit);
 
+class PipeWireSourceItemPrivate
+{
+public:
+    uint m_nodeId = 0;
+    uint m_fd = 0;
+    std::function<QSGTexture *()> m_createNextTexture;
+    QScopedPointer<PipeWireSourceStream> m_stream;
+    QScopedPointer<QOpenGLTexture> m_texture;
+
+    EGLImage m_image = nullptr;
+    bool m_needsRecreateTexture = false;
+
+    struct {
+        QImage texture;
+        std::optional<QPoint> position;
+        QPoint hotspot;
+        bool dirty = false;
+    } m_cursor;
+    std::optional<QRegion> m_damage;
+};
+
 class DiscardEglPixmapRunnable : public QRunnable
 {
 public:
@@ -60,13 +81,14 @@ private:
 
 PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     : QQuickItem(parent)
+    , d(new PipeWireSourceItemPrivate)
 {
     setFlag(ItemHasContents, true);
 
     connect(this, &QQuickItem::visibleChanged, this, [this]() {
         setEnabled(isVisible());
-        if (m_stream)
-            m_stream->setActive(isVisible());
+        if (d->m_stream)
+            d->m_stream->setActive(isVisible());
     });
 }
 
@@ -79,11 +101,11 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
     switch (change) {
     case ItemVisibleHasChanged:
         setEnabled(isVisible());
-        if (m_stream)
-            m_stream->setActive(isVisible() && data.boolValue && isComponentComplete());
+        if (d->m_stream)
+            d->m_stream->setActive(isVisible() && data.boolValue && isComponentComplete());
         break;
     case ItemSceneChange:
-        m_needsRecreateTexture = true;
+        d->m_needsRecreateTexture = true;
         releaseResources();
         break;
     default:
@@ -94,17 +116,17 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
 void PipeWireSourceItem::releaseResources()
 {
     if (window()) {
-        window()->scheduleRenderJob(new DiscardEglPixmapRunnable(m_image, m_texture.take()), QQuickWindow::NoStage);
-        m_image = EGL_NO_IMAGE_KHR;
+        window()->scheduleRenderJob(new DiscardEglPixmapRunnable(d->m_image, d->m_texture.take()), QQuickWindow::NoStage);
+        d->m_image = EGL_NO_IMAGE_KHR;
     }
 }
 
 void PipeWireSourceItem::setFd(uint fd)
 {
-    if (fd == m_fd)
+    if (fd == d->m_fd)
         return;
 
-    m_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+    d->m_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
     refresh();
     Q_EMIT fdChanged(fd);
 }
@@ -117,31 +139,31 @@ void PipeWireSourceItem::refresh()
         return;
     }
 
-    if (m_nodeId == 0) {
-        m_stream.reset(nullptr);
-        m_createNextTexture = [] {
+    if (d->m_nodeId == 0) {
+        d->m_stream.reset(nullptr);
+        d->m_createNextTexture = [] {
             return nullptr;
         };
     } else {
-        m_stream.reset(new PipeWireSourceStream(this));
-        m_stream->createStream(m_nodeId, m_fd);
-        if (!m_stream->error().isEmpty()) {
-            m_stream.reset(nullptr);
-            m_nodeId = 0;
+        d->m_stream.reset(new PipeWireSourceStream(this));
+        d->m_stream->createStream(d->m_nodeId, d->m_fd);
+        if (!d->m_stream->error().isEmpty()) {
+            d->m_stream.reset(nullptr);
+            d->m_nodeId = 0;
             return;
         }
-        m_stream->setActive(isVisible() && isComponentComplete());
+        d->m_stream->setActive(isVisible() && isComponentComplete());
 
-        connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
+        connect(d->m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
     }
 }
 
 void PipeWireSourceItem::setNodeId(uint nodeId)
 {
-    if (nodeId == m_nodeId)
+    if (nodeId == d->m_nodeId)
         return;
 
-    m_nodeId = nodeId;
+    d->m_nodeId = nodeId;
     refresh();
     Q_EMIT nodeIdChanged(nodeId);
 }
@@ -201,11 +223,11 @@ private:
 
 QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePaintNodeData *)
 {
-    if (Q_UNLIKELY(!m_createNextTexture)) {
+    if (Q_UNLIKELY(!d->m_createNextTexture)) {
         return node;
     }
 
-    auto texture = m_createNextTexture();
+    auto texture = d->m_createNextTexture();
     if (!texture) {
         delete node;
         return nullptr;
@@ -229,20 +251,20 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
     rect.moveCenter(br.center());
     screenNode->setRect(rect);
 
-    if (!m_cursor.position.has_value() || m_cursor.texture.isNull()) {
+    if (!d->m_cursor.position.has_value() || d->m_cursor.texture.isNull()) {
         pwNode->discardCursor();
     } else {
         QSGImageNode *cursorNode = pwNode->cursorNode(window());
-        if (m_cursor.dirty) {
-            cursorNode->setTexture(window()->createTextureFromImage(m_cursor.texture));
-            m_cursor.dirty = false;
+        if (d->m_cursor.dirty) {
+            cursorNode->setTexture(window()->createTextureFromImage(d->m_cursor.texture));
+            d->m_cursor.dirty = false;
         }
         const qreal scale = qreal(rect.width()) / texture->textureSize().width();
-        cursorNode->setRect(QRectF{rect.topLeft() + (m_cursor.position.value() * scale), m_cursor.texture.size() * scale});
+        cursorNode->setRect(QRectF{rect.topLeft() + (d->m_cursor.position.value() * scale), d->m_cursor.texture.size() * scale});
         Q_ASSERT(cursorNode->texture());
     }
 
-    if (!m_damage || m_damage->isEmpty()) {
+    if (!d->m_damage || d->m_damage->isEmpty()) {
         pwNode->discardDamage();
     } else {
         auto *damageNode = pwNode->damageNode(window());
@@ -250,7 +272,7 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         damageImage.fill(Qt::transparent);
         QPainter p(&damageImage);
         p.setBrush(Qt::red);
-        for (auto rect : *m_damage) {
+        for (auto rect : *d->m_damage) {
             p.drawRect(rect);
         }
         damageNode->setTexture(window()->createTextureFromImage(damageImage));
@@ -262,19 +284,19 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
 
 QString PipeWireSourceItem::error() const
 {
-    return m_stream->error();
+    return d->m_stream->error();
 }
 
 void PipeWireSourceItem::processFrame(const PipeWireFrame &frame)
 {
-    m_damage = frame.damage;
+    d->m_damage = frame.damage;
 
     if (frame.cursor) {
-        m_cursor.position = frame.cursor->position;
-        m_cursor.hotspot = frame.cursor->hotspot;
+        d->m_cursor.position = frame.cursor->position;
+        d->m_cursor.hotspot = frame.cursor->hotspot;
         if (!frame.cursor->texture.isNull()) {
-            m_cursor.dirty = true;
-            m_cursor.texture = frame.cursor->texture;
+            d->m_cursor.dirty = true;
+            d->m_cursor.texture = frame.cursor->texture;
         }
     }
 
@@ -301,40 +323,40 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
 #else
     const auto openglContext = static_cast<QOpenGLContext *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::OpenGLContextResource));
 #endif
-    if (!openglContext || !m_stream) {
+    if (!openglContext || !d->m_stream) {
         qCWarning(PIPEWIRE_LOGGING) << "need a window and a context" << window();
         return;
     }
 
-    m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
+    d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
         const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-        if (m_image) {
-            eglDestroyImageKHR(display, m_image);
+        if (d->m_image) {
+            eglDestroyImageKHR(display, d->m_image);
         }
-        const auto size = m_stream->size();
+        const auto size = d->m_stream->size();
         const EGLContext context = static_cast<EGLContext>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("eglcontext"));
-        m_image = GLHelpers::createImage(display, context, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
-        if (m_image == EGL_NO_IMAGE_KHR) {
-            m_stream->renegotiateModifierFailed(format, attribs.modifier);
+        d->m_image = GLHelpers::createImage(display, context, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
+        if (d->m_image == EGL_NO_IMAGE_KHR) {
+            d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
             return nullptr;
         }
-        if (!m_texture) {
-            m_texture.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
-            bool created = m_texture->create();
+        if (!d->m_texture) {
+            d->m_texture.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
+            bool created = d->m_texture->create();
             Q_ASSERT(created);
         }
 
         GLHelpers::initDebugOutput();
-        m_texture->bind();
+        d->m_texture->bind();
 
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)m_image);
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)d->m_image);
 
-        m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
-        m_texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-        m_texture->release();
-        m_texture->setSize(size.width(), size.height());
+        d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+        d->m_texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+        d->m_texture->release();
+        d->m_texture->setSize(size.width(), size.height());
 
-        int textureId = m_texture->textureId();
+        int textureId = d->m_texture->textureId();
         QQuickWindow::CreateTextureOption textureOption =
             format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
         setEnabled(true);
@@ -353,7 +375,7 @@ void PipeWireSourceItem::updateTextureImage(const QImage &image)
         return;
     }
 
-    m_createNextTexture = [this, image] {
+    d->m_createNextTexture = [this, image] {
         setEnabled(true);
         return window()->createTextureFromImage(image, QQuickWindow::TextureIsOpaque);
     };
@@ -362,7 +384,17 @@ void PipeWireSourceItem::updateTextureImage(const QImage &image)
 void PipeWireSourceItem::componentComplete()
 {
     QQuickItem::componentComplete();
-    if (m_nodeId != 0) {
+    if (d->m_nodeId != 0) {
         refresh();
     }
+}
+
+uint PipeWireSourceItem::fd() const
+{
+    return d->m_fd;
+}
+
+uint PipeWireSourceItem::nodeId() const
+{
+    return d->m_nodeId;
 }

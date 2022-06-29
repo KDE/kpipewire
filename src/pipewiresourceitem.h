@@ -26,6 +26,8 @@ class QSGTexture;
 class QOpenGLTexture;
 typedef void *EGLImage;
 
+class PipeWireSourceItemPrivate;
+
 class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 {
     Q_OBJECT
@@ -40,16 +42,10 @@ public:
     Q_SCRIPTABLE QString error() const;
 
     void setNodeId(uint nodeId);
-    uint nodeId() const
-    {
-        return m_nodeId;
-    }
+    uint nodeId() const;
 
     void setFd(uint fd);
-    uint fd() const
-    {
-        return m_fd;
-    }
+    uint fd() const;
 
     void componentComplete() override;
     void releaseResources() override;
@@ -65,20 +61,5 @@ private:
     void updateTextureImage(const QImage &image);
     void refresh();
 
-    uint m_nodeId = 0;
-    uint m_fd = 0;
-    std::function<QSGTexture *()> m_createNextTexture;
-    QScopedPointer<PipeWireSourceStream> m_stream;
-    QScopedPointer<QOpenGLTexture> m_texture;
-
-    EGLImage m_image = nullptr;
-    bool m_needsRecreateTexture = false;
-
-    struct {
-        QImage texture;
-        std::optional<QPoint> position;
-        QPoint hotspot;
-        bool dirty = false;
-    } m_cursor;
-    std::optional<QRegion> m_damage;
+    QScopedPointer<PipeWireSourceItemPrivate> d;
 };
