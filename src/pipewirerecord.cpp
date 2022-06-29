@@ -509,8 +509,6 @@ void PipeWireRecordProduce::render()
         p.drawImage(*m_cursor.position, m_cursor.texture);
     }
 
-    QElapsedTimer t;
-    t.start();
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
     const int strides[] = {image.bytesPerLine(), 0, 0, 0};
     struct SwsContext *sws_context = nullptr;
@@ -539,13 +537,7 @@ void PipeWireRecordProduce::render()
         m_frame->m_avFrame->pts = AV_NOPTS_VALUE;
     }
 
-    static int i = 0;
-    ++i;
-    qCDebug(PIPEWIRERECORD_LOGGING) << "sending frame" << i << av_ts2str(m_frame->m_avFrame->pts)
-                                    << "fps: " << double(i * 1000) / double(m_frame->m_avFrame->pts);
     const int ret = avcodec_send_frame(m_avCodecContext, m_frame->m_avFrame);
-
-    qCDebug(PIPEWIRERECORD_LOGGING) << "sent frames" << i << av_ts2str(m_frame->m_avFrame->pts) << t.elapsed();
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
         return;
@@ -629,9 +621,6 @@ void PipeWireRecordWriteThread::run()
             continue;
         }
 
-        static int i = 0;
-        ++i;
-        qCDebug(PIPEWIRERECORD_LOGGING) << "receiving packets" << i << m_active << av_ts2str(m_packet->pts) << (*m_avFormatContext->streams)->index;
         m_packet->stream_index = (*m_avFormatContext->streams)->index;
         av_packet_rescale_ts(m_packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
         log_packet(m_avFormatContext, m_packet);
