@@ -186,11 +186,10 @@ void PipeWireRecordProduce::setupEGL()
     }
 
     m_egl.display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-    const QList<QByteArray> extensions = GLHelpers::eglExtensions(m_egl.display);
 
     // Use eglGetPlatformDisplayEXT() to get the display pointer
     // if the implementation supports it.
-    if (!extensions.contains(QByteArrayLiteral("EGL_EXT_platform_base")) || !extensions.contains(QByteArrayLiteral("EGL_MESA_platform_gbm"))) {
+    if (!epoxy_has_egl_extension(m_egl.display, "EGL_EXT_platform_base") || !epoxy_has_egl_extension(m_egl.display, "EGL_MESA_platform_gbm")) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "One of required EGL extensions is missing";
         return;
     }

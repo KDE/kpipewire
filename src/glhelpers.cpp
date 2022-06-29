@@ -88,20 +88,6 @@ QByteArray formatEGLError(GLenum err)
     }
 }
 
-QList<QByteArray> eglExtensions(EGLDisplay display)
-{
-    const char *clientExtensionsCString = eglQueryString(display, EGL_EXTENSIONS);
-    const QByteArray clientExtensionsString = QByteArray::fromRawData(clientExtensionsCString, qstrlen(clientExtensionsCString));
-    if (clientExtensionsString.isEmpty()) {
-        // If eglQueryString() returned NULL, the implementation doesn't support
-        // EGL_EXT_client_extensions. Expect an EGL_BAD_DISPLAY error.
-        qWarning() << "No client extensions defined! " << GLHelpers::formatGLError(eglGetError());
-        return {};
-    }
-
-    return clientExtensionsString.split(' ');
-}
-
 EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttributes &dmabufAttribs, uint32_t format, const QSize &size)
 {
     const bool hasModifiers = dmabufAttribs.modifier != DRM_FORMAT_MOD_INVALID;
