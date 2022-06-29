@@ -401,7 +401,9 @@ void PipeWireRecordProduce::setupStream()
 
 void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 {
+    bool cursorChanged = false;
     if (frame.cursor) {
+        cursorChanged = m_cursor.position != frame.cursor->position;
         m_cursor.position = frame.cursor->position;
         m_cursor.hotspot = frame.cursor->hotspot;
         if (!frame.cursor->texture.isNull()) {
@@ -414,6 +416,8 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
         updateTextureDmaBuf(*frame.dmabuf, frame.format);
     } else if (frame.image) {
         updateTextureImage(*frame.image);
+    } else if (cursorChanged) {
+        render();
     }
 }
 
