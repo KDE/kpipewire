@@ -340,7 +340,7 @@ void PipeWireRecordProduce::setupStream()
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate video codec context";
         return;
     }
-    m_avCodecContext->bit_rate = 50000000;
+    m_avCodecContext->bit_rate = 100000000;
 
     const QSize size = m_stream->size();
     const Fraction framerate = m_stream->framerate();
