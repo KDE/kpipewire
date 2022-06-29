@@ -471,6 +471,8 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const DmaBufAttributes &dmabuf, 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, texture);
+
+    static auto glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
     glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
 
     auto src = static_cast<uint8_t *>(malloc(dmabuf.planes[0].stride * streamSize.height()));
@@ -485,6 +487,8 @@ void PipeWireRecordProduce::updateTextureDmaBuf(const DmaBufAttributes &dmabuf, 
     updateTextureImage(qimage);
 
     glDeleteTextures(1, &texture);
+
+    static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
     eglDestroyImageKHR(m_egl.display, image);
 
     free(src);

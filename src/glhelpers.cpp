@@ -53,6 +53,11 @@ void initDebugOutput()
         return;
     }
 
+    if (!eglGetCurrentDisplay()) {
+        // Epoxy gets very confused and it will crash
+        return;
+    }
+
     std::call_once(initDebugOnce, initDebugOutputOnce);
 }
 
@@ -135,6 +140,7 @@ EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttribu
 
     attribs << EGL_NONE;
 
+    static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
     EGLImage ret = eglCreateImageKHR(display, context, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
     if (ret == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRE_LOGGING) << "invalid image" << GLHelpers::formatEGLError(eglGetError());
