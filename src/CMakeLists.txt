@@ -69,6 +69,7 @@ ecm_generate_export_header(KPipeWire
 ecm_generate_headers(KPipeWire_HEADERS
   HEADER_NAMES
   PipeWireSourceStream
+  PipeWireSourceItem
   REQUIRED_HEADERS KPipeWire_HEADERS
 )
 
