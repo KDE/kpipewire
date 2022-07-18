@@ -306,7 +306,7 @@ void PipeWireSourceItem::processFrame(const PipeWireFrame &frame)
         updateTextureImage(*frame.image);
     }
 
-    if (window()->isVisible()) {
+    if (window() && window()->isVisible()) {
         update();
     }
 }
