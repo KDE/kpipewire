@@ -510,7 +510,7 @@ void PipeWireRecordProduce::render()
     }
 
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
-    const int strides[] = {image.bytesPerLine(), 0, 0, 0};
+    const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
     struct SwsContext *sws_context = nullptr;
     sws_context = sws_getCachedContext(sws_context,
                                        image.width(),
