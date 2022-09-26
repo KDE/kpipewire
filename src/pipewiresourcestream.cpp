@@ -460,7 +460,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
     { // process cursor
         struct spa_meta_cursor *cursor = static_cast<struct spa_meta_cursor *>(spa_buffer_find_meta_data(spaBuffer, SPA_META_Cursor, sizeof(*cursor)));
-        if (spa_meta_cursor_is_valid(cursor)) {
+        if (cursor && spa_meta_cursor_is_valid(cursor)) {
             struct spa_meta_bitmap *bitmap = nullptr;
 
             if (cursor->bitmap_offset)
