@@ -33,6 +33,7 @@ int main(int argc, char **argv)
         parser.addOption(duration);
         parser.addOption(kwaylandSource);
         parser.addOption(cursor);
+        parser.addHelpOption();
         parser.process(app);
 
         PlasmaRecordMe *me = new PlasmaRecordMe(cursorOptions[parser.value(cursor).toLower()], parser.value(kwaylandSource), &app);
