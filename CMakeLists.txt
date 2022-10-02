@@ -53,5 +53,4 @@ if (BUILD_TESTING)
    add_subdirectory(tests)
 endif()
 
-
-
+ki18n_install(po)
