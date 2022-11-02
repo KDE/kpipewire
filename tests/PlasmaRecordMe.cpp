@@ -5,19 +5,21 @@
 */
 
 #include "PlasmaRecordMe.h"
-#include <screencasting.h>
-#include <QDir>
-#include <QLoggingCategory>
-#include <QTimer>
 #include <QCoreApplication>
-#include <QThread>
+#include <QDir>
+#include <QGuiApplication>
+#include <QLoggingCategory>
 #include <QProcess>
-#include <QRect>
-#include <QQuickView>
-#include <QQuickItem>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickItem>
+#include <QQuickView>
+#include <QRect>
 #include <QRegularExpression>
+#include <QScreen>
+#include <QThread>
+#include <QTimer>
+#include <screencasting.h>
 
 #include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/connection_thread.h>
@@ -75,12 +77,6 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
             output->setup(registry->bindOutput(name, version));
 
             connect(output, &Output::changed, this, [this, output] {
-                auto xdgOutput = m_xdgOutputManager->getXdgOutput(output);
-                connect(xdgOutput, &XdgOutput::changed, this, [this, xdgOutput] {
-                    m_workspace |= QRect {xdgOutput->logicalPosition(), xdgOutput->logicalSize()};
-                    Q_EMIT workspaceChanged();
-                });
-
                 const QRegularExpression rx(m_sourceName);
                 const auto match = rx.match(output->model());
                 if (match.hasMatch()) {
@@ -103,10 +99,6 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
             start(m_workspaceStream);
         });
     }
-    connect(registry, &KWayland::Client::Registry::interfacesAnnounced, this, [this, registry] {
-        const auto xdgOMData = registry->interface(Registry::Interface::XdgOutputUnstableV1);
-        m_xdgOutputManager = registry->createXdgOutputManager(xdgOMData.name, xdgOMData.version);
-    });
 
     registry->create(connection);
     registry->setup();
@@ -126,6 +118,11 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
                              Q_ARG(QVariant, 0));
         }
     }
+
+    for (auto screen : qGuiApp->screens()) {
+        m_workspace |= screen->geometry();
+    }
+    Q_EMIT workspaceChanged();
 }
 
 PlasmaRecordMe::~PlasmaRecordMe()

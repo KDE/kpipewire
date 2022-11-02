@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <QObject>
 #include <QDBusObjectPath>
+#include <QObject>
 #include <QRect>
 #include <screencasting.h>
 
@@ -53,5 +53,4 @@ private:
     QQmlApplicationEngine* m_engine;
     ScreencastingStream *m_workspaceStream = nullptr;
     QRect m_workspace;
-    KWayland::Client::XdgOutputManager *m_xdgOutputManager = nullptr;
 };
