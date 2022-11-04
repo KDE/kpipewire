@@ -416,7 +416,7 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
         updateTextureDmaBuf(*frame.dmabuf, frame.format);
     } else if (frame.image) {
         updateTextureImage(*frame.image);
-    } else if (cursorChanged) {
+    } else if (cursorChanged && !m_frameWithoutMetadataCursor.isNull()) {
         render();
     }
 }
@@ -502,6 +502,8 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
 
 void PipeWireRecordProduce::render()
 {
+    Q_ASSERT(!m_frameWithoutMetadataCursor.isNull());
+
     QImage image(m_frameWithoutMetadataCursor);
     if (!image.isNull() && m_cursor.position && !m_cursor.texture.isNull()) {
         image = m_frameWithoutMetadataCursor.copy();
