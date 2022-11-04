@@ -231,7 +231,32 @@ void PipeWireRecordProduce::setupEGL()
         return;
     }
 
-    m_egl.context = eglCreateContext(m_egl.display, nullptr, EGL_NO_CONTEXT, nullptr);
+    EGLConfig configs;
+    auto createConfig = [&] {
+        const EGLint config_attribs[] = {
+            EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
+            EGL_RED_SIZE,        8,
+            EGL_GREEN_SIZE,      8,
+            EGL_BLUE_SIZE,       8,
+            EGL_ALPHA_SIZE,      0,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+            EGL_CONFIG_CAVEAT,   EGL_NONE,
+            EGL_NONE,
+        };
+
+        EGLint count;
+        if (eglChooseConfig(m_egl.display, config_attribs, &configs, 1, &count) == EGL_FALSE) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "choose config failed";
+            return false;
+        }
+        if (count != 1) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "choose config did not return a config" << count;
+            return false;
+        }
+        return true;
+    };
+
+    m_egl.context = eglCreateContext(m_egl.display, createConfig() ? &configs : EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT, nullptr);
 
     if (m_egl.context == EGL_NO_CONTEXT) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Couldn't create EGL context: " << GLHelpers::formatGLError(eglGetError());
