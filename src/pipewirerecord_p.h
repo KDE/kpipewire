@@ -22,6 +22,7 @@
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
 
+#include "dmabufhandler.h"
 #include "pipewiresourcestream.h"
 
 struct AVCodec;
@@ -63,10 +64,8 @@ public:
 
 private:
     friend class PipeWireRecordProduceThread;
-    void setupEGL();
     void setupStream();
     void processFrame(const PipeWireFrame &frame);
-    void updateTextureDmaBuf(const DmaBufAttributes &plane, spa_video_format format);
     void updateTextureImage(const QImage &image);
     void render();
 
@@ -78,16 +77,6 @@ private:
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
 
-    struct EGLStruct {
-        EGLDisplay display = EGL_NO_DISPLAY;
-        EGLContext context = EGL_NO_CONTEXT;
-    };
-
-    bool m_eglInitialized = false;
-    qint32 m_drmFd = 0; // for GBM buffer mmap
-    gbm_device *m_gbmDevice = nullptr; // for passed GBM buffer retrieval
-
-    EGLStruct m_egl;
     PipeWireRecordWriteThread *m_writeThread = nullptr;
     QWaitCondition m_bufferNotEmpty;
     const QByteArray m_encoder;
@@ -101,6 +90,7 @@ private:
         bool dirty = false;
     } m_cursor;
     QImage m_frameWithoutMetadataCursor;
+    DmaBufHandler m_dmabufHandler;
 };
 
 class PipeWireRecordProduceThread : public QThread
@@ -133,7 +123,7 @@ struct PipeWireRecordPrivate {
     uint m_fd = 0;
     bool m_active = false;
     QString m_output;
-    PipeWireRecordProduceThread *m_recordThread = nullptr;
+    std::unique_ptr<PipeWireRecordProduceThread> m_recordThread;
     bool m_produceThreadFinished = true;
     QByteArray m_encoder;
 };

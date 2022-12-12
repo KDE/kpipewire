@@ -20,5 +20,5 @@ KPIPEWIRE_EXPORT void initDebugOutput();
 KPIPEWIRE_EXPORT QByteArray formatGLError(GLenum err);
 KPIPEWIRE_EXPORT QByteArray formatEGLError(GLenum err);
 
-KPIPEWIRE_EXPORT EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttributes &attribs, uint32_t format, const QSize &size);
+KPIPEWIRE_EXPORT EGLImage createImage(EGLDisplay display, const DmaBufAttributes &attribs, uint32_t format, const QSize &size, gbm_device *device);
 }

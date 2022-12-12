@@ -11,7 +11,6 @@
 #include "logging.h"
 #include "pipewirecore.h"
 
-#include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
 #include <spa/utils/result.h>
 #include <sys/ioctl.h>
@@ -90,7 +89,7 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     case SPA_VIDEO_FORMAT_RGB:
         return DRM_FORMAT_RGB888;
     default:
-        qDebug() << "unknown format" << spa_format;
+        qCWarning(PIPEWIRE_LOGGING) << "unknown format" << spa_format;
         return DRM_FORMAT_INVALID;
     }
 }
@@ -201,7 +200,10 @@ void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
 void PipeWireSourceStream::renegotiateModifierFailed(spa_video_format format, quint64 modifier)
 {
     if (d->pwCore->serverVersion() >= kDropSingleModifierMinVersion) {
-        d->m_availableModifiers[format].removeAll(modifier);
+        const int removed = d->m_availableModifiers[format].removeAll(modifier);
+        if (removed == 0) {
+            d->m_allowDmaBuf = false;
+        }
     } else {
         d->m_allowDmaBuf = false;
     }
@@ -499,7 +501,9 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         attribs.planes.reserve(spaBuffer->n_datas);
         attribs.format = spaVideoFormatToDrmFormat(d->videoFormat.format);
         attribs.modifier = d->videoFormat.modifier;
-        ;
+        attribs.width = d->videoFormat.size.width;
+        attribs.height = d->videoFormat.size.height;
+
         for (uint i = 0; i < spaBuffer->n_datas; ++i) {
             const auto &data = spaBuffer->datas[i];
 

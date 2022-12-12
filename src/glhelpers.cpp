@@ -5,13 +5,14 @@
 */
 
 #include "glhelpers.h"
-#include <QDebug>
 #include <QList>
 #include <QVersionNumber>
 #include <epoxy/gl.h>
 #include <libdrm/drm_fourcc.h>
 #include <logging.h>
 #include <mutex>
+
+#include <gbm.h>
 
 namespace GLHelpers
 {
@@ -87,13 +88,29 @@ QByteArray formatEGLError(GLenum err)
         ENUM_STRING(EGL_BAD_MATCH)
         ENUM_STRING(EGL_BAD_ACCESS)
         ENUM_STRING(EGL_BAD_ALLOC)
+        ENUM_STRING(EGL_BAD_CONFIG)
     default:
         return QByteArray("0x") + QByteArray::number(err, 16);
     }
 }
 
-EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttributes &dmabufAttribs, uint32_t format, const QSize &size)
+EGLImage createImage(EGLDisplay display, const DmaBufAttributes &dmabufAttribs, uint32_t format, const QSize &size, gbm_device *gbmDevice)
 {
+    Q_ASSERT(!size.isEmpty());
+    gbm_bo *imported = nullptr;
+    if (gbmDevice) {
+        gbm_import_fd_data importInfo = {static_cast<int>(dmabufAttribs.planes[0].fd),
+                                         static_cast<uint32_t>(size.width()),
+                                         static_cast<uint32_t>(size.height()),
+                                         static_cast<uint32_t>(dmabufAttribs.planes[0].stride),
+                                         GBM_BO_FORMAT_ARGB8888};
+        imported = gbm_bo_import(gbmDevice, GBM_BO_IMPORT_FD, &importInfo, GBM_BO_USE_SCANOUT);
+        if (!imported) {
+            qCWarning(PIPEWIRE_LOGGING) << "Failed to process buffer: Cannot import passed GBM fd - " << strerror(errno);
+            return EGL_NO_IMAGE_KHR;
+        }
+    }
+
     const bool hasModifiers = dmabufAttribs.modifier != DRM_FORMAT_MOD_INVALID;
 
     QVector<EGLint> attribs;
@@ -140,9 +157,17 @@ EGLImage createImage(EGLDisplay display, EGLContext context, const DmaBufAttribu
     attribs << EGL_NONE;
 
     static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
-    EGLImage ret = eglCreateImageKHR(display, context, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer) nullptr, attribs.data());
+
+    /* MESA says:
+     * "If <target> is EGL_LINUX_DMA_BUF_EXT, <dpy> must be a valid display,
+     *  <ctx> must be EGL_NO_CONTEXT..."
+     */
+    EGLImage ret = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, imported, attribs.data());
     if (ret == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIRE_LOGGING) << "invalid image" << GLHelpers::formatEGLError(eglGetError());
+    }
+    if (imported) {
+        gbm_bo_destroy(imported);
     }
     return ret;
 }

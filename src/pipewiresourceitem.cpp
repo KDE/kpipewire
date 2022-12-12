@@ -334,8 +334,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
             eglDestroyImageKHR(display, d->m_image);
         }
         const auto size = d->m_stream->size();
-        const EGLContext context = static_cast<EGLContext>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("eglcontext"));
-        d->m_image = GLHelpers::createImage(display, context, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size);
+        d->m_image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
         if (d->m_image == EGL_NO_IMAGE_KHR) {
             d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
             return nullptr;

@@ -13,6 +13,12 @@ ecm_qt_declare_logging_category(kpipewire_SRCS
                             CATEGORY_NAME kpipewire_logging
                             DESCRIPTION "PipeWire components for KDE"
                             EXPORT KPipeWire)
+ecm_qt_declare_logging_category(kpipewiredmabuf_SRCS
+                            HEADER logging_dmabuf.h
+                            IDENTIFIER PIPEWIREDMABUF_LOGGING
+                            CATEGORY_NAME kpipewire_dmabuf_logging
+                            DESCRIPTION "PipeWire and DMABuf components for KDE"
+                            EXPORT KPipeWireDmaBuf)
 ecm_qt_declare_logging_category(kpipewirerecord_SRCS
                             HEADER logging_record.h
                             IDENTIFIER PIPEWIRERECORD_LOGGING
@@ -40,7 +46,7 @@ target_sources(KPipeWire PRIVATE
 )
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
-    KF5::CoreAddons PkgConfig::PipeWire epoxy::epoxy)
+    KF5::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM)
 
 if (QT_MAJOR_VERSION EQUAL "5")
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)
@@ -79,9 +85,37 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
+add_library(KPipeWireDmaBuf dmabufhandler.cpp ${kpipewiredmabuf_SRCS})
+target_link_libraries(KPipeWireDmaBuf PUBLIC KPipeWire
+    PRIVATE Qt::Core Qt::Gui PkgConfig::GBM
+    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
+)
+
+set_target_properties(KPipeWireDmaBuf PROPERTIES
+                             VERSION ${PROJECT_VERSION}
+                             SOVERSION ${PROJECT_VERSION_MAJOR}
+                      )
+
+ecm_generate_export_header(KPipeWireDmaBuf
+    BASE_NAME KPipeWireDmaBuf
+    VERSION ${PROJECT_VERSION}
+)
+
+ecm_generate_headers(KPipeWireDmaBuf_HEADERS
+  HEADER_NAMES
+    DmaBufHandler
+  REQUIRED_HEADERS KPipeWireDmaBuf_HEADERS
+)
+
+install(FILES
+  ${KPipeWireDmaBuf_HEADERS}
+  ${CMAKE_CURRENT_BINARY_DIR}/kpipewiredmabuf_export.h
+  DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
+)
+
 add_library(KPipeWireRecord pipewirerecord.cpp ${kpipewirerecord_SRCS})
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
-    PRIVATE Qt::Core Qt::Gui KF5::CoreAddons
+    PRIVATE Qt::Core Qt::Gui KF5::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale
     epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
 )
@@ -101,7 +135,7 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
-install(TARGETS KPipeWire KPipeWireRecord EXPORT KPipeWireTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS KPipeWire KPipeWireRecord KPipeWireDmaBuf EXPORT KPipeWireTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 
 ecm_setup_version(PROJECT VARIABLE_PREFIX KPIPEWIRE

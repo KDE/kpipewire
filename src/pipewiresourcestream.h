@@ -26,6 +26,7 @@
 #undef Status
 
 class PipeWireCore;
+struct gbm_device;
 
 typedef void *EGLDisplay;
 
@@ -50,7 +51,7 @@ struct PipeWireCursor {
     QImage texture;
 };
 
-struct PipeWireFrame {
+struct KPIPEWIRE_EXPORT PipeWireFrame {
     spa_video_format format;
     std::optional<int> sequential;
     std::optional<std::chrono::nanoseconds> presentationTimestamp;
@@ -71,7 +72,7 @@ class KPIPEWIRE_EXPORT PipeWireSourceStream : public QObject
 {
     Q_OBJECT
 public:
-    explicit PipeWireSourceStream(QObject *parent);
+    explicit PipeWireSourceStream(QObject *parent = nullptr);
     ~PipeWireSourceStream();
 
     Fraction framerate() const;

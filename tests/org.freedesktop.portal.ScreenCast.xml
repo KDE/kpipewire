@@ -23,7 +23,7 @@
 
       The Screen cast portal allows to create screen cast sessions.
 
-      This documentation describes version 1 of this interface.
+      This documentation describes version 4 of this interface.
   -->
   <interface name="org.freedesktop.portal.ScreenCast">
     <!--
@@ -32,9 +32,9 @@
         @handle: Object path for the #org.freedesktop.portal.Request object representing this call
 
         Create a screen cast session. A successfully created session can at
-        any time be closed using org.freedesktop.portal.Session::Close, or may
+        any time be closed using org.freedesktop.portal.Session.Close(), or may
         at any time be closed by the portal implementation, which will be
-        signalled via org.freedesktop.portal.Session::Closed.
+        signalled via #org.freedesktop.portal.Session::Closed.
 
         Supported keys in the @options vardict include:
         <variablelist>
@@ -70,7 +70,7 @@
     -->
     <method name="CreateSession">
       <arg type="a{sv}" name="options" direction="in"/>
-      <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QVariantMap"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QVariantMap" />
       <arg type="o" name="handle" direction="out"/>
     </method>
     <!--
@@ -112,12 +112,50 @@
             <term>cursor_mode u</term>
             <listitem><para>
               Determines how the cursor will be drawn in the screen cast stream. It must be
-              one of the curosr modes advertised in
+              one of the cursor modes advertised in
               #org.freedesktop.portal.ScreenCast.AvailableCursorModes. Setting a cursor mode
               not advertised will cause the screen cast session to be closed. The default
               cursor mode is 'Hidden'.
 
               This option was added in version 2 of this interface.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>restore_token s</term>
+            <listitem><para>
+              The token to restore a previous session.
+
+              If the stored session cannot be restored, this value is ignored
+              and the user will be prompted normally. This may happen when, for
+              example, the session contains a monitor or a window that is not
+              available anymore, or when the stored permissions are withdrawn.
+
+              The restore token is invalidated after using it once. To restore
+              the same session again, use the new restore token sent in response
+              to starting this session.
+
+              This option was added in version 4 of this interface.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>persist_mode u</term>
+            <listitem><para>
+              How this session should persist. Default is 0. Accepted values are:
+
+              <simplelist>
+                <member>0: Do not persist (default)</member>
+                <member>1: Permissions persist as long as the application is running</member>
+                <member>2: Permissions persist until explicitly revoked</member>
+              </simplelist>
+
+              Remote desktop screen cast sessions cannot persist. The only allowed
+              persist_mode for remote desktop sessions is 0.
+
+              If the permission for the session to persist is granted, a restore token will
+              be returned via the #org.freedesktop.portal.Request::Response signal of the
+              #org.freedesktop.portal.ScreenCast.Start method.
+
+              This option was added in version 4 of this interface.
             </para></listitem>
           </varlistentry>
         </variablelist>
@@ -127,7 +165,7 @@
     <method name="SelectSources">
       <arg type="o" name="session_handle" direction="in"/>
       <arg type="a{sv}" name="options" direction="in"/>
-      <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap" />
       <arg type="o" name="handle" direction="out"/>
     </method>
     <!--
@@ -139,10 +177,11 @@
 
         Start the screen cast session. This will typically result the portal
         presenting a dialog letting the user do the selection set up by
-        SelectSources. An application can only attempt start a session once.
+        org.freedesktop.portal.ScreenCast.SelectSources(). An application can
+        only attempt start a session once.
 
         A screen cast session may only be started after having selected sources
-        using org.freedesktop.portal.ScreenCast::SelectSources.
+        using org.freedesktop.portal.ScreenCast.SelectSources().
 
         Supported keys in the @options vardict include:
         <variablelist>
@@ -167,8 +206,20 @@
               properties.
 
               The array will contain a single stream if 'multiple' (see
-              SelectSources) was set to 'false', or at least one stream if
-              'multiple' was set to 'true' as part of the SelectSources method.
+              org.freedesktop.portal.ScreenCast.SelectSources())
+              was set to 'false', or at least one stream if
+              'multiple' was set to 'true' as part of the
+              org.freedesktop.portal.ScreenCast.SelectSources() method.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>restore_token s</term>
+            <listitem><para>
+              The restore token. This token is a single use token that can later
+              be used to restore a session. See
+              org.freedesktop.portal.ScreenCast.SelectSources() for details.
+
+              This response option was added in version 4 of this interface.
             </para></listitem>
           </varlistentry>
         </variablelist>
@@ -176,12 +227,21 @@
         Stream properties include:
         <variablelist>
           <varlistentry>
+            <term>id s</term>
+            <listitem><para>
+              Opaque identifier. Will be unique for this stream and local to this
+              session. Will persist with future sessions, if they are restored
+              using a restore token. This property was added in version 4 of this
+              interface. Optional.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
             <term>position (ii)</term>
             <listitem><para>
               A tuple consisting of the position (x, y) in the compositor
               coordinate space. Note that the position may not be equivalent to a
               position in a pixel coordinate space. Only available for monitor
-              streams.
+              streams. Optional.
             </para></listitem>
           </varlistentry>
           <varlistentry>
@@ -191,7 +251,15 @@
               of the stream as it is displayed in the compositor coordinate
               space. Note that this size may not be equivalent to a size in a
               pixel coordinate space. The size may differ from the size of the
-              stream.
+              stream. Optional.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>source_type u</term>
+            <listitem><para>
+              The type of the content which is being screen casted.
+              For available source types, see the AvailableSourceTypes property.
+              This property was added in version 3 of this interface.
             </para></listitem>
           </varlistentry>
         </variablelist>
@@ -200,7 +268,7 @@
       <arg type="o" name="session_handle" direction="in"/>
       <arg type="s" name="parent_window" direction="in"/>
       <arg type="a{sv}" name="options" direction="in"/>
-      <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap" />
       <arg type="o" name="handle" direction="out"/>
     </method>
     <!--
@@ -211,17 +279,17 @@
 
         Open a file descriptor to the PipeWire remote where the screen cast
         streams are available. The file descriptor should be used to create a
-        <classname>pw_remote</classname> object, by using
-        <function>pw_remote_connect_fd</function>. Only the screen cast stream
+        <classname>pw_core</classname> object, by using
+        <function>pw_context_connect_fd</function>. Only the screen cast stream
         nodes will be available from this PipeWire node.
     -->
     <method name="OpenPipeWireRemote">
       <annotation name="org.gtk.GDBus.C.Name" value="open_pipewire_remote"/>
       <annotation name="org.gtk.GDBus.C.UnixFD" value="true"/>
-      <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
       <arg type="o" name="session_handle" direction="in"/>
       <arg type="a{sv}" name="options" direction="in"/>
       <arg type="h" name="fd" direction="out"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap" />
     </method>
     <!--
         AvailableSourceTypes:
@@ -231,6 +299,7 @@
         <simplelist>
           <member>1: MONITOR</member>
           <member>2: WINDOW</member>
+          <member>4: VIRTUAL</member>
         </simplelist>
     -->
     <property name="AvailableSourceTypes" type="u" access="read"/>

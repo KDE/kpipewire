@@ -13,7 +13,6 @@
 #include <logging_record.h>
 
 #include <QDateTime>
-#include <QDebug>
 #include <QGuiApplication>
 #include <QImage>
 #include <QMutex>
@@ -26,9 +25,6 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-
-#include <gbm.h>
-#include <xf86drm.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -151,132 +147,12 @@ void PipeWireRecord::setOutput(const QString &_output)
     Q_EMIT outputChanged(output);
 }
 
-QByteArray fetchRenderNode()
-{
-    int max_devices = drmGetDevices2(0, nullptr, 0);
-    if (max_devices <= 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
-        return "/dev/dri/renderD128";
-    }
-
-    std::vector<drmDevicePtr> devices(max_devices);
-    int ret = drmGetDevices2(0, devices.data(), max_devices);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "drmGetDevices2() returned an error " << ret;
-        return "/dev/dri/renderD128";
-    }
-
-    QByteArray render_node;
-
-    for (const drmDevicePtr &device : devices) {
-        if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
-            render_node = device->nodes[DRM_NODE_RENDER];
-            break;
-        }
-    }
-
-    drmFreeDevices(devices.data(), ret);
-    return render_node;
-}
-
-void PipeWireRecordProduce::setupEGL()
-{
-    if (m_eglInitialized) {
-        return;
-    }
-
-    m_egl.display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-
-    // Use eglGetPlatformDisplayEXT() to get the display pointer
-    // if the implementation supports it.
-    if (!epoxy_has_egl_extension(m_egl.display, "EGL_EXT_platform_base") || !epoxy_has_egl_extension(m_egl.display, "EGL_MESA_platform_gbm")) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "One of required EGL extensions is missing";
-        return;
-    }
-
-    if (m_egl.display == EGL_NO_DISPLAY) {
-        m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
-    }
-    if (m_egl.display == EGL_NO_DISPLAY) {
-        const QByteArray renderNode = fetchRenderNode();
-        m_drmFd = open(renderNode.constData(), O_RDWR);
-
-        if (m_drmFd < 0) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to open drm render node" << renderNode << "with error: " << strerror(errno);
-            return;
-        }
-
-        m_gbmDevice = gbm_create_device(m_drmFd);
-
-        if (!m_gbmDevice) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "Cannot create GBM device: " << strerror(errno);
-            return;
-        }
-        m_egl.display = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_MESA, m_gbmDevice, nullptr);
-    }
-
-    if (m_egl.display == EGL_NO_DISPLAY) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error during obtaining EGL display: " << GLHelpers::formatGLError(eglGetError());
-        return;
-    }
-
-    EGLint major, minor;
-    if (eglInitialize(m_egl.display, &major, &minor) == EGL_FALSE) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error during eglInitialize: " << GLHelpers::formatGLError(eglGetError());
-        return;
-    }
-
-    if (eglBindAPI(EGL_OPENGL_API) == EGL_FALSE) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "bind OpenGL API failed";
-        return;
-    }
-
-    EGLConfig configs;
-    auto createConfig = [&] {
-        const EGLint config_attribs[] = {
-            EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
-            EGL_RED_SIZE,        8,
-            EGL_GREEN_SIZE,      8,
-            EGL_BLUE_SIZE,       8,
-            EGL_ALPHA_SIZE,      0,
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
-            EGL_CONFIG_CAVEAT,   EGL_NONE,
-            EGL_NONE,
-        };
-
-        EGLint count;
-        if (eglChooseConfig(m_egl.display, config_attribs, &configs, 1, &count) == EGL_FALSE) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "choose config failed";
-            return false;
-        }
-        if (count != 1) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "choose config did not return a config" << count;
-            return false;
-        }
-        return true;
-    };
-
-    m_egl.context = eglCreateContext(m_egl.display, createConfig() ? &configs : EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT, nullptr);
-
-    if (m_egl.context == EGL_NO_CONTEXT) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Couldn't create EGL context: " << GLHelpers::formatGLError(eglGetError());
-        return;
-    }
-
-    qCDebug(PIPEWIRERECORD_LOGGING) << "Egl initialization succeeded";
-    qCDebug(PIPEWIRERECORD_LOGGING) << QStringLiteral("EGL version: %1.%2").arg(major).arg(minor);
-
-    m_eglInitialized = true;
-}
-
 PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
     : QObject()
     , m_output(output)
     , m_nodeId(nodeId)
     , m_encoder(encoder)
 {
-    setupEGL();
-
     m_stream.reset(new PipeWireSourceStream(nullptr));
     bool created = m_stream->createStream(m_nodeId, fd);
     if (!created || !m_stream->error().isEmpty()) {
@@ -285,7 +161,6 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
         m_stream.reset(nullptr);
         return;
     }
-    m_stream->setActive(true);
     connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireRecordProduce::setupStream);
 }
 
@@ -310,7 +185,9 @@ void PipeWireRecordProduceThread::run()
 
 void PipeWireRecordProduceThread::deactivate()
 {
-    m_producer->m_stream->setActive(false);
+    if (m_producer) {
+        m_producer->m_stream->setActive(false);
+    }
 }
 
 void PipeWireRecordProduce::finish()
@@ -333,10 +210,6 @@ void PipeWireRecordProduce::finish()
         avcodec_close(m_avCodecContext);
         av_free(m_avCodecContext);
         avformat_free_context(m_avFormatContext);
-    }
-
-    if (m_drmFd) {
-        close(m_drmFd);
     }
 }
 
@@ -438,7 +311,12 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
     }
 
     if (frame.dmabuf) {
-        updateTextureDmaBuf(*frame.dmabuf, frame.format);
+        QImage qimage(m_stream->size(), QImage::Format_RGBA8888);
+        if (!m_dmabufHandler.downloadFrame(qimage, frame)) {
+            m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+            return;
+        }
+        updateTextureImage(qimage);
     } else if (frame.image) {
         updateTextureImage(*frame.image);
     } else if (cursorChanged && !m_frameWithoutMetadataCursor.isNull()) {
@@ -449,9 +327,9 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 void PipeWireRecord::refresh()
 {
     if (!d->m_output.isEmpty() && d->m_active && d->m_nodeId > 0) {
-        d->m_recordThread = new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd, d->m_output);
-        connect(d->m_recordThread, &PipeWireRecordProduceThread::errorFound, this, &PipeWireRecord::errorFound);
-        connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
+        d->m_recordThread.reset(new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd, d->m_output));
+        connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::errorFound, this, &PipeWireRecord::errorFound);
+        connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
         });
         d->m_recordThread->start();
@@ -459,64 +337,16 @@ void PipeWireRecord::refresh()
         d->m_recordThread->deactivate();
         d->m_recordThread->quit();
 
-        connect(d->m_recordThread, &PipeWireRecordProduceThread::finished, this, [this] {
+        connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::finished, this, [this] {
             qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << d->m_output;
-            delete d->m_recordThread;
+            d->m_recordThread.reset();
             d->m_produceThreadFinished = true;
             Q_EMIT stateChanged();
         });
         d->m_produceThreadFinished = false;
-        d->m_recordThread = nullptr;
+        d->m_recordThread.release();
     }
     Q_EMIT stateChanged();
-}
-
-void PipeWireRecordProduce::updateTextureDmaBuf(const DmaBufAttributes &dmabuf, spa_video_format format)
-{
-    Q_ASSERT(qGuiApp->thread() != QThread::currentThread());
-    const QSize streamSize = m_stream->size();
-
-    // bind context to render thread
-    eglMakeCurrent(m_egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_egl.context);
-
-    EGLImageKHR image = GLHelpers::createImage(m_egl.display, m_egl.context, dmabuf, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), m_stream->size());
-
-    if (image == EGL_NO_IMAGE_KHR) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatGLError(glGetError());
-        m_stream->renegotiateModifierFailed(format, dmabuf.modifier);
-        return;
-    }
-
-    GLHelpers::initDebugOutput();
-    // create GL 2D texture for framebuffer
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    static auto glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
-
-    auto src = static_cast<uint8_t *>(malloc(dmabuf.planes[0].stride * streamSize.height()));
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_BYTE, src);
-
-    if (!src) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to get image from DMA buffer.";
-        return;
-    }
-
-    QImage qimage(src, streamSize.width(), streamSize.height(), dmabuf.planes[0].stride, QImage::Format_ARGB32);
-    updateTextureImage(qimage);
-
-    glDeleteTextures(1, &texture);
-
-    static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
-    eglDestroyImageKHR(m_egl.display, image);
-
-    free(src);
 }
 
 void PipeWireRecordProduce::updateTextureImage(const QImage &image)

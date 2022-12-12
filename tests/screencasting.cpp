@@ -50,7 +50,7 @@ public:
         Q_EMIT q->failed(error);
     }
 
-    uint m_nodeId = 0;
+    std::optional<uint> m_nodeId;
     QPointer<ScreencastingStream> q;
 };
 
@@ -64,7 +64,7 @@ ScreencastingStream::~ScreencastingStream() = default;
 
 quint32 ScreencastingStream::nodeId() const
 {
-    return d->m_nodeId;
+    return *d->m_nodeId;
 }
 
 class ScreencastingPrivate : public QWaylandClientExtensionTemplate<ScreencastingPrivate>, public QtWayland::zkde_screencast_unstable_v1
