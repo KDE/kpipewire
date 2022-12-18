@@ -8,7 +8,6 @@
 #include <QDebug>
 #include <QList>
 #include <QVersionNumber>
-#include <epoxy/egl.h>
 #include <epoxy/gl.h>
 #include <libdrm/drm_fourcc.h>
 #include <logging.h>

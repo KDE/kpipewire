@@ -14,12 +14,10 @@
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickView>
-#include <QRect>
 #include <QRegularExpression>
 #include <QScreen>
 #include <QThread>
 #include <QTimer>
-#include <screencasting.h>
 
 #include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/connection_thread.h>
