@@ -26,6 +26,25 @@ pw_core_events PipeWireCore::s_pwCoreEvents = {
     .remove_mem = nullptr,
 };
 
+class PWLoopLock
+{
+public:
+    PWLoopLock(struct pw_thread_loop *pwMainLoop)
+        : pwMainLoop(pwMainLoop)
+    {
+        qDebug() << "lock";
+        pw_thread_loop_lock(pwMainLoop);
+    }
+    ~PWLoopLock()
+    {
+        qDebug() << "unlock";
+        pw_thread_loop_unlock(pwMainLoop);
+    }
+
+private:
+    struct pw_thread_loop *const pwMainLoop;
+};
+
 PipeWireCore::PipeWireCore()
 {
     static std::once_flag pwInitOnce;
@@ -46,13 +65,13 @@ void PipeWireCore::onCoreError(void *data, uint32_t id, int seq, int res, const 
 void PipeWireCore::onCoreInfo(void *data, const struct pw_core_info *info)
 {
     PipeWireCore *pw = static_cast<PipeWireCore *>(data);
-    pw->m_serverVersion = QVersionNumber::fromString(QString::fromUtf8(info->version));
+    pw->m_serverVersion = QVersionNumber::fromString(QLatin1String(info->version));
 }
 
 PipeWireCore::~PipeWireCore()
 {
-    if (m_pwMainLoop) {
-        pw_loop_leave(m_pwMainLoop);
+    if (pwMainLoop) {
+        pw_thread_loop_stop(pwMainLoop);
     }
 
     if (m_pwCore) {
@@ -63,24 +82,17 @@ PipeWireCore::~PipeWireCore()
         pw_context_destroy(m_pwContext);
     }
 
-    if (m_pwMainLoop) {
-        pw_loop_destroy(m_pwMainLoop);
+    if (pwMainLoop) {
+        pw_thread_loop_destroy(pwMainLoop);
     }
 }
 
 bool PipeWireCore::init(int fd)
 {
-    m_pwMainLoop = pw_loop_new(nullptr);
-    pw_loop_enter(m_pwMainLoop);
+    pwMainLoop = pw_thread_loop_new("kpipewire-main-loop", nullptr);
+    PWLoopLock lock(pwMainLoop);
 
-    QSocketNotifier *notifier = new QSocketNotifier(pw_loop_get_fd(m_pwMainLoop), QSocketNotifier::Read, this);
-    connect(notifier, &QSocketNotifier::activated, this, [this] {
-        int result = pw_loop_iterate(m_pwMainLoop, 0);
-        if (result < 0)
-            qCWarning(PIPEWIRE_LOGGING) << "pipewire_loop_iterate failed: " << spa_strerror(result);
-    });
-
-    m_pwContext = pw_context_new(m_pwMainLoop, nullptr, 0);
+    m_pwContext = pw_context_new(loop(), nullptr, 0);
     if (!m_pwContext) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to create PipeWire context";
         m_error = i18n("Failed to create PipeWire context");
@@ -98,13 +110,12 @@ bool PipeWireCore::init(int fd)
         return false;
     }
 
-    if (pw_loop_iterate(m_pwMainLoop, 0) < 0) {
+    pw_core_add_listener(m_pwCore, &m_coreListener, &s_pwCoreEvents, this);
+
+    if (pw_thread_loop_start(pwMainLoop) < 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Failed to start main PipeWire loop";
-        m_error = i18n("Failed to start main PipeWire loop");
         return false;
     }
-
-    pw_core_add_listener(m_pwCore, &m_coreListener, &s_pwCoreEvents, this);
     return true;
 }
 
@@ -124,4 +135,9 @@ QSharedPointer<PipeWireCore> PipeWireCore::fetch(int fd)
 QString PipeWireCore::error() const
 {
     return m_error;
+}
+
+pw_loop *PipeWireCore::loop() const
+{
+    return pw_thread_loop_get_loop(pwMainLoop);
 }

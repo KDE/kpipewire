@@ -6,6 +6,7 @@ include(ECMSetupVersion)
 add_definitions(-DTRANSLATION_DOMAIN=\"kpipewire5\")
 
 add_library(KPipeWire)
+target_compile_options(KPipeWire PRIVATE -Wno-c99-extensions -Wno-gnu-statement-expression -Wno-zero-as-null-pointer-constant)
 
 ecm_qt_declare_logging_category(kpipewire_SRCS
                             HEADER logging.h

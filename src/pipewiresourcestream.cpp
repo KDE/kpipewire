@@ -312,7 +312,7 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
     Q_EMIT pw->streamParametersChanged();
 }
 
-static void onProcess(void *data)
+void PipeWireSourceStream::onProcess(void *data)
 {
     PipeWireSourceStream *stream = static_cast<PipeWireSourceStream *>(data);
     stream->process();
@@ -337,6 +337,7 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
     : QObject(parent)
     , d(new PipeWireSourceStreamPrivate)
 {
+    qRegisterMetaType<PipeWireFrame>();
     qRegisterMetaType<QVector<DmaBufPlane>>();
 
     pwStreamEvents.version = PW_VERSION_STREAM_EVENTS;
@@ -433,7 +434,7 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
     return true;
 }
 
-void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
+void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer) const
 {
     spa_buffer *spaBuffer = buffer->buffer;
 

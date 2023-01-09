@@ -29,10 +29,7 @@ public:
         return m_serverVersion;
     }
 
-    pw_loop *loop() const
-    {
-        return m_pwMainLoop;
-    }
+    pw_loop *loop() const;
 
     pw_core *operator*() const { return m_pwCore; };
     static QSharedPointer<PipeWireCore> fetch(int fd);
@@ -40,7 +37,7 @@ public:
 private:
     pw_core *m_pwCore = nullptr;
     pw_context *m_pwContext = nullptr;
-    pw_loop *m_pwMainLoop = nullptr;
+    struct pw_thread_loop *pwMainLoop = nullptr;
     spa_hook m_coreListener;
     QString m_error;
     QVersionNumber m_serverVersion;

@@ -60,6 +60,7 @@ struct KPIPEWIRE_EXPORT PipeWireFrame {
     std::optional<QRegion> damage;
     std::optional<PipeWireCursor> cursor;
 };
+Q_DECLARE_METATYPE(PipeWireFrame);
 
 struct Fraction {
     const quint32 numerator;
@@ -84,8 +85,6 @@ public:
     void setActive(bool active);
     void setDamageEnabled(bool withDamage);
 
-    void handleFrame(struct pw_buffer *buffer);
-    void process();
     void renegotiateModifierFailed(spa_video_format format, quint64 modifier);
 
     std::optional<std::chrono::nanoseconds> currentPresentationTimestamp() const;
@@ -97,9 +96,12 @@ Q_SIGNALS:
     void startStreaming();
     void stopStreaming();
     void streamParametersChanged();
-    void frameReceived(const PipeWireFrame &frame);
+    void frameReceived(const PipeWireFrame &frame) const;
 
 private:
+    void handleFrame(struct pw_buffer *buffer) const;
+    void process();
+    static void onProcess(void *data);
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
     static void onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message);
     static void onRenegotiate(void *data, uint64_t);
