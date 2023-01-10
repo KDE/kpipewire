@@ -9,3 +9,5 @@ Dependencies:
     'frameworks/ki18n': '@latest'
     'frameworks/kwayland': '@latest'
     'libraries/plasma-wayland-protocols': '@latest'
+Options:
+  require-passing-tests-on: [ 'Linux', 'FreeBSD']
