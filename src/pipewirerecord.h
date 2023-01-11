@@ -53,6 +53,8 @@ public:
      */
     void setEncoder(const QByteArray &encoder);
 
+    static QString extension();
+
 Q_SIGNALS:
     void activeChanged(bool active);
     void nodeIdChanged(uint nodeId);

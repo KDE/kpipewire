@@ -213,6 +213,11 @@ void PipeWireRecordProduce::finish()
     }
 }
 
+QString PipeWireRecord::extension()
+{
+    return QStringLiteral("mp4");
+}
+
 void PipeWireRecordProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
