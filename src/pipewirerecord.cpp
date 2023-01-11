@@ -120,7 +120,7 @@ void PipeWireRecord::setFd(uint fd)
     if (fd == d->m_fd)
         return;
 
-    d->m_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+    d->m_fd = fd;
     refresh();
     Q_EMIT fdChanged(fd);
 }

@@ -224,14 +224,14 @@ public Q_SLOTS:
             return;
         }
 
-        const auto pipewireFd = streamReply.value();
+        auto pipewireFd = streamReply.value();
         if (!pipewireFd.isValid()) {
             qWarning() << "Couldn't get pipewire connection file descriptor";
             exit(1);
             return;
         }
 
-        if (!stream.createStream(streams.first().nodeId, fcntl(pipewireFd.fileDescriptor(), F_DUPFD_CLOEXEC, 3))) {
+        if (!stream.createStream(streams.first().nodeId, fcntl(pipewireFd.takeFileDescriptor(), F_DUPFD_CLOEXEC, 3))) {
             qWarning() << "Couldn't create the pipewire stream";
             exit(1);
             return;
@@ -400,14 +400,14 @@ public Q_SLOTS:
             return;
         }
 
-        const auto pipewireFd = streamReply.value();
+        auto pipewireFd = streamReply.value();
         if (!pipewireFd.isValid()) {
             qWarning() << "Couldn't get pipewire connection file descriptor";
             exit(1);
             return;
         }
 
-        if (!stream.createStream(streams.first().nodeId, fcntl(pipewireFd.fileDescriptor(), F_DUPFD_CLOEXEC, 3))) {
+        if (!stream.createStream(streams.first().nodeId, pipewireFd.takeFileDescriptor())) {
             qWarning() << "Couldn't create the pipewire stream";
             exit(1);
             return;
