@@ -24,6 +24,7 @@
 #include <EGL/eglext.h>
 #include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
+#include <unistd.h>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QtPlatformHeaders/QEGLNativeContext>

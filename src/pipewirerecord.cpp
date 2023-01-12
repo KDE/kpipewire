@@ -23,7 +23,6 @@
 
 #include <KShell>
 
-#include <fcntl.h>
 #include <unistd.h>
 
 extern "C" {
