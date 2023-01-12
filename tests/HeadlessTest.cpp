@@ -407,7 +407,8 @@ public Q_SLOTS:
             return;
         }
 
-        if (!stream.createStream(streams.first().nodeId, pipewireFd.takeFileDescriptor())) {
+        const uint fd = pipewireFd.takeFileDescriptor();
+        if (!stream.createStream(streams.first().nodeId, fd)) {
             qWarning() << "Couldn't create the pipewire stream";
             exit(1);
             return;
@@ -415,6 +416,10 @@ public Q_SLOTS:
 
         QObject::connect(&stream, &PipeWireSourceStream::frameReceived, this, [](const PipeWireFrame &frame) {
             qDebug() << "." << frame.format;
+        });
+
+        QObject::connect(&stream, &PipeWireSourceStream::stopStreaming, this, [fd] {
+            close(fd);
         });
     }
 

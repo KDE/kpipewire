@@ -120,7 +120,7 @@ private:
 
 struct PipeWireRecordPrivate {
     uint m_nodeId = 0;
-    uint m_fd = 0;
+    std::optional<uint> m_fd;
     bool m_active = false;
     QString m_output;
     std::unique_ptr<PipeWireRecordProduceThread> m_recordThread;

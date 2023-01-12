@@ -183,7 +183,7 @@ void RecordMe::handleStreams(const QVector<Stream> &streams)
         return;
     }
 
-    const int fd = reply.value().fileDescriptor();
+    const int fd = reply.value().takeFileDescriptor();
 
     const auto roots = m_engine->rootObjects();
     for (const auto &stream : streams) {

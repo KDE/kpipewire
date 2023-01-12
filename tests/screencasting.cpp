@@ -64,6 +64,7 @@ ScreencastingStream::~ScreencastingStream() = default;
 
 quint32 ScreencastingStream::nodeId() const
 {
+    Q_ASSERT(d->m_nodeId.has_value());
     return *d->m_nodeId;
 }
 

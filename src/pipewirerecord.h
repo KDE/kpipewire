@@ -17,10 +17,15 @@ class KPIPEWIRE_EXPORT PipeWireRecord : public QObject
     Q_OBJECT
     /// Specify the pipewire node id that we want to record
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
+    /**
+     * Specifies the file descriptor we are connected to, if none 0 will be returned
+     *
+     * Transfers the ownership of the fd, will close it when it's done with it.
+     */
+    Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
-    Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
 public:
     PipeWireRecord(QObject *parent = nullptr);
     ~PipeWireRecord() override;

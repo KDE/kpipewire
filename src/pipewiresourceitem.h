@@ -33,6 +33,12 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
     Q_OBJECT
     /// Specify the pipewire node id that we want to play
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
+
+    /**
+     * Specifies the file descriptor we are connected to, if none 0 will be returned
+     *
+     * Transfers the ownership of the fd, will close it when it's done with it.
+     */
     Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
 public:
     PipeWireSourceItem(QQuickItem *parent = nullptr);

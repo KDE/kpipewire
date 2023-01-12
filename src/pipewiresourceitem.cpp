@@ -39,7 +39,7 @@ class PipeWireSourceItemPrivate
 {
 public:
     uint m_nodeId = 0;
-    uint m_fd = 0;
+    std::optional<uint> m_fd = 0;
     std::function<QSGTexture *()> m_createNextTexture;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QScopedPointer<QOpenGLTexture> m_texture;
@@ -94,6 +94,9 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
 
 PipeWireSourceItem::~PipeWireSourceItem()
 {
+    if (d->m_fd) {
+        close(*d->m_fd);
+    }
 }
 
 void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickItem::ItemChangeData &data)
@@ -126,6 +129,9 @@ void PipeWireSourceItem::setFd(uint fd)
     if (fd == d->m_fd)
         return;
 
+    if (d->m_fd) {
+        close(*d->m_fd);
+    }
     d->m_fd = fd;
     refresh();
     Q_EMIT fdChanged(fd);
@@ -146,7 +152,7 @@ void PipeWireSourceItem::refresh()
         };
     } else {
         d->m_stream.reset(new PipeWireSourceStream(this));
-        d->m_stream->createStream(d->m_nodeId, d->m_fd);
+        d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
         if (!d->m_stream->error().isEmpty()) {
             d->m_stream.reset(nullptr);
             d->m_nodeId = 0;
@@ -390,7 +396,7 @@ void PipeWireSourceItem::componentComplete()
 
 uint PipeWireSourceItem::fd() const
 {
-    return d->m_fd;
+    return d->m_fd.value_or(0);
 }
 
 uint PipeWireSourceItem::nodeId() const

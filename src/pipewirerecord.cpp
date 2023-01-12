@@ -93,6 +93,9 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
 PipeWireRecord::~PipeWireRecord()
 {
     setActive(false);
+    if (d->m_fd) {
+        close(*d->m_fd);
+    }
 }
 
 PipeWireRecord::State PipeWireRecord::state() const
@@ -120,6 +123,9 @@ void PipeWireRecord::setFd(uint fd)
     if (fd == d->m_fd)
         return;
 
+    if (d->m_fd) {
+        close(*d->m_fd);
+    }
     d->m_fd = fd;
     refresh();
     Q_EMIT fdChanged(fd);
@@ -332,7 +338,7 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 void PipeWireRecord::refresh()
 {
     if (!d->m_output.isEmpty() && d->m_active && d->m_nodeId > 0) {
-        d->m_recordThread.reset(new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd, d->m_output));
+        d->m_recordThread.reset(new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd.value_or(0), d->m_output));
         connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::errorFound, this, &PipeWireRecord::errorFound);
         connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
@@ -445,7 +451,7 @@ uint PipeWireRecord::nodeId() const
 
 uint PipeWireRecord::fd() const
 {
-    return d->m_fd;
+    return d->m_fd.value_or(0);
 }
 
 PipeWireRecordWriteThread::PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext)
