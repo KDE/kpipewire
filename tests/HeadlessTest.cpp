@@ -15,7 +15,7 @@
 #include <DmaBufHandler>
 #include <PipeWireSourceStream>
 #include <QDBusArgument>
-#include <fcntl.h>
+#include <unistd.h>
 
 static QString createHandleToken()
 {
@@ -231,7 +231,8 @@ public Q_SLOTS:
             return;
         }
 
-        if (!stream.createStream(streams.first().nodeId, fcntl(pipewireFd.takeFileDescriptor(), F_DUPFD_CLOEXEC, 3))) {
+        const int fd = pipewireFd.takeFileDescriptor();
+        if (!stream.createStream(streams.first().nodeId, fd)) {
             qWarning() << "Couldn't create the pipewire stream";
             exit(1);
             return;
@@ -239,6 +240,10 @@ public Q_SLOTS:
 
         QObject::connect(&stream, &PipeWireSourceStream::frameReceived, this, [](const PipeWireFrame &frame) {
             qDebug() << "." << frame.format;
+        });
+
+        QObject::connect(&stream, &PipeWireSourceStream::stopStreaming, this, [fd] {
+            close(fd);
         });
     }
 
