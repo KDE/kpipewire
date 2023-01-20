@@ -93,9 +93,13 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
         return DRM_FORMAT_INVALID;
     }
 }
-static QImage::Format SpaToQImageFormat(quint32 format)
+
+QImage::Format SpaToQImageFormat(quint32 format)
 {
     switch (format) {
+    case SPA_VIDEO_FORMAT_BGRx:
+    case SPA_VIDEO_FORMAT_BGRA:
+        return QImage::Format_BGR30;
     case SPA_VIDEO_FORMAT_BGR:
         return QImage::Format_BGR888;
     case SPA_VIDEO_FORMAT_RGBx:
