@@ -321,12 +321,15 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
     }
 
     if (frame.dmabuf) {
-        QImage qimage(m_stream->size(), QImage::Format_RGBA8888);
-        if (!m_dmabufHandler.downloadFrame(qimage, frame)) {
+        if (m_frameWithoutMetadataCursor.size() != m_stream->size()) {
+            m_frameWithoutMetadataCursor = QImage(m_stream->size(), SpaToQImageFormat(frame.format));
+        }
+
+        if (!m_dmabufHandler.downloadFrame(m_frameWithoutMetadataCursor, frame)) {
             m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
             return;
         }
-        updateTextureImage(qimage);
+        render();
     } else if (frame.image) {
         updateTextureImage(*frame.image);
     } else if (cursorChanged && !m_frameWithoutMetadataCursor.isNull()) {
@@ -365,6 +368,21 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image)
     render();
 }
 
+static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
+{
+    // Listing those handed by SpaToQImageFormat
+    switch (format) {
+    case QImage::Format_BGR888:
+        return AV_PIX_FMT_BGR24;
+    case QImage::Format_RGBX8888:
+    case QImage::Format_RGBA8888_Premultiplied:
+        return AV_PIX_FMT_RGBA;
+    case QImage::Format_RGB32:
+    default:
+        return AV_PIX_FMT_RGB32;
+    }
+}
+
 void PipeWireRecordProduce::render()
 {
     Q_ASSERT(!m_frameWithoutMetadataCursor.isNull());
@@ -382,7 +400,7 @@ void PipeWireRecordProduce::render()
     sws_context = sws_getCachedContext(sws_context,
                                        image.width(),
                                        image.height(),
-                                       AV_PIX_FMT_RGB32,
+                                       convertQImageFormatToAVPixelFormat(image.format()),
                                        m_avCodecContext->width,
                                        m_avCodecContext->height,
                                        m_avCodecContext->pix_fmt,

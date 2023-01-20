@@ -66,6 +66,8 @@ struct Fraction {
     const quint32 denominator;
 };
 
+KPIPEWIRE_EXPORT QImage::Format SpaToQImageFormat(quint32 /*spa_video_format*/ format);
+
 struct PipeWireSourceStreamPrivate;
 
 class KPIPEWIRE_EXPORT PipeWireSourceStream : public QObject
