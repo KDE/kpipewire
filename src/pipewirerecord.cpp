@@ -265,13 +265,14 @@ void PipeWireRecordProduce::setupStream()
     }
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    if (avcodec_open2(m_avCodecContext, m_codec, nullptr) < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec";
+    int ret = avcodec_open2(m_avCodecContext, m_codec, nullptr);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
         return;
     }
 
     m_frame.reset(new CustomAVFrame);
-    int ret = m_frame->alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
+    ret = m_frame->alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
         return;
@@ -322,7 +323,7 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 
     if (frame.dmabuf) {
         if (m_frameWithoutMetadataCursor.size() != m_stream->size()) {
-            m_frameWithoutMetadataCursor = QImage(m_stream->size(), SpaToQImageFormat(frame.format));
+            m_frameWithoutMetadataCursor = QImage(m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
         }
 
         if (!m_dmabufHandler.downloadFrame(m_frameWithoutMetadataCursor, frame)) {
@@ -378,7 +379,9 @@ static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
     case QImage::Format_RGBA8888_Premultiplied:
         return AV_PIX_FMT_RGBA;
     case QImage::Format_RGB32:
+        return AV_PIX_FMT_RGB32;
     default:
+        qDebug() << "Unexpected pixel format" << format;
         return AV_PIX_FMT_RGB32;
     }
 }

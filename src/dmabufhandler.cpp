@@ -153,13 +153,18 @@ void DmaBufHandler::setupEgl()
 GLenum closestGLType(const QImage &image)
 {
     switch (image.format()) {
+    case QImage::Format_RGB888:
+        return GL_RGB;
+    case QImage::Format_BGR888:
+        return GL_BGR;
     case QImage::Format_RGB32:
     case QImage::Format_RGBX8888:
     case QImage::Format_RGBA8888:
     case QImage::Format_RGBA8888_Premultiplied:
         return GL_RGBA;
     default:
-        return GL_BGRA;
+        qDebug() << "unknown format" << image.format();
+        return GL_RGBA;
     }
 }
 
