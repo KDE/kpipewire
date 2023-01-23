@@ -89,7 +89,7 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     case SPA_VIDEO_FORMAT_RGB:
         return DRM_FORMAT_RGB888;
     default:
-        qCWarning(PIPEWIRE_LOGGING) << "unknown format" << spa_format;
+        qCWarning(PIPEWIRE_LOGGING) << "unknown QImage format" << spa_format;
         return DRM_FORMAT_INVALID;
     }
 }
@@ -107,6 +107,7 @@ QImage::Format SpaToQImageFormat(quint32 format)
     case SPA_VIDEO_FORMAT_RGBA:
         return QImage::Format_RGBA8888_Premultiplied;
     default:
+        qCWarning(PIPEWIRE_LOGGING) << "unknown spa format" << format;
         return QImage::Format_RGB32;
     }
 }
