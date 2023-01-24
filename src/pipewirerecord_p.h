@@ -66,8 +66,8 @@ private:
     friend class PipeWireRecordProduceThread;
     void setupStream();
     void processFrame(const PipeWireFrame &frame);
-    void updateTextureImage(const QImage &image);
-    void render();
+    void updateTextureImage(const QImage &image, const PipeWireFrame &frame);
+    void render(const PipeWireFrame &frame);
 
     AVCodecContext *m_avCodecContext = nullptr;
     const AVCodec *m_codec = nullptr;
@@ -91,6 +91,8 @@ private:
     } m_cursor;
     QImage m_frameWithoutMetadataCursor;
     DmaBufHandler m_dmabufHandler;
+    uint m_lastKeyFrame = 0;
+    int64_t m_lastPts = -1;
 };
 
 class PipeWireRecordProduceThread : public QThread

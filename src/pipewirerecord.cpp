@@ -330,11 +330,11 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
             m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
             return;
         }
-        render();
+        render(frame);
     } else if (frame.image) {
-        updateTextureImage(*frame.image);
+        updateTextureImage(*frame.image, frame);
     } else if (cursorChanged && !m_frameWithoutMetadataCursor.isNull()) {
-        render();
+        render(frame);
     }
 }
 
@@ -363,10 +363,10 @@ void PipeWireRecord::refresh()
     Q_EMIT stateChanged();
 }
 
-void PipeWireRecordProduce::updateTextureImage(const QImage &image)
+void PipeWireRecordProduce::updateTextureImage(const QImage &image, const PipeWireFrame &frame)
 {
     m_frameWithoutMetadataCursor = image;
-    render();
+    render(frame);
 }
 
 static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
@@ -386,7 +386,7 @@ static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
     }
 }
 
-void PipeWireRecordProduce::render()
+void PipeWireRecordProduce::render(const PipeWireFrame &frame)
 {
     Q_ASSERT(!m_frameWithoutMetadataCursor.isNull());
 
@@ -413,8 +413,8 @@ void PipeWireRecordProduce::render()
                                        nullptr);
     sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, m_frame->m_avFrame->data, m_frame->m_avFrame->linesize);
 
-    if (auto v = m_stream->currentPresentationTimestamp(); v.has_value()) {
-        const auto current = std::chrono::duration_cast<std::chrono::milliseconds>(v.value()).count();
+    if (frame.presentationTimestamp.has_value()) {
+        const auto current = std::chrono::duration_cast<std::chrono::milliseconds>(*frame.presentationTimestamp).count();
         if ((*m_avFormatContext->streams)->start_time == 0) {
             (*m_avFormatContext->streams)->start_time = current;
         }
@@ -425,7 +425,20 @@ void PipeWireRecordProduce::render()
         m_frame->m_avFrame->pts = AV_NOPTS_VALUE;
     }
 
+    // Let's add a key frame every 100 frames and also the first 5 frames
+    if (frame.sequential && (*frame.sequential == 0 || (*frame.sequential - m_lastKeyFrame) > 100)) {
+        m_frame->m_avFrame->key_frame = 1;
+        m_lastKeyFrame = frame.sequential.has_value() ? *frame.sequential : 11;
+    }
+
+    if (m_lastPts > 0 && m_frame->m_avFrame->pts <= m_lastPts) {
+        // Make sure we don't have two frames at the same presentation time
+        m_frame->m_avFrame->pts = m_lastPts + 1;
+    }
+    m_lastPts = m_frame->m_avFrame->pts;
+
     const int ret = avcodec_send_frame(m_avCodecContext, m_frame->m_avFrame);
+    // qDebug() << "issued" << m_frame->m_avFrame->pts;
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
         return;
