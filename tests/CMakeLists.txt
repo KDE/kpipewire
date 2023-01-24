@@ -1,4 +1,4 @@
-add_library(PipeWireScreencastingTest STATIC screencasting.cpp screencastingrequest.cpp)
+add_library(PipeWireScreencastingTest STATIC screencasting.cpp screencasting.h screencastingrequest.cpp screencastingrequest.h)
 
 qt_add_dbus_interface(
    SRCS
@@ -24,7 +24,7 @@ endif()
 
 target_link_libraries(PipeWireScreencastingTest PUBLIC KF5::WaylandClient Wayland::Client Qt::DBus Qt::GuiPrivate KPipeWire Qt::WaylandClient)
 
-add_executable(recordme main.cpp recordme.qrc PlasmaRecordMe.cpp)
+add_executable(recordme main.cpp recordme.qrc PlasmaRecordMe.cpp PlasmaRecordMe.h)
 target_link_libraries(recordme PipeWireScreencastingTest Qt::Quick)
 
 add_executable(kpipewireheadlesstest HeadlessTest.cpp ${SRCS})
@@ -38,7 +38,7 @@ qt_add_dbus_interface(
    xdp_dbus_screencast_interface
 )
 
-add_executable(xdp-recordme xdp-main.cpp recordme.qrc ${XDP_SRCS} RecordMe.cpp)
+add_executable(xdp-recordme xdp-main.cpp recordme.qrc ${XDP_SRCS} RecordMe.cpp RecordMe.h)
 target_link_libraries(xdp-recordme Qt::DBus Qt::Quick KPipeWire Qt::GuiPrivate Wayland::Client KF5::WaylandClient Qt::WaylandClient )
 
 option(INSTALL_TESTS "The recordme test needs installing, disabled by default for convenience" OFF)
