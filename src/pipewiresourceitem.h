@@ -39,7 +39,7 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
      *
      * Transfers the ownership of the fd, will close it when it's done with it.
      */
-    Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
+    Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged RESET resetFd)
 public:
     PipeWireSourceItem(QQuickItem *parent = nullptr);
     ~PipeWireSourceItem() override;
@@ -51,6 +51,7 @@ public:
     uint nodeId() const;
 
     void setFd(uint fd);
+    void resetFd();
     uint fd() const;
 
     void componentComplete() override;
