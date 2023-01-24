@@ -38,10 +38,10 @@ ecm_qt_install_logging_categories(
 )
 
 target_sources(KPipeWire PRIVATE
-    pipewirecore.cpp pipewirecore.h
-    pipewiresourceitem.cpp pipewiresourceitem.h
-    pipewiresourcestream.cpp pipewiresourcestream.h
-    glhelpers.cpp glhelpers.h
+    pipewirecore.cpp
+    pipewiresourceitem.cpp
+    pipewiresourcestream.cpp
+    glhelpers.cpp
     ${kpipewire_SRCS}
 )
 
@@ -85,7 +85,7 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
-add_library(KPipeWireDmaBuf dmabufhandler.cpp dmabufhandler.h ${kpipewiredmabuf_SRCS})
+add_library(KPipeWireDmaBuf dmabufhandler.cpp ${kpipewiredmabuf_SRCS})
 target_link_libraries(KPipeWireDmaBuf PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui PkgConfig::GBM
     epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
@@ -113,7 +113,7 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
-add_library(KPipeWireRecord pipewirerecord.cpp pipewirerecord.h ${kpipewirerecord_SRCS})
+add_library(KPipeWireRecord pipewirerecord.cpp ${kpipewirerecord_SRCS})
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF5::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale
@@ -160,12 +160,12 @@ install(FILES  "${CMAKE_CURRENT_BINARY_DIR}/KPipeWireConfig.cmake"
 # Declarative
 
 ecm_add_qml_module(KPipeWireDeclarative URI "org.kde.pipewire" VERSION 1.0)
-target_sources(KPipeWireDeclarative PRIVATE kpipewiredeclarativeplugin.cpp kpipewiredeclarativeplugin.h)
+target_sources(KPipeWireDeclarative PRIVATE kpipewiredeclarativeplugin.cpp)
 target_link_libraries(KPipeWireDeclarative PRIVATE KPipeWire Qt::Quick)
 ecm_finalize_qml_module(KPipeWireDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
 
 ecm_add_qml_module(KPipeWireRecordDeclarative URI "org.kde.pipewire.record" VERSION 1.0)
-target_sources(KPipeWireRecordDeclarative PRIVATE kpipewirerecorddeclarativeplugin.cpp kpipewirerecorddeclarativeplugin.h)
+target_sources(KPipeWireRecordDeclarative PRIVATE kpipewirerecorddeclarativeplugin.cpp)
 target_link_libraries(KPipeWireRecordDeclarative PRIVATE KPipeWire KPipeWireRecord Qt::Quick)
 ecm_finalize_qml_module(KPipeWireRecordDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
 
