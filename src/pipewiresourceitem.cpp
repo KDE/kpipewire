@@ -40,7 +40,7 @@ class PipeWireSourceItemPrivate
 {
 public:
     uint m_nodeId = 0;
-    std::optional<uint> m_fd = 0;
+    std::optional<uint> m_fd;
     std::function<QSGTexture *()> m_createNextTexture;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QScopedPointer<QOpenGLTexture> m_texture;
@@ -136,6 +136,21 @@ void PipeWireSourceItem::setFd(uint fd)
     d->m_fd = fd;
     refresh();
     Q_EMIT fdChanged(fd);
+}
+
+void PipeWireSourceItem::resetFd()
+{
+    if (!d->m_fd.has_value()) {
+        return;
+    }
+
+    setEnabled(false);
+    close(*d->m_fd);
+    d->m_fd.reset();
+    d->m_stream.reset(nullptr);
+    d->m_createNextTexture = [] {
+        return nullptr;
+    };
 }
 
 void PipeWireSourceItem::refresh()
