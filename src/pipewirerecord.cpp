@@ -85,7 +85,7 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
     , d(new PipeWireRecordPrivate)
 {
-    d->m_encoder = "libx264rgb";
+    d->m_encoder = "libx264";
     av_log_set_level(AV_LOG_DEBUG);
 }
 
