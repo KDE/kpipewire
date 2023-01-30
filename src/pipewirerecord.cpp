@@ -85,7 +85,7 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
     , d(new PipeWireRecordPrivate)
 {
-    d->m_encoder = "libx264";
+    d->m_encoder = "libvpx";
     av_log_set_level(AV_LOG_DEBUG);
 }
 
@@ -220,7 +220,7 @@ void PipeWireRecordProduce::finish()
 
 QString PipeWireRecord::extension()
 {
-    return QStringLiteral("mp4");
+    return QStringLiteral("webm");
 }
 
 void PipeWireRecordProduce::setupStream()
@@ -229,8 +229,8 @@ void PipeWireRecordProduce::setupStream()
     disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireRecordProduce::setupStream);
     avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
     if (!m_avFormatContext) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using MPEG." << m_output;
-        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "mpeg", m_output.toUtf8().constData());
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;
+        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toUtf8().constData());
     }
     if (!m_avFormatContext) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
@@ -265,7 +265,13 @@ void PipeWireRecordProduce::setupStream()
     }
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    int ret = avcodec_open2(m_avCodecContext, m_codec, nullptr);
+    AVDictionary *options = nullptr;
+    av_dict_set_int(&options, "threads", 4, 0);
+    av_dict_set(&options, "preset", "ultrafast", 0);
+    av_dict_set(&options, "tune-content", "screen", 0);
+    av_dict_set(&options, "quality", "realtime", 0);
+
+    int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
         return;
