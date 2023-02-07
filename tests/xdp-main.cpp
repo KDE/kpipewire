@@ -10,7 +10,9 @@
 
 int main(int argc, char **argv)
 {
+    qputenv("QT_XCB_GL_INTEGRATION", "xcb_egl");
     QGuiApplication app(argc, argv);
+    qunsetenv("QT_XCB_GL_INTEGRATION");
 
     {
         QCommandLineParser parser;

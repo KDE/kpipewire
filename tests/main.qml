@@ -5,19 +5,20 @@
 */
 
 import QtQuick 2.1
+import QtQuick.Window 2.15
 import QtQuick.Layouts 1.1
 import QtQuick.Controls 2.1
-import org.kde.kirigami 2.15 as Kirigami
 
 import org.kde.pipewire 0.1 as PipeWire
 import org.kde.pipewire.record 0.1 as PWRec
 
-Kirigami.ApplicationWindow
+Window
 {
     id: root
     width: 500
     height: 500
     visible: true
+    title: "Recording Bridge"
     property QtObject app
 
     function addStream(nodeid, displayText, fd) {
@@ -34,16 +35,9 @@ Kirigami.ApplicationWindow
         }
     }
 
-    signal record(int nodeId, bool capture)
-
     ColumnLayout {
         id: pipes
         anchors.fill: parent
-
-        Button {
-            text: "Add Virtual Monitor"
-            onClicked: app.createVirtualMonitor()
-        }
 
         Repeater {
             id: rep
@@ -56,24 +50,8 @@ Kirigami.ApplicationWindow
                     id: sourceItem
                     nodeId: model.nodeId
                     fd: model.fd
-                    visible: record.state !== PWRec.PipeWireRecord.Recording
                     anchors.fill: parent
 
-                }
-                Button {
-                    id: butt
-                    icon.name: "media-record"
-                    text: model.display + " " + model.nodeId
-                    enabled: checked === (record.state !== PWRec.PipeWireRecord.Idle)
-                    checkable: true
-
-                    PWRec.PipeWireRecord {
-                        id: record
-                        nodeId: model.nodeId
-                        fd: model.fd
-                        output: "~/clementine.mp4"
-                        active: butt.checked
-                    }
                 }
             }
         }
