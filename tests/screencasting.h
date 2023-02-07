@@ -14,6 +14,7 @@
 #include <kpipewire_export.h>
 
 struct zkde_screencast_unstable_v1;
+struct wl_registry;
 
 namespace KWayland
 {
@@ -60,6 +61,8 @@ public:
         Metadata = 4,
     };
     Q_ENUM(CursorMode);
+
+    void bind(struct ::wl_registry *registry, int id, int ver);
 
     ScreencastingStream *createOutputStream(const QString &outputName, CursorMode mode);
     ScreencastingStream *createOutputStream(KWayland::Client::Output *output, CursorMode mode);

@@ -40,11 +40,14 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
     });
     m_engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
 
-    auto connection = ConnectionThread::fromApplication(this);
-    if (!connection) {
-        qWarning() << "Failed getting Wayland connection from QPA";
-        QCoreApplication::exit(1);
-        return;
+    m_connection = ConnectionThread::fromApplication(this);
+    if (!m_connection) {
+        m_connectionThread = new QThread();
+        m_connection = new KWayland::Client::ConnectionThread();
+        m_connection->moveToThread(m_connectionThread);
+        m_eventQueue = new EventQueue(this);
+        m_connectionThread->start();
+        m_connection->initConnection();
     }
 
     m_durationTimer->setSingleShot(true);
@@ -90,32 +93,42 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
             });
     });
 
-    if (m_sourceName.isEmpty() || m_sourceName == QLatin1String("region")) {
-        connect(this, &PlasmaRecordMe::workspaceChanged, this, [this] {
-            delete m_workspaceStream;
-            m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
-            start(m_workspaceStream);
-        });
-    }
+    connect(registry, &Registry::interfaceAnnounced, this, [this, registry](const QByteArray &interface, quint32 name, quint32 version) {
+        if (interface != QByteArrayLiteral("zkde_screencast_unstable_v1")) {
+            return;
+        }
+        m_screencasting->bind(*registry, name, version);
+    });
 
-    registry->create(connection);
-    registry->setup();
+    // if (m_sourceName.isEmpty() || m_sourceName == QLatin1String("region")) {
+    //     connect(this, &PlasmaRecordMe::workspaceChanged, this, [this] {
+    //         delete m_workspaceStream;
+    //         m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
+    //         start(m_workspaceStream);
+    //     });
+    // }
+
+    connect(m_connection, &ConnectionThread::connected, this, [this, registry] {
+        registry->create(m_connection);
+        registry->setEventQueue(m_eventQueue);
+        registry->setup();
+    });
 
     m_screencasting = new Screencasting(this);
 
-    bool ok = false;
-    auto node = m_sourceName.toInt(&ok);
-    if (ok) {
-        const auto roots = m_engine->rootObjects();
-        for (auto root : roots) {
-            auto mo = root->metaObject();
-            mo->invokeMethod(root,
-                             "addStream",
-                             Q_ARG(QVariant, QVariant::fromValue<int>(node)),
-                             Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)),
-                             Q_ARG(QVariant, 0));
-        }
-    }
+    // bool ok = false;
+    // auto node = m_sourceName.toInt(&ok);
+    // if (ok) {
+    //     const auto roots = m_engine->rootObjects();
+    //     for (auto root : roots) {
+    //         auto mo = root->metaObject();
+    //         mo->invokeMethod(root,
+    //                          "addStream",
+    //                          Q_ARG(QVariant, QVariant::fromValue<int>(node)),
+    //                          Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)),
+    //                          Q_ARG(QVariant, 0));
+    //     }
+    // }
 
     for (auto screen : qGuiApp->screens()) {
         m_workspace |= screen->geometry();

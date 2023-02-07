@@ -68,24 +68,12 @@ quint32 ScreencastingStream::nodeId() const
     return *d->m_nodeId;
 }
 
-class ScreencastingPrivate : public QWaylandClientExtensionTemplate<ScreencastingPrivate>, public QtWayland::zkde_screencast_unstable_v1
+class ScreencastingPrivate : public QtWayland::zkde_screencast_unstable_v1
 {
 public:
     ScreencastingPrivate(Screencasting *q)
-        : QWaylandClientExtensionTemplate<ScreencastingPrivate>(ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION)
-        , q(q)
+    // , q(q)
     {
-#if QTWAYLANDCLIENT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
-        initialize();
-#else
-        // QWaylandClientExtensionTemplate invokes this with a QueuedConnection but we want it called immediately
-        QMetaObject::invokeMethod(this, "addRegistryListener", Qt::DirectConnection);
-#endif
-
-        if (!isInitialized()) {
-            qWarning() << "Remember requesting the interface on your desktop file: X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1";
-        }
-        Q_ASSERT(isInitialized());
     }
 
     ~ScreencastingPrivate()
@@ -93,7 +81,7 @@ public:
         destroy();
     }
 
-    Screencasting *const q;
+    // Screencasting *const q;
 };
 
 Screencasting::Screencasting(QObject *parent)
@@ -104,9 +92,16 @@ Screencasting::Screencasting(QObject *parent)
 
 Screencasting::~Screencasting() = default;
 
+void Screencasting::bind(struct ::wl_registry *registry, int id, int ver)
+{
+    d->init(registry, id, qMin(ver, ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION));
+}
+
 ScreencastingStream *Screencasting::createOutputStream(const QString &outputName, Screencasting::CursorMode mode)
 {
     wl_output *output = nullptr;
+
+    // DAVE, port this
     for (auto screen : qGuiApp->screens()) {
         if (screen->name() == outputName) {
             output = (wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
@@ -133,7 +128,7 @@ ScreencastingStream *Screencasting::createOutputStream(Output *output, CursorMod
 
 ScreencastingStream *Screencasting::createRegionStream(const QRect &geometry, qreal scaling, CursorMode mode)
 {
-    Q_ASSERT(d->QWaylandClientExtension::version() >= ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION);
+    // Q_ASSERT(d->QWaylandClientExtension::version() >= ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION);
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(QStringLiteral("region-%1,%2 (%3x%4)").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
     stream->d->init(d->stream_region(geometry.x(), geometry.y(), geometry.width(), geometry.height(), wl_fixed_from_double(scaling), mode));
