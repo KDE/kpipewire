@@ -26,6 +26,7 @@ class KPIPEWIRE_EXPORT PipeWireRecord : public QObject
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
+    Q_PROPERTY(QString extension READ extension CONSTANT)
 public:
     PipeWireRecord(QObject *parent = nullptr);
     ~PipeWireRecord() override;

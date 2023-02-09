@@ -76,7 +76,7 @@ Kirigami.ApplicationWindow
                         id: record
                         nodeId: model.nodeId
                         fd: model.fd
-                        output: "~/clementine.mp4"
+                        output: "~/clementine." + record.extension
                         active: butt.checked
                     }
                 }
