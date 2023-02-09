@@ -45,6 +45,11 @@ Kirigami.ApplicationWindow
             onClicked: app.createVirtualMonitor()
         }
 
+        Button {
+            text: "Add Region"
+            onClicked: app.requestSelection()
+        }
+
         Repeater {
             id: rep
             model: ListModel {}

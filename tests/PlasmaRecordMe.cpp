@@ -28,13 +28,14 @@
 
 using namespace KWayland::Client;
 
-PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QString &source, QObject *parent)
+PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QString &source, bool doSelection, QObject *parent)
     : QObject(parent)
     , m_cursorMode(cursorMode)
     , m_durationTimer(new QTimer(this))
     , m_sourceName(source)
     , m_engine(new QQmlApplicationEngine(this))
 {
+    connect(m_engine, &QQmlEngine::quit, qGuiApp, &QCoreApplication::quit);
     m_engine->setInitialProperties({
         { QStringLiteral("app"), QVariant::fromValue<QObject *>(this) },
     });
@@ -96,6 +97,10 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
             m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
             start(m_workspaceStream);
         });
+    }
+
+    if (doSelection) {
+        requestSelection();
     }
 
     registry->create(connection);
@@ -177,4 +182,54 @@ void PlasmaRecordMe::setDuration(int duration)
 void PlasmaRecordMe::createVirtualMonitor()
 {
     m_screencasting->createVirtualMonitorStream(QStringLiteral("recordme"), {1920, 1080}, 1, m_cursorMode);
+}
+
+void PlasmaRecordMe::setRegionPressed(const QString& screenName, int x, int y)
+{
+    const auto screens = QGuiApplication::screens();
+    auto screenIt = std::find_if(screens.begin(), screens.end(), [&screenName] (auto screen) { return screen->name() == screenName; });
+    m_region.setTopLeft((*screenIt)->geometry().topLeft() + QPoint{x, y});
+}
+
+void PlasmaRecordMe::setRegionMoved(const QString& screenName, int x, int y)
+{
+    const auto screens = QGuiApplication::screens();
+    auto screenIt = std::find_if(screens.begin(), screens.end(), [&screenName] (auto screen) { return screen->name() == screenName; });
+    m_region.setBottomRight((*screenIt)->geometry().topLeft() + QPoint{x, y});
+    Q_EMIT regionChanged(m_region);
+}
+
+void PlasmaRecordMe::setRegionReleased(const QString& screenName, int x, int y)
+{
+    setRegionMoved(screenName, x, y);
+    m_region = m_region.normalized();
+    Q_EMIT regionFinal(m_region);
+}
+
+void PlasmaRecordMe::requestSelection() {
+    for (auto *screen : qApp->screens()) {
+        auto view = new QQuickView(m_engine, nullptr);
+        view->setScreen(screen);
+        view->setInitialProperties({
+            { QStringLiteral("app"), QVariant::fromValue<QObject *>(this) }
+        });
+        view->setSource(QUrl(QStringLiteral("qrc:/RegionSelector.qml")));
+        view->setColor(Qt::transparent);
+        view->showFullScreen();
+        connect(this, &PlasmaRecordMe::regionFinal, view, &QQuickView::deleteLater);
+    }
+
+    connect(this, &PlasmaRecordMe::regionFinal, this, [this] (const QRect &region) {
+        if (m_regionStream) {
+            m_regionStream->closed();
+            delete m_regionStream;
+        }
+        m_regionStream = m_screencasting->createRegionStream(region, 1, m_cursorMode);
+        start(m_regionStream);
+    });
+}
+
+QRect PlasmaRecordMe::region() const
+{
+    return m_region.normalized();
 }

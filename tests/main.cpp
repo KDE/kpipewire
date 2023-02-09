@@ -30,13 +30,16 @@ int main(int argc, char **argv)
                                   QStringList(cursorOptions.keys()).join(QStringLiteral(", ")),
                                   QStringLiteral("mode"),
                                   QStringLiteral("metadata"));
+
+        QCommandLineOption selection(QStringLiteral("selection"), QStringLiteral("Select a region to show"));
         parser.addOption(duration);
         parser.addOption(kwaylandSource);
         parser.addOption(cursor);
+        parser.addOption(selection);
         parser.addHelpOption();
         parser.process(app);
 
-        PlasmaRecordMe *me = new PlasmaRecordMe(cursorOptions[parser.value(cursor).toLower()], parser.value(kwaylandSource), &app);
+        PlasmaRecordMe *me = new PlasmaRecordMe(cursorOptions[parser.value(cursor).toLower()], parser.value(kwaylandSource), parser.isSet(selection), &app);
         if (parser.isSet(duration)) {
             me->setDuration(parser.value(duration).toInt() * 1000);
         }
