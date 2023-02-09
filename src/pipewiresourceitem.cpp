@@ -151,6 +151,7 @@ void PipeWireSourceItem::resetFd()
     d->m_createNextTexture = [] {
         return nullptr;
     };
+    Q_EMIT streamSizeChanged();
 }
 
 void PipeWireSourceItem::refresh()
@@ -163,11 +164,16 @@ void PipeWireSourceItem::refresh()
 
     if (d->m_nodeId == 0) {
         d->m_stream.reset(nullptr);
+        Q_EMIT streamSizeChanged();
+
         d->m_createNextTexture = [] {
             return nullptr;
         };
     } else {
         d->m_stream.reset(new PipeWireSourceStream(this));
+        Q_EMIT streamSizeChanged();
+        connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::streamSizeChanged);
+
         d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
         if (!d->m_stream->error().isEmpty()) {
             d->m_stream.reset(nullptr);
@@ -441,4 +447,12 @@ uint PipeWireSourceItem::fd() const
 uint PipeWireSourceItem::nodeId() const
 {
     return d->m_nodeId;
+}
+
+QSize PipeWireSourceItem::streamSize() const
+{
+    if (!d->m_stream) {
+        return QSize();
+    }
+    return d->m_stream->size();
 }

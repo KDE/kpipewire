@@ -49,6 +49,8 @@ target_sources(KPipeWire PRIVATE
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
     KF5::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM)
 
+target_compile_definitions(KPipeWire INTERFACE -DKPW_WITH_SOURCESIZE=1)
+
 if (QT_MAJOR_VERSION EQUAL "5")
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)
     if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")

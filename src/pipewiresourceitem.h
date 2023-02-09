@@ -44,6 +44,12 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
      * Transfers the ownership of the fd, will close it when it's done with it.
      */
     Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged RESET resetFd)
+
+    /**
+     * Returns the size of the source being rendered
+     * @note: This won't be updated until the first frame is recieved
+     */
+    Q_PROPERTY(QSize streamSize READ streamSize NOTIFY streamSizeChanged)
 public:
     enum class StreamState { Error, Unconnected, Connecting, Paused, Streaming };
     Q_ENUM(StreamState);
@@ -61,6 +67,8 @@ public:
     void resetFd();
     uint fd() const;
 
+    QSize streamSize() const;
+
     void componentComplete() override;
     void releaseResources() override;
 
@@ -70,6 +78,7 @@ Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
     void stateChanged();
+    void streamSizeChanged();
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
