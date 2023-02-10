@@ -13,6 +13,7 @@
 
 class QQmlApplicationEngine;
 class QTimer;
+class QScreen;
 class Screencasting;
 
 namespace KWayland {
@@ -51,11 +52,11 @@ Q_SIGNALS:
 
 private:
     void start(ScreencastingStream* stream);
+    void addScreen(QScreen *screen);
 
     const Screencasting::CursorMode m_cursorMode;
     QTimer* const m_durationTimer;
     const QString m_sourceName;
-    QVector<std::function<void()>> m_delayed;
     KWayland::Client::PlasmaWindowManagement* m_management = nullptr;
     Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;

@@ -106,28 +106,20 @@ Screencasting::~Screencasting() = default;
 
 ScreencastingStream *Screencasting::createOutputStream(const QString &outputName, Screencasting::CursorMode mode)
 {
-    wl_output *output = nullptr;
     for (auto screen : qGuiApp->screens()) {
         if (screen->name() == outputName) {
-            output = (wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
+            return createOutputStream(screen, mode);
         }
     }
-
-    if (!output) {
-        return nullptr;
-    }
-
-    auto stream = new ScreencastingStream(this);
-    stream->setObjectName(outputName);
-    stream->d->init(d->stream_output(output, mode));
-    return stream;
+    return nullptr;
 }
 
-ScreencastingStream *Screencasting::createOutputStream(Output *output, CursorMode mode)
+ScreencastingStream *Screencasting::createOutputStream(QScreen *screen, CursorMode mode)
 {
+    wl_output *output = (wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
     auto stream = new ScreencastingStream(this);
-    stream->setObjectName(output->model());
-    stream->d->init(d->stream_output(*output, mode));
+    stream->setObjectName(screen->name());
+    stream->d->init(d->stream_output(output, mode));
     return stream;
 }
 
