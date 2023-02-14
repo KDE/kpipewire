@@ -37,11 +37,17 @@ void checkPlasmaScreens()
             auto handler = std::make_shared<DmaBufHandler>();
             QObject::connect(pwStream, &PipeWireSourceStream::frameReceived, qGuiApp, [handler, pwStream](const PipeWireFrame &frame) {
                 QImage qimage(pwStream->size(), QImage::Format_RGBA8888);
-                if (!handler->downloadFrame(qimage, frame)) {
-                    qDebug() << "failed to download frame";
-                    pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+                if (frame.dmabuf) {
+                    if (!handler->downloadFrame(qimage, frame)) {
+                        qDebug() << "failed to download frame";
+                        pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+                    } else {
+                        qDebug() << "dmabuf";
+                    }
+                } else if (frame.image) {
+                    qDebug() << "image" << frame.image->format() << frame.format;
                 } else {
-                    qDebug() << ".";
+                    qDebug() << "no-frame";
                 }
             });
         });
