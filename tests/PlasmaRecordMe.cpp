@@ -113,11 +113,14 @@ PlasmaRecordMe::~PlasmaRecordMe()
 void PlasmaRecordMe::addScreen(QScreen *screen)
 {
     const QRegularExpression rx(m_sourceName);
-    const auto match = rx.match(screen->model());
-    if (match.hasMatch()) {
-        auto f = [this, screen] {
-            start(m_screencasting->createOutputStream(screen, m_cursorMode));
-        };
+    auto f = [this, screen] {
+        start(m_screencasting->createOutputStream(screen, m_cursorMode));
+    };
+    if (const auto match = rx.match(screen->name()); match.hasMatch()) {
+        connect(this, &PlasmaRecordMe::cursorModeChanged, screen, f);
+        f();
+    }
+    if (const auto match = rx.match(screen->model()); match.hasMatch()) {
         connect(this, &PlasmaRecordMe::cursorModeChanged, screen, f);
         f();
     }
