@@ -22,35 +22,40 @@ static QString createHandleToken()
     return QStringLiteral("kpipewireheadlesstest%1").arg(QRandomGenerator::global()->generate());
 }
 
+void processStream(ScreencastingStream *stream)
+{
+    QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [stream] {
+        auto pwStream = new PipeWireSourceStream(qGuiApp);
+        if (!pwStream->createStream(stream->nodeId(), 0)) {
+            qWarning() << "failed!" << pwStream->error();
+            exit(1);
+        }
+
+        auto handler = std::make_shared<DmaBufHandler>();
+        QObject::connect(pwStream, &PipeWireSourceStream::frameReceived, qGuiApp, [handler, pwStream](const PipeWireFrame &frame) {
+            QImage qimage(pwStream->size(), QImage::Format_RGBA8888);
+            if (frame.dmabuf) {
+                if (!handler->downloadFrame(qimage, frame)) {
+                    qDebug() << "failed to download frame";
+                    pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+                } else {
+                    qDebug() << "dmabuf" << frame.format;
+                }
+            } else if (frame.image) {
+                qDebug() << "image" << frame.image->format() << frame.format;
+            } else {
+                qDebug() << "no-frame";
+            }
+        });
+    });
+}
+
 void checkPlasmaScreens()
 {
     auto screencasting = new Screencasting(qGuiApp);
     for (auto screen : qGuiApp->screens()) {
         auto stream = screencasting->createOutputStream(screen->name(), Screencasting::Embedded);
-        QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [stream] {
-            auto pwStream = new PipeWireSourceStream(qGuiApp);
-            if (!pwStream->createStream(stream->nodeId(), 0)) {
-                qWarning() << "failed!" << pwStream->error();
-                exit(1);
-            }
-
-            auto handler = std::make_shared<DmaBufHandler>();
-            QObject::connect(pwStream, &PipeWireSourceStream::frameReceived, qGuiApp, [handler, pwStream](const PipeWireFrame &frame) {
-                QImage qimage(pwStream->size(), QImage::Format_RGBA8888);
-                if (frame.dmabuf) {
-                    if (!handler->downloadFrame(qimage, frame)) {
-                        qDebug() << "failed to download frame";
-                        pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
-                    } else {
-                        qDebug() << "dmabuf" << frame.format;
-                    }
-                } else if (frame.image) {
-                    qDebug() << "image" << frame.image->format() << frame.format;
-                } else {
-                    qDebug() << "no-frame";
-                }
-            });
-        });
+        processStream(stream);
     }
 }
 
@@ -62,24 +67,7 @@ void checkPlasmaWorkspace()
         region |= screen->geometry();
     }
     auto stream = screencasting->createRegionStream(region.boundingRect(), 1, Screencasting::Embedded);
-    QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [stream] {
-        auto pwStream = new PipeWireSourceStream(qGuiApp);
-        if (!pwStream->createStream(stream->nodeId(), 0)) {
-            qWarning() << "failed!" << pwStream->error();
-            exit(1);
-        }
-
-        auto handler = std::make_shared<DmaBufHandler>();
-        QObject::connect(pwStream, &PipeWireSourceStream::frameReceived, qGuiApp, [handler, pwStream](const PipeWireFrame &frame) {
-            QImage qimage(pwStream->size(), QImage::Format_RGBA8888);
-            if (!handler->downloadFrame(qimage, frame)) {
-                qDebug() << "failed to download frame";
-                pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
-            } else {
-                qDebug() << ".";
-            }
-        });
-    });
+    processStream(stream);
 }
 
 using Stream = struct {
