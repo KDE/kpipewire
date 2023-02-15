@@ -119,8 +119,7 @@ void PlasmaRecordMe::addScreen(QScreen *screen)
     if (const auto match = rx.match(screen->name()); match.hasMatch()) {
         connect(this, &PlasmaRecordMe::cursorModeChanged, screen, f);
         f();
-    }
-    if (const auto match = rx.match(screen->model()); match.hasMatch()) {
+    } else if (const auto match = rx.match(screen->model()); match.hasMatch()) {
         connect(this, &PlasmaRecordMe::cursorModeChanged, screen, f);
         f();
     }
