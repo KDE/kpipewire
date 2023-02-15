@@ -42,7 +42,7 @@ void checkPlasmaScreens()
                         qDebug() << "failed to download frame";
                         pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
                     } else {
-                        qDebug() << "dmabuf";
+                        qDebug() << "dmabuf" << frame.format;
                     }
                 } else if (frame.image) {
                     qDebug() << "image" << frame.image->format() << frame.format;
