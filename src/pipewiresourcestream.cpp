@@ -198,7 +198,9 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
 void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
-    QVector<const spa_pod *> params = pw->createFormatsParams();
+    uint8_t buffer[4096];
+    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    auto params = pw->createFormatsParams(podBuilder);
     pw_stream_update_params(pw->d->pwStream, params.data(), params.size());
 }
 
@@ -375,11 +377,9 @@ uint PipeWireSourceStream::nodeId()
     return d->pwNodeId;
 }
 
-QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams()
+QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
-    uint8_t buffer[4096];
-    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     const QVector<spa_video_format> formats =
         {SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_RGBA, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGB, SPA_VIDEO_FORMAT_BGR};
     QVector<const spa_pod *> params;
@@ -426,7 +426,9 @@ bool PipeWireSourceStream::createStream(uint nodeid, int fd)
 
     d->m_renegotiateEvent = pw_loop_add_event(d->pwCore->loop(), onRenegotiate, this);
 
-    QVector<const spa_pod *> params = createFormatsParams();
+    uint8_t buffer[4096];
+    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    auto params = createFormatsParams(podBuilder);
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
     if (pw_stream_connect(d->pwStream, PW_DIRECTION_INPUT, d->pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
