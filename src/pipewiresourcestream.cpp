@@ -57,6 +57,7 @@ struct PipeWireSourceStreamPrivate
     std::optional<std::chrono::nanoseconds> m_currentPresentationTimestamp;
 
     QAtomicInt m_stopped = false;
+    pw_stream_state m_state = PW_STREAM_STATE_UNCONNECTED;
 
     spa_video_info_raw videoFormat;
     QString m_error;
@@ -174,6 +175,8 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
     qCDebug(PIPEWIRE_LOGGING) << "state changed" << pw_stream_state_as_string(old) << "->" << pw_stream_state_as_string(state) << error_message;
+    pw->d->m_state = state;
+    Q_EMIT pw->stateChanged(state, old);
 
     switch (state) {
     case PW_STREAM_STATE_ERROR:
@@ -328,6 +331,11 @@ static void onProcess(void *data)
 QSize PipeWireSourceStream::size() const
 {
     return QSize(d->videoFormat.size.width, d->videoFormat.size.height);
+}
+
+pw_stream_state PipeWireSourceStream::state() const
+{
+    return d->m_state;
 }
 
 std::optional< std::chrono::nanoseconds > PipeWireSourceStream::currentPresentationTimestamp() const

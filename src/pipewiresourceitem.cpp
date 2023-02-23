@@ -183,7 +183,9 @@ void PipeWireSourceItem::refresh()
         d->m_stream->setActive(isVisible() && isComponentComplete());
 
         connect(d->m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
+        connect(d->m_stream.data(), &PipeWireSourceStream::stateChanged, this, &PipeWireSourceItem::stateChanged);
     }
+    Q_EMIT stateChanged();
 }
 
 void PipeWireSourceItem::setNodeId(uint nodeId)
@@ -413,6 +415,27 @@ void PipeWireSourceItem::componentComplete()
     QQuickItem::componentComplete();
     if (d->m_nodeId != 0) {
         refresh();
+    }
+}
+
+PipeWireSourceItem::StreamState PipeWireSourceItem::state() const
+{
+    if (!d->m_stream) {
+        return StreamState::Unconnected;
+    }
+    switch (d->m_stream->state()) {
+    case PW_STREAM_STATE_ERROR:
+        return StreamState::Error;
+    case PW_STREAM_STATE_UNCONNECTED:
+        return StreamState::Unconnected;
+    case PW_STREAM_STATE_CONNECTING:
+        return StreamState::Connecting;
+    case PW_STREAM_STATE_PAUSED:
+        return StreamState::Paused;
+    case PW_STREAM_STATE_STREAMING:
+        return StreamState::Streaming;
+    default:
+        return StreamState::Error;
     }
 }
 
