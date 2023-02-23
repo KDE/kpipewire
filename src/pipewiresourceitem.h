@@ -31,6 +31,10 @@ class PipeWireSourceItemPrivate;
 class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 {
     Q_OBJECT
+
+    /// Returns where the streams current state
+    Q_PROPERTY(StreamState state READ state NOTIFY stateChanged)
+
     /// Specify the pipewire node id that we want to play
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
 
@@ -41,6 +45,9 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
      */
     Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged RESET resetFd)
 public:
+    enum class StreamState { Error, Unconnected, Connecting, Paused, Streaming };
+    Q_ENUM(StreamState);
+
     PipeWireSourceItem(QQuickItem *parent = nullptr);
     ~PipeWireSourceItem() override;
 
@@ -57,9 +64,12 @@ public:
     void componentComplete() override;
     void releaseResources() override;
 
+    StreamState state() const;
+
 Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
+    void stateChanged();
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;

@@ -82,6 +82,7 @@ public:
     QString error() const;
 
     QSize size() const;
+    pw_stream_state state() const;
     bool createStream(uint nodeid, int fd);
     void setActive(bool active);
     void setDamageEnabled(bool withDamage);
@@ -100,6 +101,7 @@ Q_SIGNALS:
     void stopStreaming();
     void streamParametersChanged();
     void frameReceived(const PipeWireFrame &frame);
+    void stateChanged(pw_stream_state state, pw_stream_state oldState);
 
 private:
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
