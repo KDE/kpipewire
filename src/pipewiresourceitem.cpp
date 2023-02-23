@@ -183,7 +183,9 @@ void PipeWireSourceItem::refresh()
         d->m_stream->setActive(isVisible() && isComponentComplete());
 
         connect(d->m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
+        connect(d->m_stream.data(), &PipeWireSourceStream::stateChanged, this, &PipeWireSourceItem::activeChanged);
     }
+    Q_EMIT activeChanged();
 }
 
 void PipeWireSourceItem::setNodeId(uint nodeId)
@@ -414,6 +416,11 @@ void PipeWireSourceItem::componentComplete()
     if (d->m_nodeId != 0) {
         refresh();
     }
+}
+
+bool PipeWireSourceItem::isActive() const
+{
+    return d->m_stream && d->m_stream->state() != PW_STREAM_STATE_UNCONNECTED;
 }
 
 uint PipeWireSourceItem::fd() const

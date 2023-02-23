@@ -31,6 +31,10 @@ class PipeWireSourceItemPrivate;
 class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 {
     Q_OBJECT
+
+    /// Returns where the stream is currently active
+    Q_PROPERTY(bool active READ isActive NOTIFY activeChanged)
+
     /// Specify the pipewire node id that we want to play
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
 
@@ -55,6 +59,7 @@ public:
 
     void setNodeId(uint nodeId);
     uint nodeId() const;
+    bool isActive() const;
 
     void setFd(uint fd);
     void resetFd();
@@ -69,6 +74,7 @@ Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
     void streamSizeChanged();
+    void activeChanged();
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
