@@ -119,7 +119,7 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
 
 void PipeWireSourceItem::releaseResources()
 {
-    if (window()) {
+    if (window() && (d->m_image || d->m_texture)) {
         window()->scheduleRenderJob(new DiscardEglPixmapRunnable(d->m_image, d->m_texture.take()), QQuickWindow::NoStage);
         d->m_image = EGL_NO_IMAGE_KHR;
     }
