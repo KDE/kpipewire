@@ -56,7 +56,6 @@ public:
     PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
     ~PipeWireRecordProduce() override;
 
-    void finish();
     QString error() const
     {
         return m_error;
@@ -68,6 +67,7 @@ private:
     void processFrame(const PipeWireFrame &frame);
     void updateTextureImage(const QImage &image, const PipeWireFrame &frame);
     void render(const PipeWireFrame &frame);
+    void stateChanged(pw_stream_state state);
 
     AVCodecContext *m_avCodecContext = nullptr;
     const AVCodec *m_codec = nullptr;
@@ -93,6 +93,7 @@ private:
     DmaBufHandler m_dmabufHandler;
     uint m_lastKeyFrame = 0;
     int64_t m_lastPts = -1;
+    QAtomicInt m_deactivated = false;
 };
 
 class PipeWireRecordProduceThread : public QThread

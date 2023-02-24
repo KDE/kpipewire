@@ -167,11 +167,11 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
         return;
     }
     connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireRecordProduce::setupStream);
+    connect(m_stream.get(), &PipeWireSourceStream::stateChanged, this, &PipeWireRecordProduce::stateChanged);
 }
 
-PipeWireRecordProduce::~PipeWireRecordProduce() noexcept
+PipeWireRecordProduce::~PipeWireRecordProduce()
 {
-    finish();
 }
 
 void PipeWireRecordProduceThread::run()
@@ -190,13 +190,17 @@ void PipeWireRecordProduceThread::run()
 
 void PipeWireRecordProduceThread::deactivate()
 {
+    m_producer->m_deactivated = true;
     if (m_producer) {
         m_producer->m_stream->setActive(false);
     }
 }
 
-void PipeWireRecordProduce::finish()
+void PipeWireRecordProduce::stateChanged(pw_stream_state state)
 {
+    if (state != PW_STREAM_STATE_PAUSED || !m_deactivated) {
+        return;
+    }
     if (!m_stream) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "finished without a stream";
         return;
@@ -216,6 +220,7 @@ void PipeWireRecordProduce::finish()
         av_free(m_avCodecContext);
         avformat_free_context(m_avFormatContext);
     }
+    QThread::currentThread()->quit();
 }
 
 QString PipeWireRecord::extension()
@@ -355,7 +360,6 @@ void PipeWireRecord::refresh()
         d->m_recordThread->start();
     } else if (d->m_recordThread) {
         d->m_recordThread->deactivate();
-        d->m_recordThread->quit();
 
         connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::finished, this, [this] {
             qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << d->m_output;
@@ -364,7 +368,6 @@ void PipeWireRecord::refresh()
             Q_EMIT stateChanged();
         });
         d->m_produceThreadFinished = false;
-        d->m_recordThread.release();
     }
     Q_EMIT stateChanged();
 }
