@@ -32,7 +32,7 @@ ecm_qt_install_logging_categories(
 )
 
 ecm_qt_install_logging_categories(
-    EXPORT KPipeWire
+    EXPORT KPipeWireRecord
     FILE kpipewirerecord.categories
     DESTINATION "${KDE_INSTALL_LOGGINGCATEGORIESDIR}"
 )
