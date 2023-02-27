@@ -100,7 +100,7 @@ QImage::Format SpaToQImageFormat(quint32 format)
     switch (format) {
     case SPA_VIDEO_FORMAT_BGRx:
     case SPA_VIDEO_FORMAT_BGRA:
-        return QImage::Format_BGR30;
+        return QImage::Format_RGBA8888_Premultiplied; // TODO: Add BGR to QImage
     case SPA_VIDEO_FORMAT_BGR:
         return QImage::Format_BGR888;
     case SPA_VIDEO_FORMAT_RGBx:
