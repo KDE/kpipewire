@@ -277,7 +277,7 @@ void PipeWireRecordProduce::setupStream()
     av_dict_set_int(&options, "threads", 4, 0);
     av_dict_set(&options, "preset", "ultrafast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "quality", "realtime", 0);
+    av_dict_set(&options, "deadline", "good", 0);
 
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
