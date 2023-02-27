@@ -105,6 +105,8 @@ QImage::Format SpaToQImageFormat(quint32 format)
         return QImage::Format_BGR888;
     case SPA_VIDEO_FORMAT_RGBx:
         return QImage::Format_RGBX8888;
+    case SPA_VIDEO_FORMAT_RGB:
+        return QImage::Format_RGB888;
     case SPA_VIDEO_FORMAT_RGBA:
         return QImage::Format_RGBA8888_Premultiplied;
     default:
