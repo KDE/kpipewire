@@ -437,10 +437,10 @@ void PipeWireRecordProduce::render(const PipeWireFrame &frame)
         m_frame->m_avFrame->pts = AV_NOPTS_VALUE;
     }
 
-    // Let's add a key frame every 100 frames and also the first 5 frames
+    // Let's add a key frame every 100 frames and also the first frame
     if (frame.sequential && (*frame.sequential == 0 || (*frame.sequential - m_lastKeyFrame) > 100)) {
         m_frame->m_avFrame->key_frame = 1;
-        m_lastKeyFrame = frame.sequential.has_value() ? *frame.sequential : 11;
+        m_lastKeyFrame = *frame.sequential;
     }
 
     if (m_lastPts > 0 && m_frame->m_avFrame->pts <= m_lastPts) {
