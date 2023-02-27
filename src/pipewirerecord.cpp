@@ -253,10 +253,13 @@ void PipeWireRecordProduce::setupStream()
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate video codec context";
         return;
     }
-    m_avCodecContext->bit_rate = 100000000;
 
     const QSize size = m_stream->size();
     const Fraction framerate = m_stream->framerate();
+
+    // Have the bitrate depend on the size of the input stream. What looks acceptable on a small
+    // stream on a big one will look bad.
+    m_avCodecContext->bit_rate = size.width() * size.height() * 2;
 
     Q_ASSERT(!size.isEmpty());
     m_avCodecContext->width = size.width();
