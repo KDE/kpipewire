@@ -28,11 +28,11 @@
 
 using namespace KWayland::Client;
 
-PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QString &source, bool doSelection, QObject *parent)
+PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStringList &sources, bool doSelection, QObject *parent)
     : QObject(parent)
     , m_cursorMode(cursorMode)
     , m_durationTimer(new QTimer(this))
-    , m_sourceName(source)
+    , m_sources(sources)
     , m_engine(new QQmlApplicationEngine(this))
 {
     connect(m_engine, &QQmlEngine::quit, qGuiApp, &QCoreApplication::quit);
@@ -53,12 +53,10 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
     auto registry = new Registry(qApp);
     connect(registry, &KWayland::Client::Registry::plasmaWindowManagementAnnounced, this, [this, registry] (quint32 name, quint32 version) {
         m_management = registry->createPlasmaWindowManagement(name, version, this);
-        auto addWindow = [this] (KWayland::Client::PlasmaWindow *window) {
-            const QRegularExpression rx(m_sourceName);
-            const auto match = rx.match(window->appId());
-            if (match.hasMatch()) {
-                qDebug() << "window" << window << window->uuid() << m_sourceName << m_screencasting;
-                start(m_screencasting->createWindowStream(window, m_cursorMode));
+        auto addWindow = [this](KWayland::Client::PlasmaWindow *window) {
+            if (matches(window->appId())) {
+                qDebug() << "window" << window << window->uuid() << m_screencasting;
+                start(m_screencasting->createWindowStream(window, m_cursorMode), true);
             }
         };
         for (auto w : m_management->windows())
@@ -71,11 +69,13 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
     }
     connect(qGuiApp, &QGuiApplication::screenAdded, this, &PlasmaRecordMe::addScreen);
 
-    if (m_sourceName.isEmpty() || m_sourceName == QLatin1String("region")) {
+    if (m_sources.isEmpty() || m_sources.contains(QLatin1String("region"))) {
         connect(this, &PlasmaRecordMe::workspaceChanged, this, [this] {
-            delete m_workspaceStream;
-            m_workspaceStream = m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
-            start(m_workspaceStream);
+            qDeleteAll(m_workspaceStreams);
+            m_workspaceStreams += m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
+            m_workspaceStreams += m_screencasting->createRegionStream(m_workspace, 1, m_cursorMode);
+            start(m_workspaceStreams[0], true);
+            start(m_workspaceStreams[1], false);
         });
     }
 
@@ -86,17 +86,11 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
     registry->create(connection);
     registry->setup();
 
-    bool ok = false;
-    auto node = m_sourceName.toInt(&ok);
-    if (ok) {
-        const auto roots = m_engine->rootObjects();
-        for (auto root : roots) {
-            auto mo = root->metaObject();
-            mo->invokeMethod(root,
-                             "addStream",
-                             Q_ARG(QVariant, QVariant::fromValue<int>(node)),
-                             Q_ARG(QVariant, QStringLiteral("raw node %1").arg(node)),
-                             Q_ARG(QVariant, 0));
+    for (const auto &source : m_sources) {
+        bool ok = false;
+        auto node = source.toInt(&ok);
+        if (ok) {
+            startNode(node);
         }
     }
 
@@ -110,22 +104,52 @@ PlasmaRecordMe::~PlasmaRecordMe()
 {
 }
 
+bool PlasmaRecordMe::matches(const QString &value)
+{
+    for (const auto &source : m_sources) {
+        const QRegularExpression rx(source);
+        if (rx.match(value).hasMatch()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void PlasmaRecordMe::addStream(int nodeid, const QString &displayText, int fd, bool allowDmaBuf)
+{
+    const auto roots = m_engine->rootObjects();
+    for (auto root : roots) {
+        auto mo = root->metaObject();
+        mo->invokeMethod(root,
+                         "addStream",
+                         Q_ARG(QVariant, QVariant::fromValue<int>(nodeid)),
+                         Q_ARG(QVariant, displayText),
+                         Q_ARG(QVariant, fd),
+                         Q_ARG(QVariant, allowDmaBuf));
+    }
+}
+
+void PlasmaRecordMe::startNode(int node)
+{
+    addStream(node, QStringLiteral("raw node %1").arg(node), 0, true);
+}
+
 void PlasmaRecordMe::addScreen(QScreen *screen)
 {
-    const QRegularExpression rx(m_sourceName);
     auto f = [this, screen] {
-        start(m_screencasting->createOutputStream(screen, m_cursorMode));
+        start(m_screencasting->createOutputStream(screen, m_cursorMode), false);
+        start(m_screencasting->createOutputStream(screen, m_cursorMode), true);
     };
-    if (const auto match = rx.match(screen->name()); match.hasMatch()) {
+    if (matches(screen->name())) {
         connect(this, &PlasmaRecordMe::cursorModeChanged, screen, f);
         f();
-    } else if (const auto match = rx.match(screen->model()); match.hasMatch()) {
+    } else if (matches(screen->model())) {
         connect(this, &PlasmaRecordMe::cursorModeChanged, screen, f);
         f();
     }
 }
 
-void PlasmaRecordMe::start(ScreencastingStream *stream)
+void PlasmaRecordMe::start(ScreencastingStream *stream, bool allowDmaBuf)
 {
     qDebug() << "start" << stream;
     connect(stream, &ScreencastingStream::failed, this, [this] (const QString &error) {
@@ -149,21 +173,11 @@ void PlasmaRecordMe::start(ScreencastingStream *stream)
             mo->invokeMethod(root, "removeStream", Qt::QueuedConnection, Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)));
         }
     });
-    connect(stream, &ScreencastingStream::created, this, [this, stream] (quint32 nodeId)
-        {
-            stream->setProperty("nodeid", nodeId);
-            qDebug() << "starting..." << nodeId;
-            const auto roots = m_engine->rootObjects();
-            for (auto root : roots) {
-                auto mo = root->metaObject();
-                mo->invokeMethod(root,
-                                 "addStream",
-                                 Q_ARG(QVariant, QVariant::fromValue<quint32>(nodeId)),
-                                 Q_ARG(QVariant, stream->objectName()),
-                                 Q_ARG(QVariant, 0));
-            }
-        }
-    );
+    connect(stream, &ScreencastingStream::created, this, [this, stream, allowDmaBuf](quint32 nodeId) {
+        stream->setProperty("nodeid", nodeId);
+        qDebug() << "starting..." << nodeId;
+        addStream(nodeId, stream->objectName(), 0, allowDmaBuf);
+    });
     connect(this, &PlasmaRecordMe::cursorModeChanged, stream, &ScreencastingStream::closed);
 }
 
@@ -216,12 +230,14 @@ void PlasmaRecordMe::requestSelection()
     }
 
     connect(this, &PlasmaRecordMe::regionFinal, this, [this](const QRect &region) {
-        if (m_regionStream) {
-            m_regionStream->closed();
-            delete m_regionStream;
+        for (auto stream : m_regionStreams) {
+            Q_EMIT stream->closed();
         }
-        m_regionStream = m_screencasting->createRegionStream(region, 1, m_cursorMode);
-        start(m_regionStream);
+        qDeleteAll(m_regionStreams);
+        m_regionStreams += m_screencasting->createRegionStream(region, 1, m_cursorMode);
+        m_regionStreams += m_screencasting->createRegionStream(region, 1, m_cursorMode);
+        start(m_regionStreams[0], true);
+        start(m_regionStreams[1], false);
     });
 }
 

@@ -47,6 +47,7 @@ public:
 
     EGLImage m_image = nullptr;
     bool m_needsRecreateTexture = false;
+    bool m_allowDmaBuf = true;
 
     struct {
         QImage texture;
@@ -163,6 +164,7 @@ void PipeWireSourceItem::refresh()
     }
 
     if (d->m_nodeId == 0) {
+        releaseResources();
         d->m_stream.reset(nullptr);
         Q_EMIT streamSizeChanged();
 
@@ -171,8 +173,10 @@ void PipeWireSourceItem::refresh()
         };
     } else {
         d->m_stream.reset(new PipeWireSourceStream(this));
+        d->m_stream->setAllowDmaBuf(d->m_allowDmaBuf);
         Q_EMIT streamSizeChanged();
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::streamSizeChanged);
+        connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::usingDmaBufChanged);
 
         d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
         if (!d->m_stream->error().isEmpty()) {
@@ -455,4 +459,22 @@ QSize PipeWireSourceItem::streamSize() const
         return QSize();
     }
     return d->m_stream->size();
+}
+
+bool PipeWireSourceItem::usingDmaBuf() const
+{
+    return d->m_stream && d->m_stream->usingDmaBuf();
+}
+
+bool PipeWireSourceItem::allowDmaBuf() const
+{
+    return d->m_stream && d->m_stream->allowDmaBuf();
+}
+
+void PipeWireSourceItem::setAllowDmaBuf(bool allowed)
+{
+    d->m_allowDmaBuf = allowed;
+    if (d->m_stream) {
+        d->m_stream->setAllowDmaBuf(allowed);
+    }
 }

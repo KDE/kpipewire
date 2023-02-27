@@ -95,6 +95,10 @@ public:
 
     static uint32_t spaVideoFormatToDrmFormat(spa_video_format spa_format);
 
+    bool usingDmaBuf() const;
+    bool allowDmaBuf() const;
+    void setAllowDmaBuf(bool allowed);
+
 Q_SIGNALS:
     void streamReady();
     void startStreaming();

@@ -62,6 +62,7 @@ struct PipeWireSourceStreamPrivate
     spa_video_info_raw videoFormat;
     QString m_error;
     bool m_allowDmaBuf = true;
+    bool m_usingDmaBuf = false;
 
     QHash<spa_video_format, QVector<uint64_t>> m_availableModifiers;
     spa_source *m_renegotiateEvent = nullptr;
@@ -237,7 +238,7 @@ static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, c
         // we only support implicit modifiers, use shortpath to skip fixation phase
         spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY);
         spa_pod_builder_long(builder, modifiers[0]);
-    } else if (modifiers.size()) {
+    } else if (!modifiers.isEmpty()) {
         // SPA_POD_PROP_FLAG_DONT_FIXATE can be used with PipeWire >= 0.3.33
         if (withDontFixate) {
             spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY | SPA_POD_PROP_FLAG_DONT_FIXATE);
@@ -276,9 +277,10 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
     // the server announces support for it.
     // See https://github.com/PipeWire/pipewire/blob/master/doc/dma-buf.dox
 
-    const auto bufferTypes = pw->d->m_allowDmaBuf && spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier)
-        ? (1 << SPA_DATA_DmaBuf) | (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr)
-        : (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr);
+    pw->d->m_usingDmaBuf = pw->d->m_allowDmaBuf && spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier);
+    Q_ASSERT(pw->d->m_allowDmaBuf || !pw->d->m_usingDmaBuf);
+    const auto bufferTypes =
+        pw->d->m_usingDmaBuf ? (1 << SPA_DATA_DmaBuf) | (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr) : (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr);
 
     QVarLengthArray<const spa_pod *> params = {
         (spa_pod *)spa_pod_builder_add_object(&pod_builder,
@@ -394,8 +396,8 @@ QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_build
     params.reserve(formats.size() * 2);
     const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
 
-    d->m_allowDmaBuf = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion);
-    const bool withDontFixate = pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion);
+    d->m_allowDmaBuf = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion));
+    const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
 
     if (d->m_availableModifiers.isEmpty()) {
         d->m_availableModifiers = queryDmaBufModifiers(display, formats);
@@ -578,4 +580,19 @@ void PipeWireSourceStream::setActive(bool active)
 void PipeWireSourceStream::setDamageEnabled(bool withDamage)
 {
     d->m_withDamage = withDamage;
+}
+
+bool PipeWireSourceStream::usingDmaBuf() const
+{
+    return d->m_usingDmaBuf;
+}
+
+bool PipeWireSourceStream::allowDmaBuf() const
+{
+    return d->m_allowDmaBuf;
+}
+
+void PipeWireSourceStream::setAllowDmaBuf(bool allowed)
+{
+    d->m_allowDmaBuf = allowed;
 }

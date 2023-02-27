@@ -10,7 +10,6 @@ import QtQuick.Controls 2.1
 import org.kde.kirigami 2.15 as Kirigami
 
 import org.kde.pipewire 0.1 as PipeWire
-import org.kde.pipewire.record 0.1 as PWRec
 
 Kirigami.ApplicationWindow
 {
@@ -20,10 +19,10 @@ Kirigami.ApplicationWindow
     visible: true
     property QtObject app
 
-    function addStream(nodeid, displayText, fd) {
+    function addStream(nodeid, displayText, fd, allowDmaBuf) {
         if (fd == null)
             fd = 0;
-        rep.model.append({nodeId: nodeid, uuid: "", display: displayText, fd: fd})
+        rep.model.append({nodeId: nodeid, uuid: "", display: displayText, fd: fd, allowDmaBuf: allowDmaBuf })
     }
     function removeStream(nodeid) {
         for(var i=0; i<rep.model.count; ++i) {
@@ -33,8 +32,6 @@ Kirigami.ApplicationWindow
             }
         }
     }
-
-    signal record(int nodeId, bool capture)
 
     ColumnLayout {
         id: pipes
@@ -61,23 +58,17 @@ Kirigami.ApplicationWindow
                     id: sourceItem
                     nodeId: model.nodeId
                     fd: model.fd
-                    visible: record.state !== PWRec.PipeWireRecord.Recording
                     anchors.fill: parent
-
+                    allowDmaBuf: model.allowDmaBuf
                 }
-                Button {
-                    id: butt
-                    icon.name: "media-record"
-                    text: model.display + " " + model.nodeId
-                    enabled: checked === (record.state !== PWRec.PipeWireRecord.Idle)
-                    checkable: true
 
-                    PWRec.PipeWireRecord {
-                        id: record
-                        nodeId: model.nodeId
-                        fd: model.fd
-                        output: "~/clementine." + record.extension
-                        active: butt.checked
+                RowLayout {
+                    Kirigami.Icon {
+                        id: butt
+                        source: sourceItem.usingDmaBuf ? "speedometer" : "delete"
+                    }
+                    Label {
+                        text: model.display
                     }
                 }
             }

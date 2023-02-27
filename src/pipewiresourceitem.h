@@ -51,6 +51,13 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
      */
     Q_PROPERTY(QSize streamSize READ streamSize NOTIFY streamSizeChanged)
 
+    /**
+     * Allows disabling the dmabuf streams
+     */
+    Q_PROPERTY(bool allowDmaBuf READ allowDmaBuf WRITE setAllowDmaBuf)
+
+    Q_PROPERTY(bool usingDmaBuf READ usingDmaBuf NOTIFY usingDmaBufChanged)
+
 public:
     enum class StreamState { Error, Unconnected, Connecting, Paused, Streaming };
     Q_ENUM(StreamState);
@@ -70,6 +77,10 @@ public:
 
     QSize streamSize() const;
 
+    bool usingDmaBuf() const;
+    bool allowDmaBuf() const;
+    void setAllowDmaBuf(bool allowed);
+
     void componentComplete() override;
     void releaseResources() override;
 
@@ -80,6 +91,7 @@ Q_SIGNALS:
     void fdChanged(uint fd);
     void streamSizeChanged();
     void stateChanged();
+    void usingDmaBufChanged();
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;

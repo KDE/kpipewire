@@ -32,7 +32,7 @@ class PlasmaRecordMe : public QObject
     Q_OBJECT
     Q_PROPERTY(QRect region READ region NOTIFY regionChanged)
 public:
-    PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QString &source, bool doSelection, QObject *parent = nullptr);
+    PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStringList &sources, bool doSelection, QObject *parent = nullptr);
     ~PlasmaRecordMe() override;
 
     void setDuration(int duration);
@@ -51,17 +51,20 @@ Q_SIGNALS:
     void regionChanged(const QRect &region);
 
 private:
-    void start(ScreencastingStream* stream);
+    void startNode(int node);
+    void start(ScreencastingStream *stream, bool allowDmaBuf);
     void addScreen(QScreen *screen);
+    void addStream(int nodeid, const QString &displayText, int fd, bool allowDmaBuf);
+    bool matches(const QString &source);
 
     const Screencasting::CursorMode m_cursorMode;
     QTimer* const m_durationTimer;
-    const QString m_sourceName;
+    const QStringList m_sources;
     KWayland::Client::PlasmaWindowManagement* m_management = nullptr;
     Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;
-    ScreencastingStream *m_workspaceStream = nullptr;
-    ScreencastingStream *m_regionStream = nullptr;
+    QVector<ScreencastingStream *> m_workspaceStreams;
+    QVector<ScreencastingStream *> m_regionStreams;
     QRect m_workspace;
 
     QRect m_region;

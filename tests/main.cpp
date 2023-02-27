@@ -15,11 +15,6 @@ int main(int argc, char **argv)
     {
         QCommandLineParser parser;
         QCommandLineOption duration(QStringLiteral("duration"), QStringLiteral("seconds length of the video"), QStringLiteral("duration"));
-        QCommandLineOption kwaylandSource(QStringLiteral("source"),
-                                          QStringLiteral("use KWayland::Screencasting to record instead of xdg-desktop-portals"),
-                                          QStringLiteral("source"),
-                                          {});
-
         const QMap<QString, Screencasting::CursorMode> cursorOptions = {
             {QStringLiteral("hidden"), Screencasting::CursorMode::Hidden},
             {QStringLiteral("embedded"), Screencasting::CursorMode::Embedded},
@@ -32,14 +27,14 @@ int main(int argc, char **argv)
                                   QStringLiteral("metadata"));
 
         QCommandLineOption selection(QStringLiteral("selection"), QStringLiteral("Select a region to show"));
+        parser.addPositionalArgument(QStringLiteral("source"), QStringLiteral("name of the output/window that you want to see"));
         parser.addOption(duration);
-        parser.addOption(kwaylandSource);
         parser.addOption(cursor);
         parser.addOption(selection);
         parser.addHelpOption();
         parser.process(app);
 
-        PlasmaRecordMe *me = new PlasmaRecordMe(cursorOptions[parser.value(cursor).toLower()], parser.value(kwaylandSource), parser.isSet(selection), &app);
+        PlasmaRecordMe *me = new PlasmaRecordMe(cursorOptions[parser.value(cursor).toLower()], parser.positionalArguments(), parser.isSet(selection), &app);
         if (parser.isSet(duration)) {
             me->setDuration(parser.value(duration).toInt() * 1000);
         }
