@@ -36,7 +36,7 @@ struct gbm_device;
 class PipeWireRecordWriteThread : public QRunnable
 {
 public:
-    PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext);
+    PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVCodecContext *avCodecContext, std::function<void(AVPacket *)> callback);
     ~PipeWireRecordWriteThread();
 
     void run() override;
@@ -45,13 +45,14 @@ public:
 private:
     QAtomicInt m_active = true;
     AVPacket *m_packet;
-    AVFormatContext *const m_avFormatContext;
     AVCodecContext *const m_avCodecContext;
+    std::function<void(AVPacket *)> m_callback;
     QWaitCondition *const m_bufferNotEmpty;
 };
 
 class PipeWireRecordProduce : public QObject
 {
+    Q_OBJECT
 public:
     PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
     ~PipeWireRecordProduce() override;
@@ -60,6 +61,8 @@ public:
     {
         return m_error;
     }
+
+    Q_SIGNAL void newPacket(const QByteArray &packetData);
 
 private:
     friend class PipeWireRecordProduceThread;
@@ -112,6 +115,7 @@ public:
 
 Q_SIGNALS:
     void errorFound(const QString &error);
+    void newPacket(const QByteArray &packetData);
 
 private:
     const uint m_nodeId;

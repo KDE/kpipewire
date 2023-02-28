@@ -68,6 +68,7 @@ Q_SIGNALS:
     void outputChanged(const QString &output);
     void errorFound(const QString &error);
     void stateChanged();
+    void newPacket(const QByteArray &data);
 
 private:
     void refresh();

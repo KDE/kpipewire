@@ -56,6 +56,22 @@ char timebuf[AV_TS_MAX_STRING_SIZE];
 #define av_ts2timestr(ts, tb) av_ts_make_time_string(timebuf, ts, tb)
 #endif // av_ts2timestr
 
+static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
+{
+    AVRational *time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
+
+    qCDebug(PIPEWIRERECORD_LOGGING,
+            "pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s "
+            "stream_index:%d",
+            av_ts2str(pkt->pts),
+            av_ts2timestr(pkt->pts, time_base),
+            av_ts2str(pkt->dts),
+            av_ts2timestr(pkt->dts, time_base),
+            av_ts2str(pkt->duration),
+            av_ts2timestr(pkt->duration, time_base),
+            pkt->stream_index);
+}
+
 class CustomAVFrame
 {
 public:
@@ -177,6 +193,7 @@ PipeWireRecordProduce::~PipeWireRecordProduce()
 void PipeWireRecordProduceThread::run()
 {
     PipeWireRecordProduce produce(m_encoder, m_nodeId, m_fd, m_output);
+    connect(&produce, &PipeWireRecordProduce::newPacket, this, &PipeWireRecordProduceThread::newPacket);
     if (!produce.m_stream) {
         Q_EMIT errorFound(produce.error());
         return;
@@ -215,10 +232,12 @@ void PipeWireRecordProduce::stateChanged(pw_stream_state state)
 
     qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
     if (m_avCodecContext) {
-        avio_closep(&m_avFormatContext->pb);
         avcodec_close(m_avCodecContext);
         av_free(m_avCodecContext);
-        avformat_free_context(m_avFormatContext);
+        if (m_avFormatContext) {
+            avio_closep(&m_avFormatContext->pb);
+            avformat_free_context(m_avFormatContext);
+        }
     }
     QThread::currentThread()->quit();
 }
@@ -232,14 +251,16 @@ void PipeWireRecordProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
     disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireRecordProduce::setupStream);
-    avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
-    if (!m_avFormatContext) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;
-        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toUtf8().constData());
-    }
-    if (!m_avFormatContext) {
-        qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
-        return;
+    if (!m_output.isEmpty()) {
+        avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
+        if (!m_avFormatContext) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;
+            avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toUtf8().constData());
+        }
+        if (!m_avFormatContext) {
+            qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
+            return;
+        }
     }
 
     m_codec = avcodec_find_encoder_by_name(m_encoder.constData());
@@ -289,33 +310,54 @@ void PipeWireRecordProduce::setupStream()
         return;
     }
 
-    ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output).constData(), AVIO_FLAG_WRITE);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open" << m_output << av_err2str(ret);
-        return;
-    }
+    if (!m_output.isEmpty()) {
+        ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output).constData(), AVIO_FLAG_WRITE);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open" << m_output << av_err2str(ret);
+            return;
+        }
 
-    auto avStream = avformat_new_stream(m_avFormatContext, nullptr);
-    avStream->start_time = 0;
-    avStream->r_frame_rate.num = framerate.numerator;
-    avStream->r_frame_rate.den = framerate.denominator;
-    avStream->avg_frame_rate.num = framerate.numerator;
-    avStream->avg_frame_rate.den = framerate.denominator;
+        auto avStream = avformat_new_stream(m_avFormatContext, nullptr);
+        avStream->start_time = 0;
+        avStream->r_frame_rate.num = framerate.numerator;
+        avStream->r_frame_rate.den = framerate.denominator;
+        avStream->avg_frame_rate.num = framerate.numerator;
+        avStream->avg_frame_rate.den = framerate.denominator;
 
-    ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when passing the codec:" << av_err2str(ret);
-        return;
-    }
+        ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when passing the codec:" << av_err2str(ret);
+            return;
+        }
 
-    ret = avformat_write_header(m_avFormatContext, nullptr);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when writing header:" << av_err2str(ret);
-        return;
+        ret = avformat_write_header(m_avFormatContext, nullptr);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when writing header:" << av_err2str(ret);
+            return;
+        }
     }
 
     connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireRecordProduce::processFrame);
-    m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avFormatContext, m_avCodecContext);
+    m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avCodecContext, [this](AVPacket *packet) {
+        if (packet) {
+            if (m_avFormatContext) {
+                packet->stream_index = (*m_avFormatContext->streams)->index;
+                av_packet_rescale_ts(packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
+                log_packet(m_avFormatContext, packet);
+                auto ret = av_interleaved_write_frame(m_avFormatContext, packet);
+                if (ret < 0) {
+                    qCWarning(PIPEWIRERECORD_LOGGING) << "Error while writing output packet:" << av_err2str(ret);
+                }
+            } else {
+                Q_EMIT newPacket(QByteArray(reinterpret_cast<char *>(packet->data), packet->size));
+            }
+        } else if (m_avFormatContext) {
+            auto ret = av_write_trailer(m_avFormatContext);
+            if (ret < 0) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "failed to write trailer" << av_err2str(ret);
+            }
+        }
+    });
     QThreadPool::globalInstance()->start(m_writeThread);
 }
 
@@ -351,12 +393,13 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 
 void PipeWireRecord::refresh()
 {
-    if (!d->m_output.isEmpty() && d->m_active && d->m_nodeId > 0) {
+    if (d->m_active && d->m_nodeId > 0) {
         d->m_recordThread.reset(new PipeWireRecordProduceThread(d->m_encoder, d->m_nodeId, d->m_fd.value_or(0), d->m_output));
         connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::errorFound, this, &PipeWireRecord::errorFound);
         connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::finished, this, [this] {
             setActive(false);
         });
+        connect(d->m_recordThread.get(), &PipeWireRecordProduceThread::newPacket, this, &PipeWireRecord::newPacket);
         d->m_recordThread->start();
     } else if (d->m_recordThread) {
         d->m_recordThread->deactivate();
@@ -422,7 +465,7 @@ void PipeWireRecordProduce::render(const PipeWireFrame &frame)
                                        nullptr);
     sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, m_frame->m_avFrame->data, m_frame->m_avFrame->linesize);
 
-    if (frame.presentationTimestamp.has_value()) {
+    if (m_avFormatContext && frame.presentationTimestamp.has_value()) {
         const auto current = std::chrono::duration_cast<std::chrono::milliseconds>(*frame.presentationTimestamp).count();
         if ((*m_avFormatContext->streams)->start_time == 0) {
             (*m_avFormatContext->streams)->start_time = current;
@@ -430,6 +473,8 @@ void PipeWireRecordProduce::render(const PipeWireFrame &frame)
 
         Q_ASSERT((*m_avFormatContext->streams)->start_time <= current);
         m_frame->m_avFrame->pts = current - (*m_avFormatContext->streams)->start_time;
+    } else if (frame.presentationTimestamp.has_value()) {
+        m_frame->m_avFrame->pts = std::chrono::duration_cast<std::chrono::milliseconds>(frame.presentationTimestamp.value()).count();
     } else {
         m_frame->m_avFrame->pts = AV_NOPTS_VALUE;
     }
@@ -453,22 +498,6 @@ void PipeWireRecordProduce::render(const PipeWireFrame &frame)
         return;
     }
     m_bufferNotEmpty.wakeAll();
-}
-
-static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
-{
-    AVRational *time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
-
-    qCDebug(PIPEWIRERECORD_LOGGING,
-            "pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s "
-            "stream_index:%d",
-            av_ts2str(pkt->pts),
-            av_ts2timestr(pkt->pts, time_base),
-            av_ts2str(pkt->dts),
-            av_ts2timestr(pkt->dts, time_base),
-            av_ts2str(pkt->duration),
-            av_ts2timestr(pkt->duration, time_base),
-            pkt->stream_index);
 }
 
 void PipeWireRecord::setEncoder(const QByteArray &encoder)
@@ -496,11 +525,11 @@ uint PipeWireRecord::fd() const
     return d->m_fd.value_or(0);
 }
 
-PipeWireRecordWriteThread::PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext)
+PipeWireRecordWriteThread::PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVCodecContext *avCodecContext, std::function<void(AVPacket *)> callback)
     : QRunnable()
     , m_packet(av_packet_alloc())
-    , m_avFormatContext(avFormatContext)
     , m_avCodecContext(avCodecContext)
+    , m_callback(callback)
     , m_bufferNotEmpty(notEmpty)
 {
 }
@@ -531,19 +560,10 @@ void PipeWireRecordWriteThread::run()
             continue;
         }
 
-        m_packet->stream_index = (*m_avFormatContext->streams)->index;
-        av_packet_rescale_ts(m_packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
-        log_packet(m_avFormatContext, m_packet);
-        ret = av_interleaved_write_frame(m_avFormatContext, m_packet);
-        if (ret < 0) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "Error while writing output packet:" << av_err2str(ret);
-            continue;
-        }
+        m_callback(m_packet);
     }
-    ret = av_write_trailer(m_avFormatContext);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "failed to write trailer" << av_err2str(ret);
-    }
+
+    m_callback(nullptr);
 }
 
 void PipeWireRecordWriteThread::drain()
