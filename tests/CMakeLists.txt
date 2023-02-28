@@ -22,7 +22,7 @@ else()
         ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml)
 endif()
 
-target_link_libraries(PipeWireScreencastingTest PUBLIC KF5::WaylandClient Wayland::Client Qt::DBus Qt::GuiPrivate KPipeWire Qt::WaylandClient)
+target_link_libraries(PipeWireScreencastingTest PUBLIC KF6::WaylandClient Wayland::Client Qt::DBus Qt::GuiPrivate KPipeWire Qt::WaylandClient)
 
 add_executable(recordme main.cpp recordme.qrc PlasmaRecordMe.cpp)
 target_link_libraries(recordme PipeWireScreencastingTest Qt::Quick)
@@ -39,7 +39,7 @@ qt_add_dbus_interface(
 )
 
 add_executable(xdp-recordme xdp-main.cpp recordme.qrc ${XDP_SRCS} RecordMe.cpp)
-target_link_libraries(xdp-recordme Qt::DBus Qt::Quick KPipeWire Qt::GuiPrivate Wayland::Client KF5::WaylandClient Qt::WaylandClient )
+target_link_libraries(xdp-recordme Qt::DBus Qt::Quick KPipeWire Qt::GuiPrivate Wayland::Client KF6::WaylandClient Qt::WaylandClient )
 
 option(INSTALL_TESTS "The recordme test needs installing, disabled by default for convenience" OFF)
 if(INSTALL_TESTS)

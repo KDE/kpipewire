@@ -45,8 +45,8 @@ target_sources(KPipeWire PRIVATE
     ${kpipewire_SRCS}
 )
 
-target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF5::I18n
-    KF5::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM)
+target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
+    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM)
 
 if (QT_MAJOR_VERSION EQUAL "5")
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)
@@ -115,7 +115,7 @@ install(FILES
 
 add_library(KPipeWireRecord pipewirerecord.cpp ${kpipewirerecord_SRCS})
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
-    PRIVATE Qt::Core Qt::Gui KF5::CoreAddons KPipeWireDmaBuf
+    PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale
     epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
 )
