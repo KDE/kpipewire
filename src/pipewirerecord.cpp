@@ -190,8 +190,8 @@ void PipeWireRecordProduceThread::run()
 
 void PipeWireRecordProduceThread::deactivate()
 {
-    m_producer->m_deactivated = true;
     if (m_producer) {
+        m_producer->m_deactivated = true;
         m_producer->m_stream->setActive(false);
     }
 }
