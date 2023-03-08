@@ -106,6 +106,10 @@ PlasmaRecordMe::~PlasmaRecordMe()
 
 bool PlasmaRecordMe::matches(const QString &value)
 {
+    if (m_sources.isEmpty()) {
+        return true;
+    }
+
     for (const auto &source : m_sources) {
         const QRegularExpression rx(source);
         if (rx.match(value).hasMatch()) {
