@@ -57,6 +57,7 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
             if (matches(window->appId())) {
                 qDebug() << "window" << window << window->uuid() << m_screencasting;
                 start(m_screencasting->createWindowStream(window, m_cursorMode), true);
+                start(m_screencasting->createWindowStream(window, m_cursorMode), false);
             }
         };
         for (auto w : m_management->windows())
