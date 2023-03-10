@@ -13,9 +13,13 @@
 #include "xdp_dbus_remotedesktop_interface.h"
 #include "xdp_dbus_screencast_interface.h"
 #include <DmaBufHandler>
+#include <PipeWireEncodedStream>
 #include <PipeWireSourceStream>
 #include <QDBusArgument>
 #include <unistd.h>
+
+static bool s_encodedStream = false;
+static Screencasting::CursorMode s_cursorMode = Screencasting::Embedded;
 
 static QString createHandleToken()
 {
@@ -25,7 +29,20 @@ static QString createHandleToken()
 void processStream(ScreencastingStream *stream)
 {
     QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [stream] {
+        if (s_encodedStream) {
+            auto encoded = new PipeWireEncodedStream(qGuiApp);
+            encoded->setNodeId(stream->nodeId());
+            encoded->setActive(true);
+            QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const QByteArray &packet) {
+                qDebug() << "packet received" << packet.size();
+            });
+            QObject::connect(encoded, &PipeWireEncodedStream::cursorChanged, qGuiApp, [](const PipeWireCursor &cursor) {
+                qDebug() << "cursor received. position:" << cursor.position << "hotspot:" << cursor.hotspot << "image:" << cursor.texture;
+            });
+            return;
+        }
         auto pwStream = new PipeWireSourceStream(qGuiApp);
+        pwStream->setAllowDmaBuf(false);
         if (!pwStream->createStream(stream->nodeId(), 0)) {
             qWarning() << "failed!" << pwStream->error();
             exit(1);
@@ -54,7 +71,7 @@ void checkPlasmaScreens()
 {
     auto screencasting = new Screencasting(qGuiApp);
     for (auto screen : qGuiApp->screens()) {
-        auto stream = screencasting->createOutputStream(screen->name(), Screencasting::Embedded);
+        auto stream = screencasting->createOutputStream(screen->name(), s_cursorMode);
         processStream(stream);
     }
 }
@@ -66,7 +83,7 @@ void checkPlasmaWorkspace()
     for (auto screen : qGuiApp->screens()) {
         region |= screen->geometry();
     }
-    auto stream = screencasting->createRegionStream(region.boundingRect(), 1, Screencasting::Embedded);
+    auto stream = screencasting->createRegionStream(region.boundingRect(), 1, s_cursorMode);
     processStream(stream);
 }
 
@@ -435,14 +452,31 @@ int main(int argc, char **argv)
 
     {
         QCommandLineParser parser;
+        const QMap<QString, Screencasting::CursorMode> cursorOptions = {
+            {QStringLiteral("hidden"), Screencasting::CursorMode::Hidden},
+            {QStringLiteral("embedded"), Screencasting::CursorMode::Embedded},
+            {QStringLiteral("metadata"), Screencasting::CursorMode::Metadata},
+        };
+
+        QCommandLineOption cursorOption(QStringLiteral("cursor"),
+                                        QStringList(cursorOptions.keys()).join(QStringLiteral(", ")),
+                                        QStringLiteral("mode"),
+                                        QStringLiteral("metadata"));
+
         QCommandLineOption useXdpRD(QStringLiteral("xdp-remotedesktop"), QStringLiteral("Uses the XDG Desktop Portal RemoteDesktop interface"));
         parser.addOption(useXdpRD);
         QCommandLineOption useXdpSC(QStringLiteral("xdp-screencast"), QStringLiteral("Uses the XDG Desktop Portal ScreenCast interface"));
         parser.addOption(useXdpSC);
         QCommandLineOption useWorkspace(QStringLiteral("workspace"), QStringLiteral("Uses the Plasma screencasting workspace feed"));
         parser.addOption(useWorkspace);
+        QCommandLineOption encodedStream(QStringLiteral("encoded"), QStringLiteral("Reports encoded streams with PipeWireEncodedStream"));
+        parser.addOption(encodedStream);
+        parser.addOption(cursorOption);
         parser.addHelpOption();
         parser.process(app);
+
+        s_cursorMode = cursorOptions[parser.value(cursorOption).toLower()];
+        s_encodedStream = parser.isSet(encodedStream);
 
         if (parser.isSet(useXdpRD)) {
             new XdpRemoteDesktop(&app);

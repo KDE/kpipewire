@@ -5,128 +5,30 @@
 */
 
 #pragma once
-
-#include <QFile>
-#include <QImage>
-#include <QPoint>
+#include "pipewireproduce.h"
 #include <QRunnable>
-#include <QThread>
-#include <QWaitCondition>
 
-#include <functional>
-#include <optional>
-
-#include <epoxy/egl.h>
-#include <pipewire/pipewire.h>
-#include <spa/param/format-utils.h>
-#include <spa/param/props.h>
-#include <spa/param/video/format-utils.h>
-
-#include "dmabufhandler.h"
-#include "pipewiresourcestream.h"
-
-struct AVCodec;
-struct AVCodecContext;
-struct AVFrame;
-struct AVFormatContext;
-struct AVPacket;
-class CustomAVFrame;
 struct gbm_device;
+class PipeWireProduce;
 
-class PipeWireRecordWriteThread : public QRunnable
-{
-public:
-    PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext);
-    ~PipeWireRecordWriteThread();
-
-    void run() override;
-    void drain();
-
-private:
-    QAtomicInt m_active = true;
-    AVPacket *m_packet;
-    AVFormatContext *const m_avFormatContext;
-    AVCodecContext *const m_avCodecContext;
-    QWaitCondition *const m_bufferNotEmpty;
-};
-
-class PipeWireRecordProduce : public QObject
-{
-public:
-    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
-    ~PipeWireRecordProduce() override;
-
-    QString error() const
-    {
-        return m_error;
-    }
-
-private:
-    friend class PipeWireRecordProduceThread;
-    void setupStream();
-    void processFrame(const PipeWireFrame &frame);
-    void updateTextureImage(const QImage &image, const PipeWireFrame &frame);
-    void render(const PipeWireFrame &frame);
-    void stateChanged(pw_stream_state state);
-
-    AVCodecContext *m_avCodecContext = nullptr;
-    const AVCodec *m_codec = nullptr;
-    AVFormatContext *m_avFormatContext = nullptr;
-    const QString m_output;
-    const uint m_nodeId;
-    QScopedPointer<PipeWireSourceStream> m_stream;
-    QString m_error;
-
-    PipeWireRecordWriteThread *m_writeThread = nullptr;
-    QWaitCondition m_bufferNotEmpty;
-    const QByteArray m_encoder;
-
-    QScopedPointer<CustomAVFrame> m_frame;
-
-    struct {
-        QImage texture;
-        std::optional<QPoint> position;
-        QPoint hotspot;
-        bool dirty = false;
-    } m_cursor;
-    QImage m_frameWithoutMetadataCursor;
-    DmaBufHandler m_dmabufHandler;
-    uint m_lastKeyFrame = 0;
-    int64_t m_lastPts = -1;
-    QAtomicInt m_deactivated = false;
-};
-
-class PipeWireRecordProduceThread : public QThread
+class PipeWireRecordProduce : public PipeWireProduce
 {
     Q_OBJECT
 public:
-    PipeWireRecordProduceThread(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
-        : m_nodeId(nodeId)
-        , m_fd(fd)
-        , m_output(output)
-        , m_encoder(encoder)
-    {
-    }
-    void run() override;
-    void deactivate();
+    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
 
-Q_SIGNALS:
-    void errorFound(const QString &error);
+    void processFrame(const PipeWireFrame &frame) override;
+    void processPacket(AVPacket *packet) override;
+    int64_t framePts(const PipeWireFrame &frame) override;
+    void aboutToEncode(QImage &image) override;
+    bool setupFormat() override;
+    void cleanup() override;
 
 private:
-    const uint m_nodeId;
-    const uint m_fd;
     const QString m_output;
-    PipeWireRecordProduce *m_producer = nullptr;
-    const QByteArray m_encoder;
+    AVFormatContext *m_avFormatContext = nullptr;
 };
 
 struct PipeWireRecordPrivate {
-    uint m_nodeId = 0;
-    std::optional<uint> m_fd;
-    bool m_active = false;
     QString m_output;
-    std::unique_ptr<PipeWireRecordProduceThread> m_recordThread;
-    bool m_produceThreadFinished = true;
-    QByteArray m_encoder;
 };

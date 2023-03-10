@@ -113,7 +113,12 @@ install(FILES
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
-add_library(KPipeWireRecord pipewirerecord.cpp ${kpipewirerecord_SRCS})
+add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
+                            pipewirebaseencodedstream.cpp
+                            pipewireencodedstream.cpp
+                            pipewirerecord.cpp
+                            pipewireproduce.cpp
+)
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale
@@ -123,6 +128,8 @@ target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
 ecm_generate_headers(KPipeWireRecord_HEADERS
   HEADER_NAMES
   PipeWireRecord
+  PipeWireEncodedStream
+  PipeWireBaseEncodedStream
   REQUIRED_HEADERS KPipeWireRecord_HEADERS
 )
 set_target_properties(KPipeWireRecord PROPERTIES

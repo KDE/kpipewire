@@ -357,6 +357,7 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
     , d(new PipeWireSourceStreamPrivate)
 {
     qRegisterMetaType<QVector<DmaBufPlane>>();
+    qRegisterMetaType<PipeWireCursor>();
 
     pwStreamEvents.version = PW_VERSION_STREAM_EVENTS;
     pwStreamEvents.process = &onProcess;
@@ -493,8 +494,6 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
                 cursorTexture = QImage(bitmap_data, bitmap->size.width, bitmap->size.height, bitmap->stride, SpaToQImageFormat(bitmap->format));
             }
             frame.cursor = {{cursor->position.x, cursor->position.y}, {cursor->hotspot.x, cursor->hotspot.y}, cursorTexture};
-        } else {
-            frame.cursor = {{}, {}, {}};
         }
     }
 

@@ -50,6 +50,7 @@ struct PipeWireCursor {
     QPoint hotspot;
     QImage texture;
 };
+Q_DECLARE_METATYPE(PipeWireCursor);
 
 struct KPIPEWIRE_EXPORT PipeWireFrame {
     spa_video_format format;
