@@ -6,6 +6,7 @@
 
 #include "pipewirebaseencodedstream.h"
 #include "pipewirerecord_p.h"
+#include <logging_libav.h>
 #include <logging_record.h>
 
 extern "C" {
@@ -28,7 +29,17 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
     , d(new PipeWireEncodedStreamPrivate)
 {
     d->m_encoder = "libvpx";
-    av_log_set_level(AV_LOG_DEBUG);
+
+    const auto &category = PIPEWIRELIBAV_LOGGING();
+    if (category.isDebugEnabled()) {
+        av_log_set_level(AV_LOG_DEBUG);
+    } else if (category.isInfoEnabled()) {
+        av_log_set_level(AV_LOG_INFO);
+    } else if (category.isWarningEnabled()) {
+        av_log_set_level(AV_LOG_WARNING);
+    } else {
+        av_log_set_level(AV_LOG_ERROR);
+    }
 }
 
 PipeWireBaseEncodedStream::~PipeWireBaseEncodedStream()

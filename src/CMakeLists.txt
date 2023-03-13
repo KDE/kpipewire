@@ -25,6 +25,13 @@ ecm_qt_declare_logging_category(kpipewirerecord_SRCS
                             CATEGORY_NAME kpipewire_record_logging
                             DESCRIPTION "PipeWire and FFmpeg components for KDE"
                             EXPORT KPipeWireRecord)
+ecm_qt_declare_logging_category(kpipewirerecord_SRCS
+                            HEADER logging_libav.h
+                            IDENTIFIER PIPEWIRELIBAV_LOGGING
+                            CATEGORY_NAME kpipewire_libav_logging
+                            DESCRIPTION "PipeWire components for KDE - libav log output"
+                            DEFAULT_SEVERITY Info)
+
 ecm_qt_install_logging_categories(
     EXPORT KPipeWire
     FILE kpipewire.categories
