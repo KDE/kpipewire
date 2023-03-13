@@ -45,6 +45,11 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
 PipeWireBaseEncodedStream::~PipeWireBaseEncodedStream()
 {
     setActive(false);
+
+    if (d->m_recordThread && d->m_recordThread->isRunning()) {
+        d->m_recordThread->wait();
+    }
+
     if (d->m_fd) {
         close(*d->m_fd);
     }
