@@ -26,6 +26,10 @@ int64_t PipeWireEncodeProduce::framePts(const PipeWireFrame &frame)
 
 void PipeWireEncodeProduce::processPacket(AVPacket *packet)
 {
+    if (!packet) {
+        return;
+    }
+
     Q_EMIT newPacket(QByteArray(reinterpret_cast<char *>(packet->data), packet->size));
 }
 
