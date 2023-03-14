@@ -81,8 +81,6 @@ private:
     QWaitCondition m_bufferNotEmpty;
     const QByteArray m_encoder;
 
-    QScopedPointer<CustomAVFrame> m_frame;
-
     struct {
         QImage texture;
         std::optional<QPoint> position;
