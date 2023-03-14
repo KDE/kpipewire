@@ -259,23 +259,24 @@ void PipeWireRecordProduce::setupStream()
 
     // Have the bitrate depend on the size of the input stream. What looks acceptable on a small
     // stream on a big one will look bad.
-    m_avCodecContext->bit_rate = size.width() * size.height() * 2;
+    m_avCodecContext->bit_rate = size.width() * size.height();
+    m_avCodecContext->rc_buffer_size = m_avCodecContext->bit_rate * 2;
 
     Q_ASSERT(!size.isEmpty());
     m_avCodecContext->width = size.width();
     m_avCodecContext->height = size.height();
     m_avCodecContext->max_b_frames = 1;
-    m_avCodecContext->gop_size = 1;
+    m_avCodecContext->gop_size = 250;
     if (m_codec->pix_fmts && m_codec->pix_fmts[0] > 0) {
         m_avCodecContext->pix_fmt = m_codec->pix_fmts[0];
     } else {
         m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     }
-    m_avCodecContext->time_base = AVRational{1, 1000};
+    m_avCodecContext->time_base = AVRational{1, 25};
 
     AVDictionary *options = nullptr;
     av_dict_set_int(&options, "threads", 4, 0);
-    av_dict_set(&options, "preset", "ultrafast", 0);
+    av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
     av_dict_set(&options, "deadline", "good", 0);
 
@@ -299,11 +300,6 @@ void PipeWireRecordProduce::setupStream()
     }
 
     auto avStream = avformat_new_stream(m_avFormatContext, nullptr);
-    avStream->start_time = 0;
-    avStream->r_frame_rate.num = framerate.numerator;
-    avStream->r_frame_rate.den = framerate.denominator;
-    avStream->avg_frame_rate.num = framerate.numerator;
-    avStream->avg_frame_rate.den = framerate.denominator;
 
     ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
     if (ret < 0) {
@@ -316,6 +312,8 @@ void PipeWireRecordProduce::setupStream()
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when writing header:" << av_err2str(ret);
         return;
     }
+
+    avStream->time_base = m_avCodecContext->time_base;
 
     connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireRecordProduce::processFrame);
     m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avFormatContext, m_avCodecContext);
