@@ -31,27 +31,44 @@ struct AVFrame;
 struct AVFormatContext;
 struct AVPacket;
 class CustomAVFrame;
+class PipeWireRecordProduce;
 struct gbm_device;
 
-class PipeWireRecordWriteThread : public QRunnable
+class PipeWireRecordWrite : public QObject
 {
 public:
-    PipeWireRecordWriteThread(QWaitCondition *notEmpty, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext);
-    ~PipeWireRecordWriteThread();
+    PipeWireRecordWrite(PipeWireRecordProduce *produce, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext);
+    ~PipeWireRecordWrite();
 
-    void run() override;
-    void drain();
+    void addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
 
 private:
     QAtomicInt m_active = true;
     AVPacket *m_packet;
     AVFormatContext *const m_avFormatContext;
     AVCodecContext *const m_avCodecContext;
-    QWaitCondition *const m_bufferNotEmpty;
+    struct SwsContext *sws_context = nullptr;
+    int64_t m_lastPts = -1;
+    uint m_lastKeyFrame = 0;
+};
+
+class PipeWireRecordWriteThread : public QThread
+{
+public:
+    PipeWireRecordWriteThread(PipeWireRecordProduce *produce, AVFormatContext *avFormatContext, AVCodecContext *avCodecContext);
+
+    void run() override;
+    void drain();
+
+private:
+    PipeWireRecordProduce *const m_produce;
+    AVFormatContext *const m_avFormatContext;
+    AVCodecContext *const m_avCodecContext;
 };
 
 class PipeWireRecordProduce : public QObject
 {
+    Q_OBJECT
 public:
     PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
     ~PipeWireRecordProduce() override;
@@ -60,6 +77,9 @@ public:
     {
         return m_error;
     }
+
+Q_SIGNALS:
+    void producedFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
 
 private:
     friend class PipeWireRecordProduceThread;
@@ -78,7 +98,6 @@ private:
     QString m_error;
 
     PipeWireRecordWriteThread *m_writeThread = nullptr;
-    QWaitCondition m_bufferNotEmpty;
     const QByteArray m_encoder;
 
     struct {
@@ -89,10 +108,7 @@ private:
     } m_cursor;
     QImage m_frameWithoutMetadataCursor;
     DmaBufHandler m_dmabufHandler;
-    uint m_lastKeyFrame = 0;
-    int64_t m_lastPts = -1;
     QAtomicInt m_deactivated = false;
-    struct SwsContext *sws_context = nullptr;
 };
 
 class PipeWireRecordProduceThread : public QThread
