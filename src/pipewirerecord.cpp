@@ -272,7 +272,7 @@ void PipeWireRecordProduce::setupStream()
     } else {
         m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     }
-    m_avCodecContext->time_base = AVRational{1, 25};
+    m_avCodecContext->time_base = AVRational{1, int(m_stream->framerate().numerator)};
 
     AVDictionary *options = nullptr;
     av_dict_set_int(&options, "threads", 4, 0);
