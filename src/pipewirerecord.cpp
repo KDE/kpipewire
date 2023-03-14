@@ -81,6 +81,23 @@ public:
     AVFrame *m_avFrame;
 };
 
+static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
+{
+    // Listing those handed by SpaToQImageFormat
+    switch (format) {
+    case QImage::Format_BGR888:
+        return AV_PIX_FMT_BGR24;
+    case QImage::Format_RGBX8888:
+    case QImage::Format_RGBA8888_Premultiplied:
+        return AV_PIX_FMT_RGBA;
+    case QImage::Format_RGB32:
+        return AV_PIX_FMT_RGB32;
+    default:
+        qDebug() << "Unexpected pixel format" << format;
+        return AV_PIX_FMT_RGB32;
+    }
+}
+
 PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
     , d(new PipeWireRecordPrivate)
@@ -340,6 +357,17 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
     if (frame.dmabuf) {
         if (m_frameWithoutMetadataCursor.size() != m_stream->size()) {
             m_frameWithoutMetadataCursor = QImage(m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
+            sws_context = sws_getCachedContext(sws_context,
+                                               m_frameWithoutMetadataCursor.width(),
+                                               m_frameWithoutMetadataCursor.height(),
+                                               convertQImageFormatToAVPixelFormat(m_frameWithoutMetadataCursor.format()),
+                                               m_avCodecContext->width,
+                                               m_avCodecContext->height,
+                                               m_avCodecContext->pix_fmt,
+                                               0,
+                                               nullptr,
+                                               nullptr,
+                                               nullptr);
         }
 
         if (!m_dmabufHandler.downloadFrame(m_frameWithoutMetadataCursor, frame)) {
@@ -383,23 +411,6 @@ void PipeWireRecordProduce::updateTextureImage(const QImage &image, const PipeWi
     render(frame);
 }
 
-static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
-{
-    // Listing those handed by SpaToQImageFormat
-    switch (format) {
-    case QImage::Format_BGR888:
-        return AV_PIX_FMT_BGR24;
-    case QImage::Format_RGBX8888:
-    case QImage::Format_RGBA8888_Premultiplied:
-        return AV_PIX_FMT_RGBA;
-    case QImage::Format_RGB32:
-        return AV_PIX_FMT_RGB32;
-    default:
-        qDebug() << "Unexpected pixel format" << format;
-        return AV_PIX_FMT_RGB32;
-    }
-}
-
 void PipeWireRecordProduce::render(const PipeWireFrame &frame)
 {
     Q_ASSERT(!m_frameWithoutMetadataCursor.isNull());
@@ -420,18 +431,6 @@ void PipeWireRecordProduce::render(const PipeWireFrame &frame)
 
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
     const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
-    struct SwsContext *sws_context = nullptr;
-    sws_context = sws_getCachedContext(sws_context,
-                                       image.width(),
-                                       image.height(),
-                                       convertQImageFormatToAVPixelFormat(image.format()),
-                                       m_avCodecContext->width,
-                                       m_avCodecContext->height,
-                                       m_avCodecContext->pix_fmt,
-                                       0,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr);
     sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame.m_avFrame->data, avFrame.m_avFrame->linesize);
 
     if (frame.presentationTimestamp.has_value()) {

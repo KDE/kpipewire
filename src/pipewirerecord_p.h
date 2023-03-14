@@ -92,6 +92,7 @@ private:
     uint m_lastKeyFrame = 0;
     int64_t m_lastPts = -1;
     QAtomicInt m_deactivated = false;
+    struct SwsContext *sws_context = nullptr;
 };
 
 class PipeWireRecordProduceThread : public QThread
