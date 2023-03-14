@@ -85,7 +85,7 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
     , d(new PipeWireRecordPrivate)
 {
-    d->m_encoder = "libvpx";
+    d->m_encoder = "libx264";
     av_log_set_level(AV_LOG_DEBUG);
 }
 
@@ -225,7 +225,7 @@ void PipeWireRecordProduce::stateChanged(pw_stream_state state)
 
 QString PipeWireRecord::extension()
 {
-    return QStringLiteral("webm");
+    return QStringLiteral("mp4");
 }
 
 void PipeWireRecordProduce::setupStream()
@@ -235,7 +235,7 @@ void PipeWireRecordProduce::setupStream()
     avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
     if (!m_avFormatContext) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;
-        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toUtf8().constData());
+        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "mpeg", m_output.toUtf8().constData());
     }
     if (!m_avFormatContext) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
@@ -272,7 +272,8 @@ void PipeWireRecordProduce::setupStream()
     } else {
         m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     }
-    m_avCodecContext->time_base = AVRational{1, int(m_stream->framerate().numerator)};
+    m_avCodecContext->framerate = AVRational{int(framerate.numerator), 1};
+    m_avCodecContext->time_base = AVRational{1, 1000};
 
     AVDictionary *options = nullptr;
     av_dict_set_int(&options, "threads", 4, 0);
@@ -300,6 +301,12 @@ void PipeWireRecordProduce::setupStream()
     }
 
     auto avStream = avformat_new_stream(m_avFormatContext, nullptr);
+    avStream->time_base = m_avCodecContext->time_base;
+    avStream->start_time = 0;
+    avStream->r_frame_rate.num = framerate.numerator;
+    avStream->r_frame_rate.den = framerate.denominator;
+    avStream->avg_frame_rate.num = framerate.numerator;
+    avStream->avg_frame_rate.den = framerate.denominator;
 
     ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
     if (ret < 0) {
@@ -312,8 +319,6 @@ void PipeWireRecordProduce::setupStream()
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when writing header:" << av_err2str(ret);
         return;
     }
-
-    avStream->time_base = m_avCodecContext->time_base;
 
     connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireRecordProduce::processFrame);
     m_writeThread = new PipeWireRecordWriteThread(&m_bufferNotEmpty, m_avFormatContext, m_avCodecContext);
