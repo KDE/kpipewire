@@ -228,6 +228,15 @@ QString PipeWireRecord::extension()
     return QStringLiteral("webm");
 }
 
+QString PipeWireRecord::currentExtension() const
+{
+    static QHash<QByteArray, QString> s_extensions = {
+        {"libx264", QStringLiteral("mp4")},
+        {"libvpx", QStringLiteral("webm")},
+    };
+    return s_extensions.value(d->m_encoder, QStringLiteral("mkv"));
+}
+
 void PipeWireRecordProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
@@ -476,7 +485,25 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
 
 void PipeWireRecord::setEncoder(const QByteArray &encoder)
 {
+    if (d->m_encoder == encoder) {
+        return;
+    }
     d->m_encoder = encoder;
+    Q_EMIT encoderChanged();
+}
+
+QByteArray PipeWireRecord::encoder() const
+{
+    return d->m_encoder;
+}
+
+QList<QByteArray> PipeWireRecord::suggestedEncoders() const
+{
+    QList<QByteArray> ret = {"libvpx", "libx264"};
+    std::remove_if(ret.begin(), ret.end(), [](const QByteArray &encoder) {
+        return !avcodec_find_encoder_by_name(encoder.constData());
+    });
+    return ret;
 }
 
 QString PipeWireRecord::output() const

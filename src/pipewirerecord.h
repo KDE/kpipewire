@@ -26,6 +26,8 @@ class KPIPEWIRE_EXPORT PipeWireRecord : public QObject
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
+    Q_PROPERTY(QString extension READ extension NOTIFY encoderChanged)
+    Q_PROPERTY(QByteArray encoder READ encoder WRITE setEncoder NOTIFY encoderChanged)
 public:
     PipeWireRecord(QObject *parent = nullptr);
     ~PipeWireRecord() override;
@@ -57,8 +59,13 @@ public:
      * ffmpeg -encoders | grep "^ V"
      */
     void setEncoder(const QByteArray &encoder);
+    QByteArray encoder() const;
 
-    static QString extension();
+    /// Returns the encoders that are tested to work, sorted by preference
+    QList<QByteArray> suggestedEncoders() const;
+
+    QString currentExtension() const;
+    Q_DECL_DEPRECATED static QString extension();
 
 Q_SIGNALS:
     void activeChanged(bool active);
@@ -67,6 +74,7 @@ Q_SIGNALS:
     void outputChanged(const QString &output);
     void errorFound(const QString &error);
     void stateChanged();
+    void encoderChanged();
 
 private:
     void refresh();

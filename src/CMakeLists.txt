@@ -120,6 +120,8 @@ target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
 )
 
+target_compile_definitions(KPipeWireRecord INTERFACE -DKPW_WITH_SUGGESTED=1)
+
 ecm_generate_headers(KPipeWireRecord_HEADERS
   HEADER_NAMES
   PipeWireRecord
