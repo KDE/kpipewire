@@ -19,11 +19,6 @@ PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder, uint nod
 {
 }
 
-int64_t PipeWireEncodeProduce::framePts(const PipeWireFrame &frame)
-{
-    return std::chrono::duration_cast<std::chrono::milliseconds>(frame.presentationTimestamp.value()).count();
-}
-
 void PipeWireEncodeProduce::processPacket(AVPacket *packet)
 {
     if (!packet) {

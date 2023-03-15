@@ -34,7 +34,6 @@ extern "C" {
 struct AVCodec;
 struct AVCodecContext;
 struct AVFrame;
-struct AVFormatContext;
 struct AVPacket;
 class CustomAVFrame;
 class PipeWireReceiveEncodedThread;
@@ -54,7 +53,10 @@ public:
     {
         return m_error;
     }
-    virtual int64_t framePts(const PipeWireFrame &frame) = 0;
+    virtual int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(presentationTimestamp.value()).count();
+    }
 
     virtual void processPacket(AVPacket *packet) = 0;
     virtual bool setupFormat()
@@ -81,7 +83,6 @@ public:
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
 
-    QWaitCondition m_bufferNotEmpty;
     const QByteArray m_encoder;
 
     struct {
@@ -92,13 +93,12 @@ public:
     } m_cursor;
     QImage m_frameWithoutMetadataCursor;
     DmaBufHandler m_dmabufHandler;
-    uint m_lastKeyFrame = 0;
-    int64_t m_lastPts = -1;
     QAtomicInt m_deactivated = false;
     PipeWireReceiveEncodedThread *m_writeThread = nullptr;
     QMutex m_readyToWrite;
-    struct SwsContext *sws_context = nullptr;
-    QSize swsContextSize;
+
+Q_SIGNALS:
+    void producedFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
 };
 
 class PipeWireProduceThread : public QThread
@@ -127,20 +127,34 @@ protected:
     PipeWireBaseEncodedStream *const m_base;
 };
 
-class PipeWireReceiveEncodedThread : public QRunnable
+class PipeWireReceiveEncoded : public QObject
 {
 public:
-    PipeWireReceiveEncodedThread(AVCodecContext *avCodecContext, PipeWireProduce *producer);
-    ~PipeWireReceiveEncodedThread();
+    PipeWireReceiveEncoded(PipeWireProduce *produce, AVCodecContext *avCodecContext);
+    ~PipeWireReceiveEncoded();
+
+    void addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
+
+private:
+    QAtomicInt m_active = true;
+    AVPacket *m_packet;
+    AVCodecContext *const m_avCodecContext;
+    PipeWireProduce *const m_produce;
+    struct SwsContext *sws_context = nullptr;
+    int64_t m_lastPts = -1;
+    uint m_lastKeyFrame = 0;
+};
+
+class PipeWireReceiveEncodedThread : public QThread
+{
+public:
+    PipeWireReceiveEncodedThread(PipeWireProduce *produce, AVCodecContext *avCodecContext);
 
     void run() override;
 
 private:
-    friend class PipeWireProduce;
-    QAtomicInt m_active = true;
-    AVPacket *m_packet;
+    PipeWireProduce *const m_produce;
     AVCodecContext *const m_avCodecContext;
-    PipeWireProduce *const m_producer;
 };
 
 struct PipeWireEncodedStreamPrivate {

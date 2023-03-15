@@ -178,9 +178,9 @@ PipeWireProduce *PipeWireRecord::createThread()
                                      d->m_output);
 }
 
-int64_t PipeWireRecordProduce::framePts(const PipeWireFrame &frame)
+int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
 {
-    const auto current = std::chrono::duration_cast<std::chrono::milliseconds>(*frame.presentationTimestamp).count();
+    const auto current = std::chrono::duration_cast<std::chrono::milliseconds>(*presentationTimestamp).count();
     if ((*m_avFormatContext->streams)->start_time == 0) {
         (*m_avFormatContext->streams)->start_time = current;
     }

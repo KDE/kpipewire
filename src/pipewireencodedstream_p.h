@@ -15,7 +15,6 @@ public:
     PipeWireEncodeProduce(const QByteArray &encoder, uint nodeId, uint fd, PipeWireEncodedStream *stream);
 
     void processPacket(AVPacket *packet) override;
-    int64_t framePts(const PipeWireFrame &frame) override;
     void processFrame(const PipeWireFrame &frame) override;
 
 Q_SIGNALS:

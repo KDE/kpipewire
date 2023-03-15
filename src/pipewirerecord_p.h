@@ -9,6 +9,7 @@
 #include <QRunnable>
 
 struct gbm_device;
+struct AVFormatContext;
 class PipeWireProduce;
 
 class PipeWireRecordProduce : public PipeWireProduce
@@ -19,7 +20,7 @@ public:
 
     void processFrame(const PipeWireFrame &frame) override;
     void processPacket(AVPacket *packet) override;
-    int64_t framePts(const PipeWireFrame &frame) override;
+    int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp) override;
     void aboutToEncode(QImage &image) override;
     bool setupFormat() override;
     void cleanup() override;

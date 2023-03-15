@@ -19,6 +19,9 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+Q_DECLARE_METATYPE(std::optional<int>);
+Q_DECLARE_METATYPE(std::optional<std::chrono::nanoseconds>);
+
 #undef av_err2str
 // The one provided by libav fails to compile on GCC due to passing data from the function scope outside
 char str[AV_ERROR_MAX_STRING_SIZE];
@@ -73,6 +76,9 @@ PipeWireProduce::PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd
     , m_nodeId(nodeId)
     , m_encoder(encoder)
 {
+    qRegisterMetaType<std::optional<int>>();
+    qRegisterMetaType<std::optional<std::chrono::nanoseconds>>();
+
     m_stream.reset(new PipeWireSourceStream(nullptr));
     bool created = m_stream->createStream(m_nodeId, fd);
     if (!created || !m_stream->error().isEmpty()) {
@@ -142,8 +148,8 @@ void PipeWireProduce::setupStream()
     }
 
     connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
-    m_writeThread = new PipeWireReceiveEncodedThread(m_avCodecContext, this);
-    QThreadPool::globalInstance()->start(m_writeThread);
+    m_writeThread = new PipeWireReceiveEncodedThread(this, m_avCodecContext);
+    m_writeThread->start();
 }
 
 void PipeWireProduceThread::run()
@@ -209,45 +215,7 @@ void PipeWireProduce::render(const PipeWireFrame &frame)
     QImage image(m_frameWithoutMetadataCursor);
     aboutToEncode(image);
 
-    const std::uint8_t *buffers[] = {image.constBits(), nullptr};
-    const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
-
-    if (!sws_context || swsContextSize != image.size()) {
-        sws_context = sws_getCachedContext(sws_context,
-                                           image.width(),
-                                           image.height(),
-                                           convertQImageFormatToAVPixelFormat(image.format()),
-                                           m_avCodecContext->width,
-                                           m_avCodecContext->height,
-                                           m_avCodecContext->pix_fmt,
-                                           0,
-                                           nullptr,
-                                           nullptr,
-                                           nullptr);
-    }
-    sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame->m_avFrame->data, avFrame->m_avFrame->linesize);
-
-    avFrame->m_avFrame->pts = framePts(frame);
-
-    // Let's add a key frame every 100 frames and also the first frame
-    if (frame.sequential && (*frame.sequential == 0 || (*frame.sequential - m_lastKeyFrame) > 100)) {
-        avFrame->m_avFrame->key_frame = 1;
-        m_lastKeyFrame = *frame.sequential;
-    }
-
-    if (m_lastPts > 0 && avFrame->m_avFrame->pts <= m_lastPts) {
-        // Make sure we don't have two frames at the same presentation time
-        avFrame->m_avFrame->pts = m_lastPts + 1;
-    }
-    m_lastPts = avFrame->m_avFrame->pts;
-
-    ret = avcodec_send_frame(m_avCodecContext, avFrame->m_avFrame);
-    // qDebug() << "issued" << m_frame->m_avFrame->pts;
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
-        return;
-    }
-    m_bufferNotEmpty.wakeAll();
+    Q_EMIT producedFrame(image, frame.sequential, frame.presentationTimestamp);
 }
 
 void PipeWireProduce::stateChanged(pw_stream_state state)
@@ -263,9 +231,8 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     disconnect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
     if (m_writeThread) {
-        m_writeThread->m_active = false;
-        m_bufferNotEmpty.wakeAll();
-        bool done = QThreadPool::globalInstance()->waitForDone(-1);
+        m_writeThread->quit();
+        bool done = m_writeThread->wait();
         Q_ASSERT(done);
     }
 
@@ -274,43 +241,87 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     QThread::currentThread()->quit();
 }
 
-PipeWireReceiveEncodedThread::PipeWireReceiveEncodedThread(AVCodecContext *avCodecContext, PipeWireProduce *producer)
-    : QRunnable()
-    , m_packet(av_packet_alloc())
+PipeWireReceiveEncodedThread::PipeWireReceiveEncodedThread(PipeWireProduce *produce, AVCodecContext *avCodecContext)
+    : QThread()
+    , m_produce(produce)
     , m_avCodecContext(avCodecContext)
-    , m_producer(producer)
 {
 }
 
-PipeWireReceiveEncodedThread::~PipeWireReceiveEncodedThread()
+PipeWireReceiveEncoded::PipeWireReceiveEncoded(PipeWireProduce *produce, AVCodecContext *avCodecContext)
+    : QObject()
+    , m_packet(av_packet_alloc())
+    , m_avCodecContext(avCodecContext)
+    , m_produce(produce)
 {
+    connect(produce, &PipeWireProduce::producedFrame, this, &PipeWireReceiveEncoded::addFrame);
+}
+
+PipeWireReceiveEncoded::~PipeWireReceiveEncoded()
+{
+    m_produce->processPacket(nullptr);
     av_packet_free(&m_packet);
 }
 
 void PipeWireReceiveEncodedThread::run()
 {
-    int ret = 0;
-    while (true) {
-        ret = avcodec_receive_packet(m_avCodecContext, m_packet);
-        if (ret == AVERROR_EOF) {
-            break;
-        } else if (ret == AVERROR(EAGAIN)) {
-            if (m_active) {
-                m_producer->m_readyToWrite.lock();
-                m_producer->m_bufferNotEmpty.wait(&m_producer->m_readyToWrite);
-                m_producer->m_readyToWrite.unlock();
-            } else {
-                int sent = avcodec_send_frame(m_avCodecContext, nullptr);
-                qCDebug(PIPEWIRERECORD_LOGGING) << "draining" << sent;
-            }
-            continue;
-        } else if (ret < 0) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
-            continue;
-        }
+    PipeWireReceiveEncoded writer(m_produce, m_avCodecContext);
+    QThread::exec();
+}
 
-        m_producer->processPacket(m_packet);
+void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp)
+{
+    sws_context = sws_getCachedContext(sws_context,
+                                       image.width(),
+                                       image.height(),
+                                       convertQImageFormatToAVPixelFormat(image.format()),
+                                       m_avCodecContext->width,
+                                       m_avCodecContext->height,
+                                       m_avCodecContext->pix_fmt,
+                                       0,
+                                       nullptr,
+                                       nullptr,
+                                       nullptr);
+
+    CustomAVFrame avFrame;
+    int ret = avFrame.alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
+        return;
+    }
+    const std::uint8_t *buffers[] = {image.constBits(), nullptr};
+    const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
+    sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame.m_avFrame->data, avFrame.m_avFrame->linesize);
+
+    avFrame.m_avFrame->pts = m_produce->framePts(presentationTimestamp);
+
+    // Let's add a key frame every 100 frames and also the first frame
+    if (sequential && (*sequential == 0 || (*sequential - m_lastKeyFrame) > 100)) {
+        avFrame.m_avFrame->key_frame = 1;
+        m_lastKeyFrame = *sequential;
     }
 
-    m_producer->processPacket(nullptr);
+    if (m_lastPts > 0 && avFrame.m_avFrame->pts <= m_lastPts) {
+        // Make sure we don't have two frames at the same presentation time
+        avFrame.m_avFrame->pts = m_lastPts + 1;
+    }
+    m_lastPts = avFrame.m_avFrame->pts;
+
+    ret = avcodec_send_frame(m_avCodecContext, avFrame.m_avFrame);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
+        return;
+    }
+    // qDebug() << "issued" << avFrame->m_avFrame->pts;
+    ret = avcodec_receive_packet(m_avCodecContext, m_packet);
+    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
+        ret = 0;
+    }
+
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
+        return;
+    }
+
+    m_produce->processPacket(m_packet);
 }
