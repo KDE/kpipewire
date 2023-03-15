@@ -296,7 +296,7 @@ void PipeWireRecordProduce::setupStream()
     m_avCodecContext->width = size.width();
     m_avCodecContext->height = size.height();
     m_avCodecContext->max_b_frames = 1;
-    m_avCodecContext->gop_size = 1;
+    m_avCodecContext->gop_size = 100;
     if (m_codec->pix_fmts && m_codec->pix_fmts[0] > 0) {
         m_avCodecContext->pix_fmt = m_codec->pix_fmts[0];
     } else {
@@ -306,9 +306,16 @@ void PipeWireRecordProduce::setupStream()
 
     AVDictionary *options = nullptr;
     av_dict_set_int(&options, "threads", 4, 0);
-    av_dict_set(&options, "preset", "ultrafast", 0);
+    av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "good", 0);
+    av_dict_set(&options, "deadline", "realtime", 0);
+    // In theory a lower number should be faster, but the opposite seems to be true
+    av_dict_set(&options, "quality", "40", 0);
+    av_dict_set(&options, "cpu-used", "6", 0);
+    // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
+    av_dict_set(&options, "flags", "+mv4", 0);
+    // Disable in-loop filtering
+    av_dict_set(&options, "-flags", "+loop", 0);
 
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
