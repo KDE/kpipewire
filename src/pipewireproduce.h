@@ -97,6 +97,8 @@ public:
     QAtomicInt m_deactivated = false;
     PipeWireReceiveEncodedThread *m_writeThread = nullptr;
     QMutex m_readyToWrite;
+    struct SwsContext *sws_context = nullptr;
+    QSize swsContextSize;
 };
 
 class PipeWireProduceThread : public QThread
