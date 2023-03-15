@@ -85,7 +85,7 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
     : QObject(parent)
     , d(new PipeWireRecordPrivate)
 {
-    d->m_encoder = "libx264";
+    d->m_encoder = "libvpx";
     av_log_set_level(AV_LOG_DEBUG);
 }
 
@@ -225,7 +225,7 @@ void PipeWireRecordProduce::stateChanged(pw_stream_state state)
 
 QString PipeWireRecord::extension()
 {
-    return QStringLiteral("mp4");
+    return QStringLiteral("webm");
 }
 
 void PipeWireRecordProduce::setupStream()
@@ -235,7 +235,7 @@ void PipeWireRecordProduce::setupStream()
     avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
     if (!m_avFormatContext) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;
-        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "mpeg", m_output.toUtf8().constData());
+        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toUtf8().constData());
     }
     if (!m_avFormatContext) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
@@ -279,7 +279,14 @@ void PipeWireRecordProduce::setupStream()
     av_dict_set_int(&options, "threads", 4, 0);
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "good", 0);
+    av_dict_set(&options, "deadline", "realtime", 0);
+    // In theory a lower number should be faster, but the opposite seems to be true
+    av_dict_set(&options, "quality", "40", 0);
+    av_dict_set(&options, "cpu-used", "6", 0);
+    // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
+    av_dict_set(&options, "flags", "+mv4", 0);
+    // Disable in-loop filtering
+    av_dict_set(&options, "-flags", "+loop", 0);
 
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
