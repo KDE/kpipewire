@@ -26,6 +26,8 @@ class KPIPEWIRE_EXPORT PipeWireBaseEncodedStream : public QObject
     Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
+    Q_PROPERTY(QByteArray encoder READ encoder WRITE setEncoder NOTIFY encoderChanged)
+
 public:
     PipeWireBaseEncodedStream(QObject *parent = nullptr);
     ~PipeWireBaseEncodedStream() override;
@@ -54,6 +56,10 @@ public:
      * ffmpeg -encoders | grep "^ V"
      */
     void setEncoder(const QByteArray &encoder);
+    QByteArray encoder() const;
+
+    /// Returns the encoders that are tested to work, sorted by preference
+    QList<QByteArray> suggestedEncoders() const;
 
 Q_SIGNALS:
     void activeChanged(bool active);
@@ -61,6 +67,7 @@ Q_SIGNALS:
     void fdChanged(uint fd);
     void errorFound(const QString &error);
     void stateChanged();
+    void encoderChanged();
 
 protected:
     friend class PipeWireProduceThread;

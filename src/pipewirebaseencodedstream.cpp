@@ -10,6 +10,7 @@
 #include <logging_record.h>
 
 extern "C" {
+#include <libavcodec/codec.h>
 #include <libavutil/log.h>
 }
 #include <unistd.h>
@@ -113,7 +114,25 @@ void PipeWireBaseEncodedStream::refresh()
 
 void PipeWireBaseEncodedStream::setEncoder(const QByteArray &encoder)
 {
+    if (d->m_encoder == encoder) {
+        return;
+    }
     d->m_encoder = encoder;
+    Q_EMIT encoderChanged();
+}
+
+QByteArray PipeWireBaseEncodedStream::encoder() const
+{
+    return d->m_encoder;
+}
+
+QList<QByteArray> PipeWireBaseEncodedStream::suggestedEncoders() const
+{
+    QList<QByteArray> ret = {"libvpx", "libx264"};
+    std::remove_if(ret.begin(), ret.end(), [](const QByteArray &encoder) {
+        return !avcodec_find_encoder_by_name(encoder.constData());
+    });
+    return ret;
 }
 
 bool PipeWireBaseEncodedStream::isActive() const

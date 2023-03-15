@@ -78,9 +78,13 @@ QString PipeWireRecord::output() const
     return d->m_output;
 }
 
-QString PipeWireRecord::extension()
+QString PipeWireRecord::extension() const
 {
-    return QStringLiteral("webm");
+    static QHash<QByteArray, QString> s_extensions = {
+        {"libx264", QStringLiteral("mp4")},
+        {"libvpx", QStringLiteral("webm")},
+    };
+    return s_extensions.value(PipeWireBaseEncodedStream::d->m_encoder, QStringLiteral("mkv"));
 }
 
 PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
