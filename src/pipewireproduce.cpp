@@ -130,7 +130,7 @@ void PipeWireProduce::setupStream()
     m_avCodecContext->time_base = AVRational{1, 1000};
 
     AVDictionary *options = nullptr;
-    av_dict_set_int(&options, "threads", 4, 0);
+    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
     av_dict_set(&options, "deadline", "realtime", 0);
