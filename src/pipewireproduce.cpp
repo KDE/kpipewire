@@ -320,16 +320,16 @@ void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> se
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
         return;
     }
-    // qDebug() << "issued" << avFrame->m_avFrame->pts;
-    ret = avcodec_receive_packet(m_avCodecContext, m_packet);
-    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
-        ret = 0;
-    }
+    for (;;) {
+        ret = avcodec_receive_packet(m_avCodecContext, m_packet);
+        if (ret < 0) {
+            if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
+            }
+            break;
+        }
 
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
-        return;
+        m_produce->processPacket(m_packet);
+        av_packet_unref(m_packet);
     }
-
-    m_produce->processPacket(m_packet);
 }
