@@ -21,5 +21,6 @@ Q_SIGNALS:
     void newPacket(const QByteArray &packetData);
 
 private:
-    PipeWireEncodedStream *const m_stream;
+    PipeWireEncodedStream *const m_encodedStream;
+    QSize m_size;
 };

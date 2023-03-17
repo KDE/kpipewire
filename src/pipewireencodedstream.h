@@ -21,6 +21,8 @@ public:
     ~PipeWireEncodedStream() override;
 
 Q_SIGNALS:
+    /// will be emitted when the stream initializes as well as when the value changes
+    void sizeChanged(const QSize &size);
     void cursorChanged(const PipeWireCursor &cursor);
     void newPacket(const QByteArray &packet);
 

@@ -15,7 +15,7 @@ extern "C" {
 
 PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder, uint nodeId, uint fd, PipeWireEncodedStream *stream)
     : PipeWireProduce(encoder, nodeId, fd)
-    , m_stream(stream)
+    , m_encodedStream(stream)
 {
 }
 
@@ -30,9 +30,14 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
 
 void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
 {
+    if (m_size != m_stream->size()) {
+        m_size = m_stream->size();
+        Q_EMIT m_encodedStream->sizeChanged(m_size);
+    }
+
     PipeWireProduce::processFrame(frame);
     if (frame.cursor) {
-        Q_EMIT m_stream->cursorChanged(*frame.cursor);
+        Q_EMIT m_encodedStream->cursorChanged(*frame.cursor);
     }
 }
 
