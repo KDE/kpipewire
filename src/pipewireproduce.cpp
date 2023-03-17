@@ -275,6 +275,17 @@ void PipeWireReceiveEncodedThread::run()
 {
     PipeWireReceiveEncoded writer(m_produce, m_avCodecContext);
     QThread::exec();
+
+    AVPacket pkt;
+    avcodec_send_frame(m_avCodecContext, nullptr);
+
+    for (;;) {
+        if (avcodec_receive_packet(m_avCodecContext, &pkt) < 0)
+            break;
+
+        m_produce->processPacket(&pkt);
+        av_packet_unref(&pkt);
+    }
 }
 
 void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp)
