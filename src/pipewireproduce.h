@@ -95,7 +95,6 @@ public:
     DmaBufHandler m_dmabufHandler;
     QAtomicInt m_deactivated = false;
     PipeWireReceiveEncodedThread *m_writeThread = nullptr;
-    QMutex m_readyToWrite;
 
 Q_SIGNALS:
     void producedFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
