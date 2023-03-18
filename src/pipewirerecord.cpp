@@ -61,19 +61,14 @@ PipeWireRecord::PipeWireRecord(QObject *parent)
 
 PipeWireRecord::~PipeWireRecord() = default;
 
-void PipeWireRecord::setOutput(const QString &_output)
+void PipeWireRecord::setOutput(const QUrl &output)
 {
-    const QString output = KShell::tildeExpand(_output);
-
-    if (d->m_output == output)
-        return;
-
     d->m_output = output;
     refresh();
     Q_EMIT outputChanged(output);
 }
 
-QString PipeWireRecord::output() const
+QUrl PipeWireRecord::output() const
 {
     return d->m_output;
 }
@@ -87,7 +82,7 @@ QString PipeWireRecord::extension() const
     return s_extensions.value(PipeWireBaseEncodedStream::d->m_encoder, QStringLiteral("mkv"));
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
+PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QUrl &output)
     : PipeWireProduce(encoder, nodeId, fd)
     , m_output(output)
 {
@@ -95,10 +90,10 @@ PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nod
 
 bool PipeWireRecordProduce::setupFormat()
 {
-    avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
+    avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toEncoded().constData());
     if (!m_avFormatContext) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;
-        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toUtf8().constData());
+        avformat_alloc_output_context2(&m_avFormatContext, nullptr, "webm", m_output.toEncoded().constData());
     }
     if (!m_avFormatContext) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "could not set stream up";
@@ -106,7 +101,7 @@ bool PipeWireRecordProduce::setupFormat()
     }
 
     const Fraction framerate = m_stream->framerate();
-    int ret = avio_open(&m_avFormatContext->pb, QFile::encodeName(m_output).constData(), AVIO_FLAG_WRITE);
+    int ret = avio_open(&m_avFormatContext->pb, m_output.toEncoded().constData(), AVIO_FLAG_WRITE);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open" << m_output << av_err2str(ret);
         return false;

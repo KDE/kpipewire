@@ -14,11 +14,13 @@
 #include "xdp_dbus_screencast_interface.h"
 #include <DmaBufHandler>
 #include <PipeWireEncodedStream>
+#include <PipeWireRecord>
 #include <PipeWireSourceStream>
 #include <QDBusArgument>
 #include <unistd.h>
 
 static bool s_encodedStream = false;
+static std::optional<QUrl> s_recordUrl;
 static Screencasting::CursorMode s_cursorMode = Screencasting::Embedded;
 
 static QString createHandleToken()
@@ -29,6 +31,13 @@ static QString createHandleToken()
 void processStream(ScreencastingStream *stream)
 {
     QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [stream] {
+        if (s_recordUrl) {
+            auto rec = new PipeWireRecord(qGuiApp);
+            rec->setOutput(*s_recordUrl);
+            rec->setNodeId(stream->nodeId());
+            rec->setActive(true);
+            return;
+        }
         if (s_encodedStream) {
             auto encoded = new PipeWireEncodedStream(qGuiApp);
             encoded->setNodeId(stream->nodeId());
@@ -469,14 +478,24 @@ int main(int argc, char **argv)
         parser.addOption(useXdpSC);
         QCommandLineOption useWorkspace(QStringLiteral("workspace"), QStringLiteral("Uses the Plasma screencasting workspace feed"));
         parser.addOption(useWorkspace);
+        QCommandLineOption recordStream(QStringLiteral("record"), QStringLiteral("Records the stream to the specified URL"), QStringLiteral("url"));
+        parser.addOption(recordStream);
         QCommandLineOption encodedStream(QStringLiteral("encoded"), QStringLiteral("Reports encoded streams with PipeWireEncodedStream"));
         parser.addOption(encodedStream);
         parser.addOption(cursorOption);
         parser.addHelpOption();
         parser.process(app);
 
+        if (parser.isSet(encodedStream) && parser.isSet(recordStream)) {
+            qDebug() << "Cannot encode and record at the same time";
+            return 2;
+        }
+
         s_cursorMode = cursorOptions[parser.value(cursorOption).toLower()];
         s_encodedStream = parser.isSet(encodedStream);
+        if (parser.isSet(recordStream)) {
+            s_recordUrl = QUrl(parser.value(recordStream));
+        }
 
         if (parser.isSet(useXdpRD)) {
             new XdpRemoteDesktop(&app);

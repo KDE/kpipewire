@@ -7,6 +7,7 @@
 #pragma once
 #include "pipewireproduce.h"
 #include <QRunnable>
+#include <QUrl>
 
 struct gbm_device;
 struct AVFormatContext;
@@ -16,7 +17,7 @@ class PipeWireRecordProduce : public PipeWireProduce
 {
     Q_OBJECT
 public:
-    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output);
+    PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QUrl &output);
 
     void processFrame(const PipeWireFrame &frame) override;
     void processPacket(AVPacket *packet) override;
@@ -26,10 +27,10 @@ public:
     void cleanup() override;
 
 private:
-    const QString m_output;
+    const QUrl m_output;
     AVFormatContext *m_avFormatContext = nullptr;
 };
 
 struct PipeWireRecordPrivate {
-    QString m_output;
+    QUrl m_output;
 };
