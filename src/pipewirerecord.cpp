@@ -588,4 +588,21 @@ void PipeWireRecordWriteThread::run()
 {
     PipeWireRecordWrite writer(m_produce, m_avFormatContext, m_avCodecContext);
     QThread::exec();
+    AVPacket *pkt = av_packet_alloc();
+    avcodec_send_frame(m_avCodecContext, nullptr);
+
+    for (;;) {
+        if (avcodec_receive_packet(m_avCodecContext, pkt) < 0)
+            break;
+
+        pkt->stream_index = (*m_avFormatContext->streams)->index;
+        av_packet_rescale_ts(pkt, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
+        log_packet(m_avFormatContext, pkt);
+        int ret = av_interleaved_write_frame(m_avFormatContext, pkt);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Error while writing output packet:" << av_err2str(ret);
+        }
+        av_packet_unref(pkt);
+    }
+    av_packet_free(&pkt);
 }
