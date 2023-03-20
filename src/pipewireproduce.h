@@ -142,6 +142,7 @@ private:
     struct SwsContext *sws_context = nullptr;
     int64_t m_lastPts = -1;
     uint m_lastKeyFrame = 0;
+    QSize m_lastReceivedSize;
 };
 
 class PipeWireReceiveEncodedThread : public QThread

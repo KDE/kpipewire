@@ -290,17 +290,20 @@ void PipeWireReceiveEncodedThread::run()
 
 void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp)
 {
-    sws_context = sws_getCachedContext(sws_context,
-                                       image.width(),
-                                       image.height(),
-                                       convertQImageFormatToAVPixelFormat(image.format()),
-                                       m_avCodecContext->width,
-                                       m_avCodecContext->height,
-                                       m_avCodecContext->pix_fmt,
-                                       0,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr);
+    if (!sws_context || m_lastReceivedSize != image.size()) {
+        sws_context = sws_getCachedContext(sws_context,
+                                           image.width(),
+                                           image.height(),
+                                           convertQImageFormatToAVPixelFormat(image.format()),
+                                           m_avCodecContext->width,
+                                           m_avCodecContext->height,
+                                           m_avCodecContext->pix_fmt,
+                                           0,
+                                           nullptr,
+                                           nullptr,
+                                           nullptr);
+    }
+    m_lastReceivedSize = image.size();
 
     CustomAVFrame avFrame;
     int ret = avFrame.alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
