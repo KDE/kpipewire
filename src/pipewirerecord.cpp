@@ -564,23 +564,23 @@ void PipeWireRecordWrite::addFrame(const QImage &image, std::optional<int> seque
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
         return;
     }
-    // qDebug() << "issued" << avFrame->m_avFrame->pts;
-    ret = avcodec_receive_packet(m_avCodecContext, m_packet);
-    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
-        ret = 0;
-    }
+    for (;;) {
+        ret = avcodec_receive_packet(m_avCodecContext, m_packet);
+        if (ret < 0) {
+            if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret) << ret;
+            }
+            break;
+        }
 
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
-        return;
-    }
-
-    m_packet->stream_index = (*m_avFormatContext->streams)->index;
-    av_packet_rescale_ts(m_packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
-    log_packet(m_avFormatContext, m_packet);
-    ret = av_interleaved_write_frame(m_avFormatContext, m_packet);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Error while writing output packet:" << av_err2str(ret);
+        m_packet->stream_index = (*m_avFormatContext->streams)->index;
+        av_packet_rescale_ts(m_packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
+        log_packet(m_avFormatContext, m_packet);
+        ret = av_interleaved_write_frame(m_avFormatContext, m_packet);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Error while writing output packet:" << av_err2str(ret);
+        }
+        av_packet_unref(m_packet);
     }
 }
 
