@@ -12,6 +12,7 @@
 #include <kpipewire_export.h>
 
 struct PipeWireCursor;
+class PipeWirePacketPrivate;
 
 class KPIPEWIRE_EXPORT PipeWireEncodedStream : public PipeWireBaseEncodedStream
 {
@@ -20,11 +21,23 @@ public:
     PipeWireEncodedStream(QObject *parent = nullptr);
     ~PipeWireEncodedStream() override;
 
+    class Packet
+    {
+    public:
+        Packet(bool isKey, const QByteArray &data);
+
+        /// Whether the packet represents a key frame
+        bool isKeyFrame() const;
+        QByteArray data() const;
+
+        std::shared_ptr<PipeWirePacketPrivate> d;
+    };
+
 Q_SIGNALS:
     /// will be emitted when the stream initializes as well as when the value changes
     void sizeChanged(const QSize &size);
     void cursorChanged(const PipeWireCursor &cursor);
-    void newPacket(const QByteArray &packet);
+    void newPacket(const Packet &packet);
 
 protected:
     PipeWireProduce *createThread() override;

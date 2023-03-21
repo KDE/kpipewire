@@ -18,7 +18,7 @@ public:
     void processFrame(const PipeWireFrame &frame) override;
 
 Q_SIGNALS:
-    void newPacket(const QByteArray &packetData);
+    void newPacket(const PipeWireEncodedStream::Packet &packetData);
 
 private:
     PipeWireEncodedStream *const m_encodedStream;

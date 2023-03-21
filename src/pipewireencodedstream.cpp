@@ -13,6 +13,34 @@ extern "C" {
 #include <libavcodec/packet.h>
 }
 
+class PipeWirePacketPrivate
+{
+public:
+    PipeWirePacketPrivate(bool isKey, const QByteArray &data)
+        : isKey(isKey)
+        , data(data)
+    {
+    }
+
+    const bool isKey;
+    const QByteArray data;
+};
+
+PipeWireEncodedStream::Packet::Packet(bool isKey, const QByteArray &data)
+    : d(std::make_shared<PipeWirePacketPrivate>(isKey, data))
+{
+}
+
+QByteArray PipeWireEncodedStream::Packet::data() const
+{
+    return d->data;
+}
+
+bool PipeWireEncodedStream::Packet::isKeyFrame() const
+{
+    return d->isKey;
+}
+
 PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder, uint nodeId, uint fd, PipeWireEncodedStream *stream)
     : PipeWireProduce(encoder, nodeId, fd)
     , m_encodedStream(stream)
@@ -25,7 +53,7 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
         return;
     }
 
-    Q_EMIT newPacket(QByteArray(reinterpret_cast<char *>(packet->data), packet->size));
+    Q_EMIT newPacket(PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size)));
 }
 
 void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
