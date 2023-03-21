@@ -121,19 +121,20 @@ void PipeWireProduce::setupStream()
     m_avCodecContext->width = size.width();
     m_avCodecContext->height = size.height();
     m_avCodecContext->max_b_frames = 1;
-    m_avCodecContext->gop_size = 100;
+    // Seems to be recommended to have same number as framerate
+    m_avCodecContext->gop_size = 25;
     if (m_codec->pix_fmts && m_codec->pix_fmts[0] > 0) {
         m_avCodecContext->pix_fmt = m_codec->pix_fmts[0];
     } else {
         m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     }
     m_avCodecContext->time_base = AVRational{1, 1000};
+    m_avCodecContext->framerate = AVRational{25, 1};
 
     AVDictionary *options = nullptr;
     av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-    av_dict_set(&options, "preset", "veryfast", 0);
+    av_dict_set(&options, "preset", "ultrafast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
     av_dict_set(&options, "deadline", "realtime", 0);
     // In theory a lower number should be faster, but the opposite seems to be true
     av_dict_set(&options, "quality", "40", 0);
@@ -142,6 +143,12 @@ void PipeWireProduce::setupStream()
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
+    // TODO: those should be set only when using RDP?
+    // Seems to make things a bit better, maybe just placebo
+    av_dict_set(&options, "tune", "zerolatency", 0);
+    // Needed by RDP
+    av_dict_set(&options, "profile", "baseline", 0);
+    // Works also with m_avCodecContext->profile = FF_PROFILE_H264_BASELINE;
 
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
