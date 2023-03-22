@@ -10,6 +10,7 @@
 #include "glhelpers.h"
 #include "logging.h"
 #include "pipewirecore.h"
+#include "pwhelpers.h"
 
 #include <libdrm/drm_fourcc.h>
 #include <spa/utils/result.h>
@@ -18,11 +19,10 @@
 #include <unistd.h>
 
 #include <QGuiApplication>
-#include <QLoggingCategory>
 #include <QOpenGLTexture>
 #include <QSocketNotifier>
-#include <QVersionNumber>
 #include <QThread>
+#include <QVersionNumber>
 #include <qpa/qplatformnativeinterface.h>
 
 #include <KLocalizedString>
@@ -93,26 +93,6 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     default:
         qCWarning(PIPEWIRE_LOGGING) << "unknown QImage format" << spa_format;
         return DRM_FORMAT_INVALID;
-    }
-}
-
-QImage::Format SpaToQImageFormat(quint32 format)
-{
-    switch (format) {
-    case SPA_VIDEO_FORMAT_BGRx:
-    case SPA_VIDEO_FORMAT_BGRA:
-        return QImage::Format_RGBA8888_Premultiplied; // TODO: Add BGR to QImage
-    case SPA_VIDEO_FORMAT_BGR:
-        return QImage::Format_BGR888;
-    case SPA_VIDEO_FORMAT_RGBx:
-        return QImage::Format_RGBX8888;
-    case SPA_VIDEO_FORMAT_RGB:
-        return QImage::Format_RGB888;
-    case SPA_VIDEO_FORMAT_RGBA:
-        return QImage::Format_RGBA8888_Premultiplied;
-    default:
-        qCWarning(PIPEWIRE_LOGGING) << "unknown spa format" << format;
-        return QImage::Format_RGB32;
     }
 }
 
@@ -491,7 +471,8 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             QImage cursorTexture;
             if (bitmap && bitmap->size.width > 0 && bitmap->size.height > 0) {
                 const uint8_t *bitmap_data = SPA_MEMBER(bitmap, bitmap->offset, uint8_t);
-                cursorTexture = QImage(bitmap_data, bitmap->size.width, bitmap->size.height, bitmap->stride, SpaToQImageFormat(bitmap->format));
+                cursorTexture =
+                    PWHelpers::SpaBufferToQImage(bitmap_data, bitmap->size.width, bitmap->size.height, bitmap->stride, spa_video_format(bitmap->format));
             }
             frame.cursor = {{cursor->position.x, cursor->position.y}, {cursor->hotspot.x, cursor->hotspot.y}, cursorTexture};
         }
@@ -510,7 +491,8 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
             return;
         }
-        QImage img(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, SpaToQImageFormat(d->videoFormat.format));
+        QImage img =
+            PWHelpers::SpaBufferToQImage(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, d->videoFormat.format);
         frame.image = img.copy();
 
         munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);
@@ -534,11 +516,11 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         Q_ASSERT(!attribs.planes.isEmpty());
         frame.dmabuf = attribs;
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
-        frame.image = QImage(static_cast<uint8_t *>(spaBuffer->datas->data),
-                             d->videoFormat.size.width,
-                             d->videoFormat.size.height,
-                             spaBuffer->datas->chunk->stride,
-                             SpaToQImageFormat(d->videoFormat.format));
+        frame.image = PWHelpers::SpaBufferToQImage(static_cast<uint8_t *>(spaBuffer->datas->data),
+                                                   d->videoFormat.size.width,
+                                                   d->videoFormat.size.height,
+                                                   spaBuffer->datas->chunk->stride,
+                                                   d->videoFormat.format);
     } else {
         if (spaBuffer->datas->type == SPA_ID_INVALID)
             qWarning() << "invalid buffer type";
