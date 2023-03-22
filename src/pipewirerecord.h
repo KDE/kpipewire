@@ -27,6 +27,12 @@ public:
     void setOutput(const QString &output);
     QString extension() const;
 
+    // Only for compatibility with 5.27
+    KPIPEWIRE_DEPRECATED QString currentExtension() const
+    {
+        return extension();
+    }
+
 Q_SIGNALS:
     void outputChanged(const QString &output);
 

@@ -52,6 +52,9 @@ target_sources(KPipeWire PRIVATE
     ${kpipewire_SRCS}
 )
 
+# these are features pipewire use extensively and make it hard to look at compile logs
+target_compile_options(KPipeWire PUBLIC -Wno-gnu-statement-expression-from-macro-expansion -Wno-zero-as-null-pointer-constant -Wno-c99-extensions -Wno-cast-align)
+
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
     KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM)
 
