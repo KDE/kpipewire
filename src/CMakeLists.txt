@@ -42,6 +42,7 @@ target_sources(KPipeWire PRIVATE
     pipewiresourceitem.cpp
     pipewiresourcestream.cpp
     glhelpers.cpp
+    pwhelpers.cpp
     ${kpipewire_SRCS}
 )
 
