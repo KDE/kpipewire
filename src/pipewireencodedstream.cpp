@@ -41,9 +41,14 @@ bool PipeWireEncodedStream::Packet::isKeyFrame() const
     return d->isKey;
 }
 
-PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder, uint nodeId, uint fd, PipeWireEncodedStream *stream)
+PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder,
+                                             uint nodeId,
+                                             uint fd,
+                                             std::function<void(const PipeWireEncodedStream::Packet &)> callback,
+                                             PipeWireEncodedStream *stream)
     : PipeWireProduce(encoder, nodeId, fd)
     , m_encodedStream(stream)
+    , m_callback(callback)
 {
 }
 
@@ -53,7 +58,7 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
         return;
     }
 
-    Q_EMIT newPacket(PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size)));
+    m_callback(PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size)));
 }
 
 void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
@@ -69,8 +74,15 @@ void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
     }
 }
 
+class PipeWireEncodedStreamPrivate
+{
+public:
+    std::function<void(const PipeWireEncodedStream::Packet &)> m_callback;
+};
+
 PipeWireEncodedStream::PipeWireEncodedStream(QObject *parent)
     : PipeWireBaseEncodedStream(parent)
+    , d(new PipeWireEncodedStreamPrivate)
 {
 }
 
@@ -81,7 +93,12 @@ PipeWireProduce *PipeWireEncodedStream::createThread()
     auto produce = new PipeWireEncodeProduce(PipeWireBaseEncodedStream::d->m_encoder,
                                              PipeWireBaseEncodedStream::d->m_nodeId,
                                              PipeWireBaseEncodedStream::d->m_fd.value_or(0),
+                                             d->m_callback,
                                              this);
-    connect(produce, &PipeWireEncodeProduce::newPacket, this, &PipeWireEncodedStream::newPacket);
     return produce;
+}
+
+void PipeWireEncodedStream::setPacketCallback(const std::function<void(const Packet &)> &callback)
+{
+    d->m_callback = callback;
 }

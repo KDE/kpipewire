@@ -6,21 +6,24 @@
 
 #pragma once
 
+#include "pipewireencodedstream.h"
 #include "pipewireproduce.h"
 
 class PipeWireEncodeProduce : public PipeWireProduce
 {
     Q_OBJECT
 public:
-    PipeWireEncodeProduce(const QByteArray &encoder, uint nodeId, uint fd, PipeWireEncodedStream *stream);
+    PipeWireEncodeProduce(const QByteArray &encoder,
+                          uint nodeId,
+                          uint fd,
+                          std::function<void(const PipeWireEncodedStream::Packet &)> callback,
+                          PipeWireEncodedStream *stream);
 
     void processPacket(AVPacket *packet) override;
     void processFrame(const PipeWireFrame &frame) override;
 
-Q_SIGNALS:
-    void newPacket(const PipeWireEncodedStream::Packet &packetData);
-
 private:
     PipeWireEncodedStream *const m_encodedStream;
     QSize m_size;
+    std::function<void(const PipeWireEncodedStream::Packet &)> m_callback;
 };

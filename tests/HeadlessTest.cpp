@@ -33,7 +33,7 @@ void processStream(ScreencastingStream *stream)
             auto encoded = new PipeWireEncodedStream(qGuiApp);
             encoded->setNodeId(stream->nodeId());
             encoded->setActive(true);
-            QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const PipeWireEncodedStream::Packet &packet) {
+            encoded->setPacketCallback([](const PipeWireEncodedStream::Packet &packet) {
                 qDebug() << "packet received" << packet.data().size() << "key:" << packet.isKeyFrame();
             });
             QObject::connect(encoded, &PipeWireEncodedStream::cursorChanged, qGuiApp, [](const PipeWireCursor &cursor) {

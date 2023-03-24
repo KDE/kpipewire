@@ -10,7 +10,7 @@
 
 #include <kpipewire_export.h>
 
-struct PipeWireEncodedStreamPrivate;
+struct PipeWireBaseEncodedStreamPrivate;
 class PipeWireProduce;
 
 class KPIPEWIRE_EXPORT PipeWireBaseEncodedStream : public QObject
@@ -74,5 +74,5 @@ protected:
     virtual PipeWireProduce *createThread() = 0;
 
     void refresh();
-    QScopedPointer<PipeWireEncodedStreamPrivate> d;
+    QScopedPointer<PipeWireBaseEncodedStreamPrivate> d;
 };

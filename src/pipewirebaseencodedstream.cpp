@@ -27,7 +27,7 @@ PipeWireBaseEncodedStream::State PipeWireBaseEncodedStream::state() const
 
 PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
     : QObject(parent)
-    , d(new PipeWireEncodedStreamPrivate)
+    , d(new PipeWireBaseEncodedStreamPrivate)
 {
     d->m_encoder = "libvpx";
 

@@ -100,7 +100,7 @@ static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDispla
 {
     QHash<spa_video_format, QVector<uint64_t>> ret;
     ret.reserve(formats.size());
-    const bool hasEglImageDmaBufImportExt = epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import");
+    const bool hasEglImageDmaBufImportExt = false && epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import");
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
     static auto eglQueryDmaBufFormatsEXT = (PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress("eglQueryDmaBufFormatsEXT");
 

@@ -157,7 +157,7 @@ private:
     AVCodecContext *const m_avCodecContext;
 };
 
-struct PipeWireEncodedStreamPrivate {
+struct PipeWireBaseEncodedStreamPrivate {
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
     bool m_active = false;

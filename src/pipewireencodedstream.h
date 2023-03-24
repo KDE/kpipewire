@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <QObject>
-
 #include "pipewirebaseencodedstream.h"
+#include <functional>
 #include <kpipewire_export.h>
+#include <memory>
 
 struct PipeWireCursor;
 class PipeWirePacketPrivate;
+class PipeWireEncodedStreamPrivate;
 
 class KPIPEWIRE_EXPORT PipeWireEncodedStream : public PipeWireBaseEncodedStream
 {
@@ -33,12 +34,21 @@ public:
         std::shared_ptr<PipeWirePacketPrivate> d;
     };
 
+    /**
+     * Provide a @p callback that will inform us about packets as they are received
+     *
+     * Note that the callbacks might happen in a different thread than this object's
+     *
+     * Make sure to set this property before activating the stream.
+     */
+    void setPacketCallback(const std::function<void(const Packet &)> &callback);
+
 Q_SIGNALS:
     /// will be emitted when the stream initializes as well as when the value changes
     void sizeChanged(const QSize &size);
     void cursorChanged(const PipeWireCursor &cursor);
-    void newPacket(const Packet &packet);
 
 protected:
     PipeWireProduce *createThread() override;
+    std::unique_ptr<PipeWireEncodedStreamPrivate> d;
 };
