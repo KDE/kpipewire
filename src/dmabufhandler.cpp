@@ -163,7 +163,7 @@ GLenum closestGLType(const QImage &image)
     case QImage::Format_RGBA8888_Premultiplied:
         return GL_RGBA;
     default:
-        qDebug() << "unknown format" << image.format();
+        qDebug() << "cannot convert QImage format to GLType" << image.format();
         return GL_RGBA;
     }
 }

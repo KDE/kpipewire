@@ -91,7 +91,7 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     case SPA_VIDEO_FORMAT_RGB:
         return DRM_FORMAT_RGB888;
     default:
-        qCWarning(PIPEWIRE_LOGGING) << "unknown QImage format" << spa_format;
+        qCWarning(PIPEWIRE_LOGGING) << "cannot convert spa format to fourcc" << spa_format;
         return DRM_FORMAT_INVALID;
     }
 }

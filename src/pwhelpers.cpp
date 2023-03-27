@@ -22,7 +22,7 @@ QImage::Format SpaToQImageFormat(quint32 format)
     case SPA_VIDEO_FORMAT_RGBA:
         return QImage::Format_RGBA8888_Premultiplied;
     default:
-        qCWarning(PIPEWIRE_LOGGING) << "unknown spa format" << format;
+        qCWarning(PIPEWIRE_LOGGING) << "cannot convert spa format to QImage" << format;
         return QImage::Format_RGB32;
     }
 }
