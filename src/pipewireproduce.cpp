@@ -219,7 +219,11 @@ void PipeWireProduce::enqueueFrame(const PipeWireRecordFrame &frame)
     if (m_frames.count() > 30) {
         qDebug() << "many frames waiting!" << m_frames.count();
     }
-    Q_EMIT producedFrames();
+
+    if (!m_processing) {
+        lock.unlock();
+        Q_EMIT producedFrames();
+    }
 }
 
 PipeWireRecordFrame PipeWireProduce::dequeueFrame(int *remaining)
@@ -296,6 +300,7 @@ void PipeWireReceiveEncodedThread::run()
 
 void PipeWireReceiveEncoded::addFrame()
 {
+    m_produce->m_processing = true;
     int remaining = 1;
     while (remaining > 0) {
         auto frame = m_produce->dequeueFrame(&remaining);
@@ -359,4 +364,5 @@ void PipeWireReceiveEncoded::addFrame()
             av_packet_unref(m_packet);
         }
     }
+    m_produce->m_processing = false;
 }

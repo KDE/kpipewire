@@ -104,6 +104,7 @@ public:
 
     QMutex m_framesMutex;
     QQueue<PipeWireRecordFrame> m_frames;
+    QAtomicInt m_processing = false;
     void enqueueFrame(const PipeWireRecordFrame &frame);
     PipeWireRecordFrame dequeueFrame(int *remaining);
 
@@ -158,6 +159,7 @@ private:
 
 class PipeWireReceiveEncodedThread : public QThread
 {
+    Q_OBJECT
 public:
     PipeWireReceiveEncodedThread(PipeWireProduce *produce, AVCodecContext *avCodecContext);
 
