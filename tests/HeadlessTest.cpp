@@ -18,7 +18,10 @@
 #include <QDBusArgument>
 #include <unistd.h>
 
+using namespace Qt::StringLiterals;
+
 static bool s_encodedStream = false;
+static std::optional<QByteArray> s_encoder;
 static Screencasting::CursorMode s_cursorMode = Screencasting::Embedded;
 
 static QString createHandleToken()
@@ -32,6 +35,9 @@ void processStream(ScreencastingStream *stream)
         if (s_encodedStream) {
             auto encoded = new PipeWireEncodedStream(qGuiApp);
             encoded->setNodeId(stream->nodeId());
+            if (s_encoder) {
+                encoded->setEncoder(*s_encoder);
+            }
             encoded->setActive(true);
             QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const PipeWireEncodedStream::Packet &packet) {
                 qDebug() << "packet received" << packet.data().size() << "key:" << packet.isKeyFrame();
@@ -471,12 +477,20 @@ int main(int argc, char **argv)
         parser.addOption(useWorkspace);
         QCommandLineOption encodedStream(QStringLiteral("encoded"), QStringLiteral("Reports encoded streams with PipeWireEncodedStream"));
         parser.addOption(encodedStream);
+        QCommandLineOption streamEncoder(QStringLiteral("encoder"),
+                                         QStringLiteral("Which encoding to use with PipeWireEncodedStream"),
+                                         u"encoding"_s,
+                                         u"libvpx"_s);
+        parser.addOption(streamEncoder);
         parser.addOption(cursorOption);
         parser.addHelpOption();
         parser.process(app);
 
         s_cursorMode = cursorOptions[parser.value(cursorOption).toLower()];
         s_encodedStream = parser.isSet(encodedStream);
+        if (parser.isSet(streamEncoder)) {
+            s_encoder = parser.value(streamEncoder).toUtf8();
+        }
 
         if (parser.isSet(useXdpRD)) {
             new XdpRemoteDesktop(&app);
