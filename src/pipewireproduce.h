@@ -20,6 +20,7 @@ extern "C" {
 #include <QImage>
 #include <QMutex>
 #include <QPoint>
+#include <QQueue>
 #include <QRunnable>
 #include <QThread>
 #include <QWaitCondition>
@@ -41,6 +42,12 @@ class PipeWireReceiveEncodedThread;
 #undef av_err2str
 // The one provided by libav fails to compile on GCC due to passing data from the function scope outside
 char *av_err2str(int errnum);
+
+struct PipeWireRecordFrame {
+    QImage image;
+    std::optional<int> sequential;
+    std::optional<std::chrono::nanoseconds> presentationTimestamp;
+};
 
 class PipeWireProduce : public QObject
 {
@@ -96,8 +103,13 @@ public:
     QAtomicInt m_deactivated = false;
     PipeWireReceiveEncodedThread *m_writeThread = nullptr;
 
+    QMutex m_framesMutex;
+    QQueue<PipeWireRecordFrame> m_frames;
+    void enqueueFrame(const PipeWireRecordFrame &frame);
+    PipeWireRecordFrame dequeueFrame(int *remaining);
+
 Q_SIGNALS:
-    void producedFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
+    void producedFrames();
 };
 
 class PipeWireProduceThread : public QThread
@@ -132,7 +144,7 @@ public:
     PipeWireReceiveEncoded(PipeWireProduce *produce, AVCodecContext *avCodecContext);
     ~PipeWireReceiveEncoded();
 
-    void addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);
+    void addFrame();
 
 private:
     QAtomicInt m_active = true;
