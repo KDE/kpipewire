@@ -206,14 +206,6 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 
 void PipeWireProduce::render(const QImage &image, const PipeWireFrame &frame)
 {
-    QScopedPointer<CustomAVFrame> avFrame;
-    avFrame.reset(new CustomAVFrame);
-    int ret = avFrame->alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
-        return;
-    }
-
     PipeWireRecordFrame recordFrame{image, frame.sequential, frame.presentationTimestamp};
     aboutToEncode(recordFrame.image);
 
