@@ -23,4 +23,5 @@ Q_SIGNALS:
 private:
     PipeWireEncodedStream *const m_encodedStream;
     QSize m_size;
+    PipeWireCursor m_cursor;
 };

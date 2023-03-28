@@ -64,8 +64,9 @@ void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
     }
 
     PipeWireProduce::processFrame(frame);
-    if (frame.cursor) {
-        Q_EMIT m_encodedStream->cursorChanged(*frame.cursor);
+    if (frame.cursor && m_cursor != *frame.cursor) {
+        m_cursor = *frame.cursor;
+        Q_EMIT m_encodedStream->cursorChanged(m_cursor);
     }
 }
 

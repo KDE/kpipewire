@@ -49,6 +49,14 @@ struct PipeWireCursor {
     QPoint position;
     QPoint hotspot;
     QImage texture;
+    bool operator!=(const PipeWireCursor &other) const
+    {
+        return !operator==(other);
+    };
+    bool operator==(const PipeWireCursor &other) const
+    {
+        return position == other.position && hotspot == other.hotspot && texture == other.texture;
+    }
 };
 Q_DECLARE_METATYPE(PipeWireCursor);
 
