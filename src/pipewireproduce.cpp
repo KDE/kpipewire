@@ -193,25 +193,19 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     }
 
     if (frame.dmabuf) {
-        if (m_frameWithoutMetadataCursor.size() != m_stream->size()) {
-            m_frameWithoutMetadataCursor = QImage(m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
-        }
-
-        if (!m_dmabufHandler.downloadFrame(m_frameWithoutMetadataCursor, frame)) {
+        QImage downloadBuffer(m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
+        if (!m_dmabufHandler.downloadFrame(downloadBuffer, frame)) {
             m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
             return;
         }
-        render(frame);
+        render(downloadBuffer, frame);
     } else if (frame.image) {
-        m_frameWithoutMetadataCursor = *frame.image;
-        render(frame);
+        render(*frame.image, frame);
     }
 }
 
-void PipeWireProduce::render(const PipeWireFrame &frame)
+void PipeWireProduce::render(const QImage &image, const PipeWireFrame &frame)
 {
-    Q_ASSERT(!m_frameWithoutMetadataCursor.isNull());
-
     QScopedPointer<CustomAVFrame> avFrame;
     avFrame.reset(new CustomAVFrame);
     int ret = avFrame->alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
@@ -220,10 +214,10 @@ void PipeWireProduce::render(const PipeWireFrame &frame)
         return;
     }
 
-    QImage image(m_frameWithoutMetadataCursor);
-    aboutToEncode(image);
+    PipeWireRecordFrame recordFrame{image, frame.sequential, frame.presentationTimestamp};
+    aboutToEncode(recordFrame.image);
 
-    enqueueFrame({image, frame.sequential, frame.presentationTimestamp});
+    enqueueFrame(recordFrame);
 }
 
 void PipeWireProduce::enqueueFrame(const PipeWireRecordFrame &frame)

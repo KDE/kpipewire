@@ -78,7 +78,7 @@ public:
     friend class PipeWireProduceThread;
     void setupStream();
     virtual void processFrame(const PipeWireFrame &frame);
-    void render(const PipeWireFrame &frame);
+    void render(const QImage &image, const PipeWireFrame &frame);
     virtual void aboutToEncode(QImage &frame)
     {
         Q_UNUSED(frame);
@@ -98,7 +98,6 @@ public:
         QPoint hotspot;
         bool dirty = false;
     } m_cursor;
-    QImage m_frameWithoutMetadataCursor;
     DmaBufHandler m_dmabufHandler;
     QAtomicInt m_deactivated = false;
     PipeWireReceiveEncodedThread *m_writeThread = nullptr;

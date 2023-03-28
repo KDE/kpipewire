@@ -28,6 +28,7 @@ public:
 private:
     const QString m_output;
     AVFormatContext *m_avFormatContext = nullptr;
+    QImage m_frameWithoutMetadataCursor;
 };
 
 struct PipeWireRecordPrivate {
