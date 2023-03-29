@@ -29,47 +29,59 @@ static QString createHandleToken()
     return QStringLiteral("kpipewireheadlesstest%1").arg(QRandomGenerator::global()->generate());
 }
 
+void createStream(int nodeId, std::optional<int> fd = {})
+{
+    if (s_encodedStream) {
+        auto encoded = new PipeWireEncodedStream(qGuiApp);
+        encoded->setNodeId(nodeId);
+        if (fd) {
+            encoded->setFd(*fd);
+        }
+        if (s_encoder) {
+            encoded->setEncoder(*s_encoder);
+        }
+        encoded->setActive(true);
+        QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const PipeWireEncodedStream::Packet &packet) {
+            qDebug() << "packet received" << packet.data().size() << "key:" << packet.isKeyFrame();
+        });
+        QObject::connect(encoded, &PipeWireEncodedStream::cursorChanged, qGuiApp, [](const PipeWireCursor &cursor) {
+            qDebug() << "cursor received. position:" << cursor.position << "hotspot:" << cursor.hotspot << "image:" << cursor.texture;
+        });
+        return;
+    }
+    auto pwStream = new PipeWireSourceStream(qGuiApp);
+    pwStream->setAllowDmaBuf(false);
+    if (!pwStream->createStream(nodeId, 0)) {
+        qWarning() << "failed!" << pwStream->error();
+        exit(1);
+    }
+
+    auto handler = std::make_shared<DmaBufHandler>();
+    QObject::connect(pwStream, &PipeWireSourceStream::frameReceived, qGuiApp, [handler, pwStream](const PipeWireFrame &frame) {
+        if (frame.dmabuf) {
+            QImage qimage(pwStream->size(), QImage::Format_RGBA8888);
+            if (!handler->downloadFrame(qimage, frame)) {
+                qDebug() << "failed to download frame";
+                pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+            } else {
+                qDebug() << "dmabuf" << frame.format;
+            }
+        } else if (frame.image) {
+            qDebug() << "image" << frame.image->format() << frame.format;
+        } else {
+            qDebug() << "no-frame";
+        }
+    });
+    QObject::connect(KSignalHandler::self(), &KSignalHandler::signalReceived, pwStream, [pwStream] {
+        pwStream->setActive(false);
+        exit(0);
+    });
+}
+
 void processStream(ScreencastingStream *stream)
 {
-    QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [stream] {
-        if (s_encodedStream) {
-            auto encoded = new PipeWireEncodedStream(qGuiApp);
-            encoded->setNodeId(stream->nodeId());
-            if (s_encoder) {
-                encoded->setEncoder(*s_encoder);
-            }
-            encoded->setActive(true);
-            QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const PipeWireEncodedStream::Packet &packet) {
-                qDebug() << "packet received" << packet.data().size() << "key:" << packet.isKeyFrame();
-            });
-            QObject::connect(encoded, &PipeWireEncodedStream::cursorChanged, qGuiApp, [](const PipeWireCursor &cursor) {
-                qDebug() << "cursor received. position:" << cursor.position << "hotspot:" << cursor.hotspot << "image:" << cursor.texture;
-            });
-            return;
-        }
-        auto pwStream = new PipeWireSourceStream(qGuiApp);
-        pwStream->setAllowDmaBuf(false);
-        if (!pwStream->createStream(stream->nodeId(), 0)) {
-            qWarning() << "failed!" << pwStream->error();
-            exit(1);
-        }
-
-        auto handler = std::make_shared<DmaBufHandler>();
-        QObject::connect(pwStream, &PipeWireSourceStream::frameReceived, qGuiApp, [handler, pwStream](const PipeWireFrame &frame) {
-            QImage qimage(pwStream->size(), QImage::Format_RGBA8888);
-            if (frame.dmabuf) {
-                if (!handler->downloadFrame(qimage, frame)) {
-                    qDebug() << "failed to download frame";
-                    pwStream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
-                } else {
-                    qDebug() << "dmabuf" << frame.format;
-                }
-            } else if (frame.image) {
-                qDebug() << "image" << frame.image->format() << frame.format;
-            } else {
-                qDebug() << "no-frame";
-            }
-        });
+    QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [] (int nodeId) {
+        createStream(nodeId);
     });
 }
 
@@ -247,27 +259,15 @@ public Q_SLOTS:
             exit(1);
             return;
         }
-
-        const int fd = pipewireFd.takeFileDescriptor();
-        if (!stream.createStream(streams.first().nodeId, fd)) {
-            qWarning() << "Couldn't create the pipewire stream";
-            exit(1);
-            return;
+        const uint fd = pipewireFd.takeFileDescriptor();
+        for (auto x : streams) {
+            createStream(x.nodeId, fd);
         }
-
-        QObject::connect(&stream, &PipeWireSourceStream::frameReceived, this, [](const PipeWireFrame &frame) {
-            qDebug() << "." << frame.format;
-        });
-
-        QObject::connect(&stream, &PipeWireSourceStream::stopStreaming, this, [fd] {
-            close(fd);
-        });
     }
 
 private:
     QScopedPointer<OrgFreedesktopPortalScreenCastInterface> dbusXdpScreenCastService;
     QDBusObjectPath sessionPath;
-    PipeWireSourceStream stream;
 };
 
 class XdpRemoteDesktop : public QObject
@@ -430,26 +430,15 @@ public Q_SLOTS:
         }
 
         const uint fd = pipewireFd.takeFileDescriptor();
-        if (!stream.createStream(streams.first().nodeId, fd)) {
-            qWarning() << "Couldn't create the pipewire stream";
-            exit(1);
-            return;
+        for (auto x : streams) {
+            createStream(x.nodeId, fd);
         }
-
-        QObject::connect(&stream, &PipeWireSourceStream::frameReceived, this, [](const PipeWireFrame &frame) {
-            qDebug() << "." << frame.format;
-        });
-
-        QObject::connect(&stream, &PipeWireSourceStream::stopStreaming, this, [fd] {
-            close(fd);
-        });
     }
 
 private:
     QScopedPointer<OrgFreedesktopPortalScreenCastInterface> dbusXdpScreenCastService;
     QScopedPointer<OrgFreedesktopPortalRemoteDesktopInterface> dbusXdpRemoteDesktopService;
     QDBusObjectPath sessionPath;
-    PipeWireSourceStream stream;
 };
 
 int main(int argc, char **argv)
