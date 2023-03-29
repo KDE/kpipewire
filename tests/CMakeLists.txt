@@ -28,7 +28,7 @@ add_executable(recordme main.cpp recordme.qrc PlasmaRecordMe.cpp)
 target_link_libraries(recordme PipeWireScreencastingTest Qt::Quick)
 
 add_executable(kpipewireheadlesstest HeadlessTest.cpp ${SRCS})
-target_link_libraries(kpipewireheadlesstest PipeWireScreencastingTest KPipeWireDmaBuf KPipeWireRecord)
+target_link_libraries(kpipewireheadlesstest PipeWireScreencastingTest KPipeWireDmaBuf KPipeWireRecord KF6::CoreAddons)
 
 #########
 

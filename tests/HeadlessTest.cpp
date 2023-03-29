@@ -4,6 +4,7 @@
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
 */
 
+#include <KSignalHandler>
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QGuiApplication>
@@ -47,6 +48,10 @@ void createStream(int nodeId, std::optional<int> fd = {})
         QObject::connect(encoded, &PipeWireEncodedStream::cursorChanged, qGuiApp, [](const PipeWireCursor &cursor) {
             qDebug() << "cursor received. position:" << cursor.position << "hotspot:" << cursor.hotspot << "image:" << cursor.texture;
         });
+        QObject::connect(KSignalHandler::self(), &KSignalHandler::signalReceived, encoded, [encoded] {
+            encoded->setActive(false);
+            exit(0);
+        });
         return;
     }
     auto pwStream = new PipeWireSourceStream(qGuiApp);
@@ -80,7 +85,7 @@ void createStream(int nodeId, std::optional<int> fd = {})
 
 void processStream(ScreencastingStream *stream)
 {
-    QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [] (int nodeId) {
+    QObject::connect(stream, &ScreencastingStream::created, qGuiApp, [](int nodeId) {
         createStream(nodeId);
     });
 }
@@ -457,6 +462,9 @@ int main(int argc, char **argv)
                                         QStringList(cursorOptions.keys()).join(QStringLiteral(", ")),
                                         QStringLiteral("mode"),
                                         QStringLiteral("metadata"));
+
+        KSignalHandler::self()->watchSignal(SIGTERM);
+        KSignalHandler::self()->watchSignal(SIGINT);
 
         QCommandLineOption useXdpRD(QStringLiteral("xdp-remotedesktop"), QStringLiteral("Uses the XDG Desktop Portal RemoteDesktop interface"));
         parser.addOption(useXdpRD);
