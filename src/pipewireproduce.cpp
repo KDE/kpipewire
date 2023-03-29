@@ -39,7 +39,6 @@ public:
 
     ~CustomAVFrame()
     {
-        av_freep(m_avFrame->data);
         av_frame_free(&m_avFrame);
     }
 
@@ -48,7 +47,8 @@ public:
         m_avFrame->format = pix_fmt;
         m_avFrame->width = width;
         m_avFrame->height = height;
-        return av_image_alloc(m_avFrame->data, m_avFrame->linesize, width, height, pix_fmt, 32);
+        m_avFrame->format = pix_fmt;
+        return av_frame_get_buffer(m_avFrame, 32);
     }
 
     AVFrame *m_avFrame;
