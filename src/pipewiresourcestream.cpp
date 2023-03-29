@@ -373,14 +373,18 @@ uint PipeWireSourceStream::nodeId()
 QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
-    const QVector<spa_video_format> formats = {SPA_VIDEO_FORMAT_RGBx,
-                                               SPA_VIDEO_FORMAT_RGBA,
-                                               SPA_VIDEO_FORMAT_BGRx,
-                                               SPA_VIDEO_FORMAT_BGRA,
-                                               SPA_VIDEO_FORMAT_RGB,
-                                               SPA_VIDEO_FORMAT_BGR,
-                                               SPA_VIDEO_FORMAT_BGRA,
-                                               SPA_VIDEO_FORMAT_ABGR};
+    const QVector<spa_video_format> formats = {
+        SPA_VIDEO_FORMAT_RGBx,
+        SPA_VIDEO_FORMAT_RGBA,
+        SPA_VIDEO_FORMAT_BGRx,
+        SPA_VIDEO_FORMAT_BGRA,
+        SPA_VIDEO_FORMAT_RGB,
+        SPA_VIDEO_FORMAT_BGR,
+        SPA_VIDEO_FORMAT_xBGR,
+        SPA_VIDEO_FORMAT_BGRA,
+        SPA_VIDEO_FORMAT_ABGR,
+        SPA_VIDEO_FORMAT_xBGR,
+    };
     QVector<const spa_pod *> params;
     params.reserve(formats.size() * 2);
     const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));

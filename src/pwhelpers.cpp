@@ -12,7 +12,10 @@ QImage::Format SpaToQImageFormat(quint32 format)
     switch (format) {
     case SPA_VIDEO_FORMAT_BGRx:
     case SPA_VIDEO_FORMAT_BGRA:
-        return QImage::Format_RGBA8888_Premultiplied; // TODO: Add BGR to QImage
+        return QImage::Format_RGBA8888_Premultiplied; // Handled in SpaBufferToQImage
+    case SPA_VIDEO_FORMAT_ABGR:
+    case SPA_VIDEO_FORMAT_xBGR:
+        return QImage::Format_ARGB32; // Handled in SpaBufferToQImage
     case SPA_VIDEO_FORMAT_BGR:
         return QImage::Format_BGR888;
     case SPA_VIDEO_FORMAT_RGBx:
@@ -31,7 +34,9 @@ QImage PWHelpers::SpaBufferToQImage(const uchar *data, int width, int height, qs
 {
     switch (format) {
     case SPA_VIDEO_FORMAT_BGRx:
-    case SPA_VIDEO_FORMAT_BGRA: {
+    case SPA_VIDEO_FORMAT_BGRA:
+    case SPA_VIDEO_FORMAT_xBGR:
+    case SPA_VIDEO_FORMAT_ABGR: {
         // This is needed because QImage does not support BGRA
         // This is obviously a much slower path, it makes sense to avoid it as much as possible
         return QImage(data, width, height, bytesPerLine, SpaToQImageFormat(format)).rgbSwapped();
