@@ -383,9 +383,9 @@ void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> se
                                  1);*/
 
     av_image_copy(avFrameToFilter.m_avFrame->data,
-                  strides,
-                  buffers,
                   avFrameToFilter.m_avFrame->linesize,
+                  buffers,
+                  strides,
                   convertQImageFormatToAVPixelFormat(image.format()),
                   m_avCodecContext->width,
                   m_avCodecContext->height);
