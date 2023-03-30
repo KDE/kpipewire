@@ -29,6 +29,7 @@ pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
 # ffmpeg, for recording
 pkg_check_modules(AVCodec IMPORTED_TARGET libavcodec)
 pkg_check_modules(AVUtil IMPORTED_TARGET libavutil)
+pkg_check_modules(AVFilter IMPORTED_TARGET libavfilter)
 pkg_check_modules(AVFormat IMPORTED_TARGET libavformat)
 pkg_check_modules(GBM IMPORTED_TARGET gbm)
 pkg_check_modules(SWScale IMPORTED_TARGET libswscale)

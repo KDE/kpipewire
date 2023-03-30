@@ -31,6 +31,12 @@ extern "C" {
 #include "pipewirebaseencodedstream.h"
 #include "pipewiresourcestream.h"
 
+extern "C" {
+#include <libavfilter/avfilter.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
+}
+
 struct AVCodec;
 struct AVCodecContext;
 struct AVFrame;
@@ -95,6 +101,13 @@ public:
     DmaBufHandler m_dmabufHandler;
     QAtomicInt m_deactivated = false;
     PipeWireReceiveEncodedThread *m_writeThread = nullptr;
+
+    void initFilters();
+    void filterFrame(AVFrame *inFrame, AVFrame *outFrame);
+    AVFilterGraph *m_filterGraph = nullptr;
+    AVFilterContext *m_bufferSrc = nullptr;
+    AVFilterContext *m_bufferSink = nullptr;
+    AVFilterContext *m_formatFilter = nullptr;
 
 Q_SIGNALS:
     void producedFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp);

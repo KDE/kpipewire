@@ -98,6 +98,55 @@ PipeWireProduce::~PipeWireProduce()
     }
 }
 
+void PipeWireProduce::initFilters()
+{
+    char args[512];
+    m_filterGraph = avfilter_graph_alloc();
+
+    enum AVPixelFormat out_format_list[] = {AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE};
+
+    snprintf(args, sizeof(args), "video_size=%dx%d:pix_fmt=%d:time_base=1/1:pixel_aspect=1/1", 1920, 1080, AV_PIX_FMT_RGBA);
+    int ret = avfilter_graph_create_filter(&m_bufferSrc, avfilter_get_by_name("buffer"), "in", args, NULL, m_filterGraph);
+    if (ret < 0) {
+        fprintf(stderr, "Error creating buffer source filter\n");
+        return;
+    }
+
+    // Initialize sink filter
+    ret = avfilter_graph_create_filter(&m_bufferSink, avfilter_get_by_name("buffersink"), "out", NULL, NULL, m_filterGraph);
+    if (ret < 0) {
+        fprintf(stderr, "Error creating buffer sink filter\n");
+        return;
+    }
+
+    // Set filter parameters
+    ret = av_opt_set_int_list(m_bufferSink, "pix_fmts", out_format_list, -1, AV_OPT_SEARCH_CHILDREN);
+    if (ret < 0) {
+        fprintf(stderr, "Error setting output pixel formats\n");
+        return;
+    }
+
+    // Link filters
+    ret = avfilter_link(m_bufferSrc, 0, m_bufferSink, 0);
+    if (ret < 0) {
+        fprintf(stderr, "Error linking filters\n");
+        return;
+    }
+
+    // Configure filter graph
+    ret = avfilter_graph_config(m_filterGraph, NULL);
+    if (ret < 0) {
+        fprintf(stderr, "Error configuring filter graph\n");
+        return;
+    }
+}
+
+void PipeWireProduce::filterFrame(AVFrame *inFrame, AVFrame *outFrame)
+{
+    assert(av_buffersrc_add_frame_flags(m_bufferSrc, inFrame, AV_BUFFERSRC_FLAG_KEEP_REF) == 0);
+    assert(av_buffersink_get_frame(m_bufferSink, outFrame) == 0);
+}
+
 void PipeWireProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
@@ -142,6 +191,9 @@ void PipeWireProduce::setupStream()
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
+    av_dict_set(&options, "profile", "baseline", 0);
+
+    initFilters();
 
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
@@ -290,7 +342,7 @@ void PipeWireReceiveEncodedThread::run()
 
 void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> sequential, std::optional<std::chrono::nanoseconds> presentationTimestamp)
 {
-    if (!sws_context || m_lastReceivedSize != image.size()) {
+    /*if (!sws_context || m_lastReceivedSize != image.size()) {
         sws_context = sws_getCachedContext(sws_context,
                                            image.width(),
                                            image.height(),
@@ -302,7 +354,7 @@ void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> se
                                            nullptr,
                                            nullptr,
                                            nullptr);
-    }
+    }*/
     m_lastReceivedSize = image.size();
 
     CustomAVFrame avFrame;
@@ -311,9 +363,45 @@ void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> se
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
         return;
     }
+    CustomAVFrame avFrameToFilter;
+    ret = avFrameToFilter.alloc(m_avCodecContext->width, m_avCodecContext->height, convertQImageFormatToAVPixelFormat(image.format()));
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
+        return;
+    }
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
     const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
-    sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame.m_avFrame->data, avFrame.m_avFrame->linesize);
+    // sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame.m_avFrame->data, avFrame.m_avFrame->linesize);
+
+    // Fill AVFrame with input buffer
+    ret = av_image_fill_arrays(avFrameToFilter.m_avFrame->data,
+                               avFrame.m_avFrame->linesize,
+                               *buffers,
+                               convertQImageFormatToAVPixelFormat(image.format()),
+                               m_avCodecContext->width,
+                               m_avCodecContext->height,
+                               1);
+    if (ret < 0) {
+        fprintf(stderr, "Error filling input frame\n");
+        return;
+    }
+
+    // Send input frame to filter graph
+    ret = av_buffersrc_add_frame_flags(m_produce->m_bufferSrc, avFrameToFilter.m_avFrame, AV_BUFFERSRC_FLAG_KEEP_REF);
+
+    if (ret < 0) {
+        fprintf(stderr, "Error sending frame to buffer source\n");
+        return;
+    }
+
+    ret = av_buffersink_get_frame(m_produce->m_bufferSink, avFrame.m_avFrame);
+    if (ret < 0) {
+        fprintf(stderr, "Error getting filtered frame\n");
+        return;
+    }
+
+    // Print output frame information
+    printf("Output frame: width=%d height=%d format=%d\n", avFrame.m_avFrame->width, avFrame.m_avFrame->height, avFrame.m_avFrame->format);
 
     avFrame.m_avFrame->pts = m_produce->framePts(presentationTimestamp);
 
