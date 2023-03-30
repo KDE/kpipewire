@@ -370,17 +370,26 @@ void PipeWireReceiveEncoded::addFrame(const QImage &image, std::optional<int> se
         return;
     }
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
-    const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
+    int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
     // sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame.m_avFrame->data, avFrame.m_avFrame->linesize);
 
     // Fill AVFrame with input buffer
-    ret = av_image_fill_arrays(avFrameToFilter.m_avFrame->data,
-                               avFrame.m_avFrame->linesize,
-                               *buffers,
-                               convertQImageFormatToAVPixelFormat(image.format()),
-                               m_avCodecContext->width,
-                               m_avCodecContext->height,
-                               1);
+    /*  ret = av_image_fill_arrays(avFrameToFilter.m_avFrame->data,
+                                 avFrameToFilter.m_avFrame->linesize,
+                                 *buffers,
+                                 convertQImageFormatToAVPixelFormat(image.format()),
+                                 m_avCodecContext->width,
+                                 m_avCodecContext->height,
+                                 1);*/
+
+    av_image_copy(avFrameToFilter.m_avFrame->data,
+                  strides,
+                  buffers,
+                  avFrameToFilter.m_avFrame->linesize,
+                  convertQImageFormatToAVPixelFormat(image.format()),
+                  m_avCodecContext->width,
+                  m_avCodecContext->height);
+
     if (ret < 0) {
         fprintf(stderr, "Error filling input frame\n");
         return;
