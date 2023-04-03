@@ -12,6 +12,9 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavfilter/avfilter.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
@@ -146,6 +149,46 @@ void PipeWireProduce::setupStream()
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
+        return;
+    }
+
+    m_avFilterGraph = avfilter_graph_alloc();
+    if (!m_avFilterGraph) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create filter graph";
+        return;
+    }
+
+    auto args = QStringLiteral("width=%1:height=%2:pix_fmt=%3:time_base=1/1000:sar=1").arg(size.width()).arg(size.height()).arg(AV_PIX_FMT_RGBA);
+    auto result = avfilter_graph_create_filter(&m_bufferFilter, avfilter_get_by_name("buffer"), "input", args.toUtf8().data(), nullptr, m_avFilterGraph);
+    if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create buffer input filter";
+        return;
+    }
+
+    result = avfilter_graph_create_filter(&m_formatFilter, avfilter_get_by_name("format"), "format", "pix_fmts=yuv420p", nullptr, m_avFilterGraph);
+    if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create format filter";
+        return;
+    }
+
+    result = avfilter_graph_create_filter(&m_outputFilter, avfilter_get_by_name("buffersink"), "output", nullptr, nullptr, m_avFilterGraph);
+    if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create buffer output filter";
+        return;
+    }
+    result = avfilter_link(m_bufferFilter, 0, m_formatFilter, 0);
+    if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed linking filters";
+        return;
+    }
+    result = avfilter_link(m_formatFilter, 0, m_outputFilter, 0);
+    if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed linking filters";
+        return;
+    }
+    result = avfilter_graph_config(m_avFilterGraph, nullptr);
+    if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed configuring filter graph";
         return;
     }
 
@@ -307,30 +350,22 @@ void PipeWireReceiveEncoded::addFrame()
         if (remaining == 0) {
             break;
         }
-        if (!sws_context || m_lastReceivedSize != frame.image.size()) {
-            sws_context = sws_getCachedContext(sws_context,
-                                               frame.image.width(),
-                                               frame.image.height(),
-                                               convertQImageFormatToAVPixelFormat(frame.image.format()),
-                                               m_avCodecContext->width,
-                                               m_avCodecContext->height,
-                                               m_avCodecContext->pix_fmt,
-                                               0,
-                                               nullptr,
-                                               nullptr,
-                                               nullptr);
-        }
-        m_lastReceivedSize = frame.image.size();
+
+        auto image = frame.image;
 
         CustomAVFrame avFrame;
-        int ret = avFrame.alloc(m_avCodecContext->width, m_avCodecContext->height, m_avCodecContext->pix_fmt);
-        if (ret < 0) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate raw picture buffer" << av_err2str(ret);
-            return;
-        }
-        const std::uint8_t *buffers[] = {frame.image.constBits(), nullptr};
-        const int strides[] = {static_cast<int>(frame.image.bytesPerLine()), 0, 0, 0};
-        sws_scale(sws_context, buffers, strides, 0, m_avCodecContext->height, avFrame.m_avFrame->data, avFrame.m_avFrame->linesize);
+        int ret = avFrame.alloc(m_avCodecContext->width, m_avCodecContext->height, convertQImageFormatToAVPixelFormat(image.format()));
+
+        const std::uint8_t *buffers[] = {image.constBits(), nullptr};
+        const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
+
+        av_image_copy(avFrame.m_avFrame->data,
+                      avFrame.m_avFrame->linesize,
+                      buffers,
+                      strides,
+                      convertQImageFormatToAVPixelFormat(image.format()),
+                      m_avCodecContext->width,
+                      m_avCodecContext->height);
 
         avFrame.m_avFrame->pts = m_produce->framePts(frame.presentationTimestamp);
 
@@ -346,22 +381,37 @@ void PipeWireReceiveEncoded::addFrame()
         }
         m_lastPts = avFrame.m_avFrame->pts;
 
-        ret = avcodec_send_frame(m_avCodecContext, avFrame.m_avFrame);
-        if (ret < 0) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
-            return;
+        if (auto result = av_buffersrc_add_frame(m_produce->m_bufferFilter, avFrame.m_avFrame); result < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to submit frame for filtering";
+            continue;
         }
         for (;;) {
-            ret = avcodec_receive_packet(m_avCodecContext, m_packet);
-            if (ret < 0) {
+            auto frame = av_frame_alloc();
+            if (auto result = av_buffersink_get_frame(m_produce->m_outputFilter, frame); result < 0) {
                 if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-                    qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
+                    qCWarning(PIPEWIRERECORD_LOGGING) << "Failed receiving filtered frame:" << av_err2str(result);
                 }
                 break;
             }
 
-            m_produce->processPacket(m_packet);
-            av_packet_unref(m_packet);
+            ret = avcodec_send_frame(m_avCodecContext, frame);
+            if (ret < 0) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
+                return;
+            }
+            av_frame_unref(frame);
+            for (;;) {
+                ret = avcodec_receive_packet(m_avCodecContext, m_packet);
+                if (ret < 0) {
+                    if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
+                        qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
+                    }
+                    break;
+                }
+
+                m_produce->processPacket(m_packet);
+                av_packet_unref(m_packet);
+            }
         }
     }
     m_produce->m_processing = false;

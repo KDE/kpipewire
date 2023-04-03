@@ -132,7 +132,7 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
 )
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
-    PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::GBM PkgConfig::SWScale
+    PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::AVFilter PkgConfig::GBM PkgConfig::SWScale
     epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
 )
 

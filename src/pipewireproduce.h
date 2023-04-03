@@ -36,6 +36,10 @@ struct AVCodec;
 struct AVCodecContext;
 struct AVFrame;
 struct AVPacket;
+
+struct AVFilterContext;
+struct AVFilterGraph;
+
 class CustomAVFrame;
 class PipeWireReceiveEncodedThread;
 
@@ -107,6 +111,11 @@ public:
     QAtomicInt m_processing = false;
     void enqueueFrame(const PipeWireRecordFrame &frame);
     PipeWireRecordFrame dequeueFrame(int *remaining);
+
+    AVFilterGraph *m_avFilterGraph;
+    AVFilterContext *m_bufferFilter;
+    AVFilterContext *m_formatFilter;
+    AVFilterContext *m_outputFilter;
 
 Q_SIGNALS:
     void producedFrames();
