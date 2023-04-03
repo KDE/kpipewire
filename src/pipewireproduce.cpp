@@ -194,8 +194,8 @@ void PipeWireProduce::setupStream()
         return;
     }
     // const QSize size = m_stream->size();
-    m_avCodecContext->bit_rate = size.width() * size.height() * 2;
-    // m_avCodecContext->bit_rate = 0;
+    // m_avCodecContext->bit_rate = size.width() * size.height() * 2;
+    m_avCodecContext->bit_rate = 0;
 
     Q_ASSERT(!size.isEmpty());
     m_avCodecContext->width = size.width();
@@ -214,7 +214,6 @@ void PipeWireProduce::setupStream()
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
     av_dict_set(&options, "deadline", "realtime", 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
     // In theory a lower number should be faster, but the opposite seems to be true
     av_dict_set(&options, "quality", "40", 0);
     av_dict_set(&options, "cpu-used", "6", 0);
@@ -222,7 +221,9 @@ void PipeWireProduce::setupStream()
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
-    // av_dict_set(&options, "crf", "50", 0);
+
+    av_dict_set(&options, "qp", "38", 0);
+    av_dict_set(&options, "rc_mode", "CQP", 0);
 
     AVBufferRef *hw_device_ctx = NULL;
     int err = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
