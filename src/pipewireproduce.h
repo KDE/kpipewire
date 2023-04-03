@@ -10,10 +10,13 @@
 #include <epoxy/egl.h>
 
 extern "C" {
+#include <libavfilter/avfilter.h>
 #include <pipewire/pipewire.h>
 #include <spa/param/format-utils.h>
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
+#include <va/va.h>
+#include <va/va_drm.h>
 }
 
 #include <QFile>
@@ -116,6 +119,10 @@ public:
     AVFilterContext *m_bufferFilter;
     AVFilterContext *m_formatFilter;
     AVFilterContext *m_outputFilter;
+
+    VADisplay m_vaDisplay;
+    VAContextID m_vaContext;
+    VASurfaceID m_vaSurface;
 
 Q_SIGNALS:
     void producedFrames();

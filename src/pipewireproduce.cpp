@@ -11,6 +11,7 @@
 #include <logging_record.h>
 
 extern "C" {
+#include <fcntl.h>
 #include <libavcodec/avcodec.h>
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersink.h>
@@ -101,8 +102,83 @@ PipeWireProduce::~PipeWireProduce()
     }
 }
 
+static int setHwframeCtx(AVCodecContext *ctx, AVBufferRef *hw_device_ctx, const QSize &size)
+{
+    AVBufferRef *hw_frames_ref;
+    AVHWFramesContext *frames_ctx = NULL;
+    int err = 0;
+
+    if (!(hw_frames_ref = av_hwframe_ctx_alloc(hw_device_ctx))) {
+        fprintf(stderr, "Failed to create VAAPI frame context.\n");
+        return -1;
+    }
+    frames_ctx = (AVHWFramesContext *)(hw_frames_ref->data);
+    frames_ctx->format = AV_PIX_FMT_VAAPI;
+    frames_ctx->sw_format = AV_PIX_FMT_NV12;
+    frames_ctx->width = size.width();
+    frames_ctx->height = size.height();
+    frames_ctx->initial_pool_size = 20;
+    if ((err = av_hwframe_ctx_init(hw_frames_ref)) < 0) {
+        fprintf(stderr,
+                "Failed to initialize VAAPI frame context."
+                "Error code: %s\n",
+                av_err2str(err));
+        av_buffer_unref(&hw_frames_ref);
+        return err;
+    }
+    ctx->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
+    if (!ctx->hw_frames_ctx) {
+        err = AVERROR(ENOMEM);
+    }
+
+    av_buffer_unref(&hw_frames_ref);
+    return err;
+}
+
 void PipeWireProduce::setupStream()
 {
+    // VAContextID va_context;
+    // VASurfaceID va_surface;
+    VAConfigID va_config;
+    VAStatus va_status;
+    int major, minor;
+    // Initialize VA-API
+    int fd = open("/dev/dri/renderD128", O_RDWR);
+    if (fd < 0) {
+        fprintf(stderr, "VAAPI: error opening /dev/dri/renderD128");
+    }
+    m_vaDisplay = vaGetDisplayDRM(fd);
+    if (!m_vaDisplay) {
+        fprintf(stderr, "VAAPI: Failed to initialize DRM display");
+        return;
+    }
+    va_status = vaInitialize(m_vaDisplay, &major, &minor);
+    if (va_status != VA_STATUS_SUCCESS) {
+        fprintf(stderr, "Error initializing VA-API\n");
+        return;
+    }
+
+    // Create VA-API surface
+    va_status = vaCreateConfig(m_vaDisplay, VAProfileH264High, VAEntrypointEncSlice, NULL, 0, &va_config);
+    if (va_status != VA_STATUS_SUCCESS) {
+        fprintf(stderr, "Error creating VA-API config\n");
+        return;
+    }
+
+    const QSize size = m_stream->size();
+
+    va_status = vaCreateContext(m_vaDisplay, va_config, size.width(), size.height(), VA_PROGRESSIVE, NULL, 0, &m_vaContext);
+    if (va_status != VA_STATUS_SUCCESS) {
+        fprintf(stderr, "Error creating VA-API context\n");
+        return;
+    }
+
+    va_status = vaCreateSurfaces(m_vaDisplay, VA_RT_FORMAT_YUV420, size.width(), size.height(), &m_vaSurface, 1, NULL, 0);
+    if (va_status != VA_STATUS_SUCCESS) {
+        fprintf(stderr, "Error creating VA-API surface\n");
+        return;
+    }
+
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
     disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
 
@@ -117,18 +193,19 @@ void PipeWireProduce::setupStream()
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate video codec context";
         return;
     }
-    const QSize size = m_stream->size();
+    // const QSize size = m_stream->size();
     m_avCodecContext->bit_rate = size.width() * size.height() * 2;
+    // m_avCodecContext->bit_rate = 0;
 
     Q_ASSERT(!size.isEmpty());
     m_avCodecContext->width = size.width();
     m_avCodecContext->height = size.height();
     m_avCodecContext->max_b_frames = 1;
-    m_avCodecContext->gop_size = 100;
+    m_avCodecContext->gop_size = 25;
     if (m_codec->pix_fmts && m_codec->pix_fmts[0] > 0) {
         m_avCodecContext->pix_fmt = m_codec->pix_fmts[0];
     } else {
-        m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
+        m_avCodecContext->pix_fmt = AV_PIX_FMT_VAAPI;
     }
     m_avCodecContext->time_base = AVRational{1, 1000};
 
@@ -145,6 +222,19 @@ void PipeWireProduce::setupStream()
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
+    // av_dict_set(&options, "crf", "50", 0);
+
+    AVBufferRef *hw_device_ctx = NULL;
+    int err = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
+    if (err < 0) {
+        fprintf(stderr, "Failed to create a VAAPI device. Error code: %s\n", av_err2str(err));
+        return;
+    }
+
+    if ((err = setHwframeCtx(m_avCodecContext, hw_device_ctx, size)) < 0) {
+        fprintf(stderr, "Failed to set hwframe context.\n");
+        return;
+    }
 
     int ret = avcodec_open2(m_avCodecContext, m_codec, &options);
     if (ret < 0) {
@@ -158,7 +248,7 @@ void PipeWireProduce::setupStream()
         return;
     }
 
-    auto args = QStringLiteral("width=%1:height=%2:pix_fmt=%3:time_base=1/1000:sar=1").arg(size.width()).arg(size.height()).arg(AV_PIX_FMT_RGBA);
+    /*auto args = QStringLiteral("width=%1:height=%2:pix_fmt=%3:time_base=1/1000:sar=1").arg(size.width()).arg(size.height()).arg(AV_PIX_FMT_RGBA);
     auto result = avfilter_graph_create_filter(&m_bufferFilter, avfilter_get_by_name("buffer"), "input", args.toUtf8().data(), nullptr, m_avFilterGraph);
     if (result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create buffer input filter";
@@ -177,6 +267,7 @@ void PipeWireProduce::setupStream()
         return;
     }
     result = avfilter_link(m_bufferFilter, 0, m_formatFilter, 0);
+
     if (result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed linking filters";
         return;
@@ -188,6 +279,66 @@ void PipeWireProduce::setupStream()
     }
     result = avfilter_graph_config(m_avFilterGraph, nullptr);
     if (result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed configuring filter graph";
+        return;
+    }*/
+
+    AVFilterInOut *inputs = nullptr;
+    AVFilterInOut *outputs = nullptr;
+    m_avFilterGraph = avfilter_graph_alloc();
+    assert(avfilter_graph_parse2(m_avFilterGraph, "format=nv12,hwupload", &inputs, &outputs) == 0);
+
+    for (unsigned i = 0; i < m_avFilterGraph->nb_filters; i++) {
+        m_avFilterGraph->filters[i]->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+        assert(m_avFilterGraph->filters[i]->hw_device_ctx != nullptr);
+    }
+
+    char args[512];
+    snprintf(args,
+             sizeof(args),
+             "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+             size.width(),
+             size.height(),
+             AV_PIX_FMT_YUV420P,
+             1,
+             m_stream->framerate().numerator,
+             1,
+             1);
+
+    if (ret = avfilter_graph_create_filter(&m_bufferFilter, avfilter_get_by_name("buffer"), "in", args, nullptr, m_avFilterGraph) < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create the buffer filter";
+        return;
+    }
+    ret = avfilter_link(m_bufferFilter, 0, inputs->filter_ctx, inputs->pad_idx);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed linking filters";
+        return;
+    }
+
+    ret = avfilter_graph_create_filter(&m_outputFilter, avfilter_get_by_name("buffersink"), "out", nullptr, nullptr, m_avFilterGraph);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create buffer output filter";
+        return;
+    }
+    ret = avfilter_graph_create_filter(&m_formatFilter, avfilter_get_by_name("format"), "format", "vaapi_vld", nullptr, m_avFilterGraph);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create format filter";
+        return;
+    }
+
+    ret = avfilter_link(outputs->filter_ctx, outputs->pad_idx, m_formatFilter, 0);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed linking filters";
+        return;
+    }
+    ret = avfilter_link(m_formatFilter, 0, m_outputFilter, 0);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed linking filters";
+        return;
+    }
+
+    ret = avfilter_graph_config(m_avFilterGraph, nullptr);
+    if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed configuring filter graph";
         return;
     }

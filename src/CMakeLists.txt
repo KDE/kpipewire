@@ -57,7 +57,7 @@ target_sources(KPipeWire PRIVATE
 target_compile_options(KPipeWire PUBLIC -Wno-gnu-statement-expression-from-macro-expansion -Wno-zero-as-null-pointer-constant -Wno-c99-extensions -Wno-cast-align)
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
-    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM)
+    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM -lva -ldrm)
 
 if (QT_MAJOR_VERSION EQUAL "5")
     target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)
@@ -99,7 +99,7 @@ install(FILES
 add_library(KPipeWireDmaBuf dmabufhandler.cpp ${kpipewiredmabuf_SRCS})
 target_link_libraries(KPipeWireDmaBuf PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui PkgConfig::GBM
-    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
+    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate -lva -ldrm
 )
 
 set_target_properties(KPipeWireDmaBuf PROPERTIES
@@ -133,7 +133,7 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::AVFilter PkgConfig::GBM PkgConfig::SWScale
-    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
+    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate va -lva-drm
 )
 
 target_compile_definitions(KPipeWireRecord INTERFACE -DKPW_WITH_SUGGESTED=1)
