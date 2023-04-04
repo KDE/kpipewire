@@ -117,6 +117,10 @@ PipeWireRecord::~PipeWireRecord()
     if (d->m_fd) {
         close(*d->m_fd);
     }
+
+    if (d->m_recordThread) {
+        d->m_recordThread->wait();
+    }
 }
 
 PipeWireRecord::State PipeWireRecord::state() const
