@@ -328,6 +328,9 @@ void PipeWireSourceItem::processFrame(const PipeWireFrame &frame)
             d->m_cursor.dirty = true;
             d->m_cursor.texture = frame.cursor->texture;
         }
+    } else {
+        d->m_cursor.position = std::nullopt;
+        d->m_cursor.hotspot = {};
     }
 
     if (frame.dmabuf) {
