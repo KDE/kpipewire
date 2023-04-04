@@ -477,7 +477,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         }
     }
 
-    if (spaBuffer->datas->chunk->size == 0) {
+    if (spaBuffer->datas->chunk->size == 0 || spaBuffer->datas->chunk->flags == SPA_CHUNK_FLAG_CORRUPTED) {
         // do not get a frame
     } else if (spaBuffer->datas->type == SPA_DATA_MemFd) {
         if (spaBuffer->datas->chunk->size == 0)
