@@ -22,6 +22,7 @@
 using namespace Qt::StringLiterals;
 
 static bool s_encodedStream = false;
+static std::optional<Fraction> s_framerate;
 static std::optional<QByteArray> s_encoder;
 static Screencasting::CursorMode s_cursorMode = Screencasting::Embedded;
 
@@ -37,6 +38,9 @@ void createStream(int nodeId, std::optional<int> fd = {})
         encoded->setNodeId(nodeId);
         if (fd) {
             encoded->setFd(*fd);
+        }
+        if (s_framerate) {
+            encoded->setMaxFramerate(*s_framerate);
         }
         if (s_encoder) {
             encoded->setEncoder(*s_encoder);
@@ -56,6 +60,9 @@ void createStream(int nodeId, std::optional<int> fd = {})
     }
     auto pwStream = new PipeWireSourceStream(qGuiApp);
     pwStream->setAllowDmaBuf(false);
+    if (s_framerate) {
+        pwStream->setMaxFramerate(*s_framerate);
+    }
     if (!pwStream->createStream(nodeId, 0)) {
         qWarning() << "failed!" << pwStream->error();
         exit(1);
@@ -479,6 +486,10 @@ int main(int argc, char **argv)
                                          u"encoding"_s,
                                          u"libvpx"_s);
         parser.addOption(streamEncoder);
+        QCommandLineOption streamFramerate(QStringLiteral("framerate"),
+                                           QStringLiteral("Makes sure a framerate is requested (format 30/1 would mean 30fps)"),
+                                           QStringLiteral("num/denom"));
+        parser.addOption(streamFramerate);
         parser.addOption(cursorOption);
         parser.addHelpOption();
         parser.process(app);
@@ -487,6 +498,14 @@ int main(int argc, char **argv)
         s_encodedStream = parser.isSet(encodedStream);
         if (parser.isSet(streamEncoder)) {
             s_encoder = parser.value(streamEncoder).toUtf8();
+        }
+        if (parser.isSet(streamFramerate)) {
+            const auto framerateString = parser.value(streamFramerate).split(u'/');
+            if (framerateString.count() != 2) {
+                qWarning() << "wrong framerate" << framerateString;
+                return 1;
+            }
+            s_framerate = {framerateString.constFirst().toUInt(), framerateString.constLast().toUInt()};
         }
 
         if (parser.isSet(useXdpRD)) {

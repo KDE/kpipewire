@@ -71,8 +71,8 @@ struct KPIPEWIRE_EXPORT PipeWireFrame {
 };
 
 struct Fraction {
-    const quint32 numerator;
-    const quint32 denominator;
+    quint32 numerator;
+    quint32 denominator;
 };
 
 KPIPEWIRE_EXPORT QImage::Format SpaToQImageFormat(quint32 /*spa_video_format*/ format);
@@ -87,6 +87,7 @@ public:
     ~PipeWireSourceStream();
 
     Fraction framerate() const;
+    void setMaxFramerate(const Fraction &framerate);
     uint nodeId();
     QString error() const;
 

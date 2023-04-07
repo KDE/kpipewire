@@ -53,7 +53,7 @@ class PipeWireProduce : public QObject
 {
     Q_OBJECT
 public:
-    PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd);
+    PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate);
     ~PipeWireProduce() override;
 
     QString error() const
@@ -173,6 +173,7 @@ private:
 struct PipeWireEncodedStreamPrivate {
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
+    std::optional<Fraction> m_maxFramerate;
     bool m_active = false;
     QByteArray m_encoder;
     std::unique_ptr<PipeWireProduceThread> m_recordThread;

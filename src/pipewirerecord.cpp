@@ -87,8 +87,8 @@ QString PipeWireRecord::extension() const
     return s_extensions.value(PipeWireBaseEncodedStream::d->m_encoder, QStringLiteral("mkv"));
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const QString &output)
-    : PipeWireProduce(encoder, nodeId, fd)
+PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate, const QString &output)
+    : PipeWireProduce(encoder, nodeId, fd, framerate)
     , m_output(output)
 {
 }
@@ -178,6 +178,7 @@ PipeWireProduce *PipeWireRecord::createThread()
     return new PipeWireRecordProduce(PipeWireBaseEncodedStream::d->m_encoder,
                                      PipeWireBaseEncodedStream::d->m_nodeId,
                                      PipeWireBaseEncodedStream::d->m_fd.value_or(0),
+                                     PipeWireBaseEncodedStream::d->m_maxFramerate,
                                      d->m_output);
 }
 

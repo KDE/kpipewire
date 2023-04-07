@@ -41,8 +41,12 @@ bool PipeWireEncodedStream::Packet::isKeyFrame() const
     return d->isKey;
 }
 
-PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder, uint nodeId, uint fd, PipeWireEncodedStream *stream)
-    : PipeWireProduce(encoder, nodeId, fd)
+PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder,
+                                             uint nodeId,
+                                             uint fd,
+                                             const std::optional<Fraction> &framerate,
+                                             PipeWireEncodedStream *stream)
+    : PipeWireProduce(encoder, nodeId, fd, framerate)
     , m_encodedStream(stream)
 {
 }
@@ -82,6 +86,7 @@ PipeWireProduce *PipeWireEncodedStream::createThread()
     auto produce = new PipeWireEncodeProduce(PipeWireBaseEncodedStream::d->m_encoder,
                                              PipeWireBaseEncodedStream::d->m_nodeId,
                                              PipeWireBaseEncodedStream::d->m_fd.value_or(0),
+                                             PipeWireBaseEncodedStream::d->m_maxFramerate,
                                              this);
     connect(produce, &PipeWireEncodeProduce::newPacket, this, &PipeWireEncodedStream::newPacket);
     return produce;

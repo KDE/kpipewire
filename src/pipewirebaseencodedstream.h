@@ -10,6 +10,7 @@
 
 #include <kpipewire_export.h>
 
+struct Fraction;
 struct PipeWireEncodedStreamPrivate;
 class PipeWireProduce;
 
@@ -37,6 +38,8 @@ public:
 
     void setFd(uint fd);
     uint fd() const;
+
+    void setMaxFramerate(const Fraction &framerate);
 
     bool isActive() const;
     void setActive(bool active);

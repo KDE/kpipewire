@@ -71,7 +71,7 @@ static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
     }
 }
 
-PipeWireProduce::PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd)
+PipeWireProduce::PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate)
     : QObject()
     , m_nodeId(nodeId)
     , m_encoder(encoder)
@@ -80,6 +80,9 @@ PipeWireProduce::PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd
     qRegisterMetaType<std::optional<std::chrono::nanoseconds>>();
 
     m_stream.reset(new PipeWireSourceStream(nullptr));
+    if (framerate) {
+        m_stream->setMaxFramerate(*framerate);
+    }
     bool created = m_stream->createStream(m_nodeId, fd);
     if (!created || !m_stream->error().isEmpty()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "failed to set up stream for" << m_nodeId << m_stream->error();

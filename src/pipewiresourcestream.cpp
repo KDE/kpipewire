@@ -68,6 +68,7 @@ struct PipeWireSourceStreamPrivate
     spa_source *m_renegotiateEvent = nullptr;
 
     bool m_withDamage = false;
+    std::optional<Fraction> maxFramerate;
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
@@ -204,7 +205,11 @@ void PipeWireSourceStream::renegotiateModifierFailed(spa_video_format format, qu
     pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
 }
 
-static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, const QVector<uint64_t> &modifiers, bool withDontFixate)
+static spa_pod *buildFormat(spa_pod_builder *builder,
+                            spa_video_format format,
+                            const QVector<uint64_t> &modifiers,
+                            bool withDontFixate,
+                            const std::optional<Fraction> &requestedMaxFramerate)
 {
     spa_pod_frame f[2];
     const spa_rectangle pw_min_screen_bounds{1, 1};
@@ -215,6 +220,13 @@ static spa_pod *buildFormat(spa_pod_builder *builder, spa_video_format format, c
     spa_pod_builder_add(builder, SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw), 0);
     spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_format, SPA_POD_Id(format), 0);
     spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_size, SPA_POD_CHOICE_RANGE_Rectangle(&pw_min_screen_bounds, &pw_min_screen_bounds, &pw_max_screen_bounds), 0);
+    if (requestedMaxFramerate) {
+        auto defFramerate = SPA_FRACTION(0, 1);
+        auto minFramerate = SPA_FRACTION(1, 1);
+        auto maxFramerate = SPA_FRACTION(requestedMaxFramerate->numerator, requestedMaxFramerate->denominator);
+        spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_framerate, SPA_POD_Fraction(&defFramerate), 0);
+        spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_maxFramerate, SPA_POD_CHOICE_RANGE_Fraction(&maxFramerate, &minFramerate, &maxFramerate), 0);
+    }
 
     if (modifiers.size() == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
         // we only support implicit modifiers, use shortpath to skip fixation phase
@@ -365,6 +377,11 @@ Fraction PipeWireSourceStream::framerate() const
     return {0, 1};
 }
 
+void PipeWireSourceStream::setMaxFramerate(const Fraction &framerate)
+{
+    d->maxFramerate = framerate;
+}
+
 uint PipeWireSourceStream::nodeId()
 {
     return d->pwNodeId;
@@ -398,10 +415,10 @@ QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_build
 
     for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
         if (d->m_allowDmaBuf && !it->isEmpty()) {
-            params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate);
+            params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate, d->maxFramerate);
         }
 
-        params += buildFormat(&podBuilder, it.key(), {}, withDontFixate);
+        params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate);
     }
     return params;
 }
