@@ -89,5 +89,8 @@ PipeWireProduce *PipeWireEncodedStream::createThread()
                                              PipeWireBaseEncodedStream::d->m_maxFramerate,
                                              this);
     connect(produce, &PipeWireEncodeProduce::newPacket, this, &PipeWireEncodedStream::newPacket);
+    connect(this, &PipeWireEncodedStream::maxFramerateChanged, produce, [this, produce]() {
+        produce->setMaxFramerate(maxFramerate());
+    });
     return produce;
 }

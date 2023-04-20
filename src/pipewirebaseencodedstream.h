@@ -39,6 +39,7 @@ public:
     void setFd(uint fd);
     uint fd() const;
 
+    Fraction maxFramerate() const;
     void setMaxFramerate(const Fraction &framerate);
 
     bool isActive() const;
@@ -69,6 +70,7 @@ Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
     void errorFound(const QString &error);
+    void maxFramerateChanged();
     void stateChanged();
     void encoderChanged();
 

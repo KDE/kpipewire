@@ -380,6 +380,10 @@ Fraction PipeWireSourceStream::framerate() const
 void PipeWireSourceStream::setMaxFramerate(const Fraction &framerate)
 {
     d->maxFramerate = framerate;
+
+    if (d->pwStream) {
+        pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
+    }
 }
 
 uint PipeWireSourceStream::nodeId()

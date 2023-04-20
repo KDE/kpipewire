@@ -60,6 +60,10 @@ public:
     {
         return m_error;
     }
+
+    Fraction maxFramerate() const;
+    void setMaxFramerate(const Fraction &framerate);
+
     virtual int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(presentationTimestamp.value()).count();

@@ -101,6 +101,16 @@ PipeWireProduce::~PipeWireProduce()
     }
 }
 
+Fraction PipeWireProduce::maxFramerate() const
+{
+    return m_stream->framerate();
+}
+
+void PipeWireProduce::setMaxFramerate(const Fraction &framerate)
+{
+    m_stream->setMaxFramerate(framerate);
+}
+
 void PipeWireProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
