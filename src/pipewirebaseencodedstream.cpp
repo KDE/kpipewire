@@ -29,7 +29,7 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
     : QObject(parent)
     , d(new PipeWireEncodedStreamPrivate)
 {
-    d->m_encoder = "libvpx";
+    d->m_encoder = Encoder::VP8;
 
     const auto &category = PIPEWIRELIBAV_LOGGING();
     if (category.isDebugEnabled()) {
@@ -127,7 +127,7 @@ void PipeWireBaseEncodedStream::refresh()
     Q_EMIT stateChanged();
 }
 
-void PipeWireBaseEncodedStream::setEncoder(const QByteArray &encoder)
+void PipeWireBaseEncodedStream::setEncoder(Encoder encoder)
 {
     if (d->m_encoder == encoder) {
         return;
@@ -136,7 +136,7 @@ void PipeWireBaseEncodedStream::setEncoder(const QByteArray &encoder)
     Q_EMIT encoderChanged();
 }
 
-QByteArray PipeWireBaseEncodedStream::encoder() const
+PipeWireBaseEncodedStream::Encoder PipeWireBaseEncodedStream::encoder() const
 {
     return d->m_encoder;
 }

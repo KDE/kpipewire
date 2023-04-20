@@ -10,10 +10,13 @@
 #include <epoxy/egl.h>
 
 extern "C" {
+#include <libavfilter/avfilter.h>
 #include <pipewire/pipewire.h>
 #include <spa/param/format-utils.h>
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
+#include <va/va.h>
+#include <va/va_drm.h>
 }
 
 #include <QFile>
@@ -31,11 +34,16 @@ extern "C" {
 #include "dmabufhandler.h"
 #include "pipewirebaseencodedstream.h"
 #include "pipewiresourcestream.h"
+#include "vaapiutils_p.h"
 
 struct AVCodec;
 struct AVCodecContext;
 struct AVFrame;
 struct AVPacket;
+
+struct AVFilterContext;
+struct AVFilterGraph;
+
 class CustomAVFrame;
 class PipeWireReceiveEncodedThread;
 
@@ -53,7 +61,7 @@ class PipeWireProduce : public QObject
 {
     Q_OBJECT
 public:
-    PipeWireProduce(const QByteArray &encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate);
+    PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate);
     ~PipeWireProduce() override;
 
     QString error() const
@@ -94,7 +102,8 @@ public:
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
 
-    const QByteArray m_encoder;
+    PipeWireBaseEncodedStream::Encoder m_encoder;
+    QByteArray m_encoderName;
 
     struct {
         QImage texture;
@@ -112,15 +121,28 @@ public:
     void enqueueFrame(const PipeWireRecordFrame &frame);
     PipeWireRecordFrame dequeueFrame(int *remaining);
 
+    AVFilterGraph *m_avFilterGraph;
+    AVFilterContext *m_bufferFilter;
+    AVFilterContext *m_formatFilter;
+    AVFilterContext *m_outputFilter;
+    AVFilterContext *m_inputFormatFilter;
+    AVFilterContext *m_uploadFilter;
+
+    VaapiUtils m_vaapi;
+
 Q_SIGNALS:
     void producedFrames();
+
+private:
+    void initFiltersVaapi();
+    void initFiltersSoftware();
 };
 
 class PipeWireProduceThread : public QThread
 {
     Q_OBJECT
 public:
-    PipeWireProduceThread(const QByteArray &encoder, uint nodeId, uint fd, PipeWireBaseEncodedStream *base)
+    PipeWireProduceThread(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, PipeWireBaseEncodedStream *base)
         : m_nodeId(nodeId)
         , m_fd(fd)
         , m_encoder(encoder)
@@ -138,7 +160,7 @@ protected:
     const uint m_nodeId;
     const uint m_fd;
     PipeWireProduce *m_producer = nullptr;
-    const QByteArray m_encoder;
+    const PipeWireBaseEncodedStream::Encoder m_encoder;
     PipeWireBaseEncodedStream *const m_base;
 };
 
@@ -179,7 +201,7 @@ struct PipeWireEncodedStreamPrivate {
     std::optional<uint> m_fd;
     std::optional<Fraction> m_maxFramerate;
     bool m_active = false;
-    QByteArray m_encoder;
+    PipeWireBaseEncodedStream::Encoder m_encoder;
     std::unique_ptr<PipeWireProduceThread> m_recordThread;
     bool m_produceThreadFinished = true;
 };

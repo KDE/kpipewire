@@ -80,14 +80,19 @@ QString PipeWireRecord::output() const
 
 QString PipeWireRecord::extension() const
 {
-    static QHash<QByteArray, QString> s_extensions = {
-        {"libx264", QStringLiteral("mp4")},
-        {"libvpx", QStringLiteral("webm")},
+    static QHash<PipeWireBaseEncodedStream::Encoder, QString> s_extensions = {
+        {PipeWireBaseEncodedStream::H264Main, QStringLiteral("mp4")},
+        {PipeWireBaseEncodedStream::H264Baseline, QStringLiteral("mp4")},
+        {PipeWireBaseEncodedStream::VP8, QStringLiteral("webm")},
     };
     return s_extensions.value(PipeWireBaseEncodedStream::d->m_encoder, QStringLiteral("mkv"));
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(const QByteArray &encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate, const QString &output)
+PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder,
+                                             uint nodeId,
+                                             uint fd,
+                                             const std::optional<Fraction> &framerate,
+                                             const QString &output)
     : PipeWireProduce(encoder, nodeId, fd, framerate)
     , m_output(output)
 {

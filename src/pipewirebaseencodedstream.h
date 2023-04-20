@@ -27,9 +27,16 @@ class KPIPEWIRE_EXPORT PipeWireBaseEncodedStream : public QObject
     Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
     Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
-    Q_PROPERTY(QByteArray encoder READ encoder WRITE setEncoder NOTIFY encoderChanged)
+    Q_PROPERTY(Encoder encoder READ encoder WRITE setEncoder NOTIFY encoderChanged)
 
 public:
+    enum Encoder {
+        VP8,
+        H264Main,
+        H264Baseline,
+    };
+    Q_ENUM(Encoder)
+
     PipeWireBaseEncodedStream(QObject *parent = nullptr);
     ~PipeWireBaseEncodedStream() override;
 
@@ -59,8 +66,8 @@ public:
      * They can be inspected using:
      * ffmpeg -encoders | grep "^ V"
      */
-    void setEncoder(const QByteArray &encoder);
-    QByteArray encoder() const;
+    void setEncoder(Encoder encoder);
+    Encoder encoder() const;
 
     /// Returns the encoders that are tested to work, sorted by preference
     QList<QByteArray> suggestedEncoders() const;

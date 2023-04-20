@@ -41,7 +41,7 @@ bool PipeWireEncodedStream::Packet::isKeyFrame() const
     return d->isKey;
 }
 
-PipeWireEncodeProduce::PipeWireEncodeProduce(const QByteArray &encoder,
+PipeWireEncodeProduce::PipeWireEncodeProduce(PipeWireBaseEncodedStream::Encoder encoder,
                                              uint nodeId,
                                              uint fd,
                                              const std::optional<Fraction> &framerate,

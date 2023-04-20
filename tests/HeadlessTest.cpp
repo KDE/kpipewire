@@ -43,7 +43,15 @@ void createStream(int nodeId, std::optional<int> fd = {})
             encoded->setMaxFramerate(*s_framerate);
         }
         if (s_encoder) {
-            encoded->setEncoder(*s_encoder);
+            PipeWireBaseEncodedStream::Encoder enc;
+            if (s_encoder.value() == QByteArray("H264Main")) {
+                enc = PipeWireBaseEncodedStream::H264Main;
+            } else if (s_encoder.value() == QByteArray("H264Baseline")) {
+                enc = PipeWireBaseEncodedStream::H264Baseline;
+            } else if (s_encoder.value() == QByteArray("VP8")) {
+                enc = PipeWireBaseEncodedStream::VP8;
+            }
+            encoded->setEncoder(enc);
         }
         encoded->setActive(true);
         QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const PipeWireEncodedStream::Packet &packet) {
