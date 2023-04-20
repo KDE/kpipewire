@@ -38,7 +38,7 @@ find_package(Libdrm 2.4.62 REQUIRED)
 pkg_check_modules(LIBVA IMPORTED_TARGET libva)
 pkg_check_modules(LIBVA-drm IMPORTED_TARGET libva-drm)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # add clang-format target for all our real source files
