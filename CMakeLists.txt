@@ -14,8 +14,7 @@ include(KDEGitCommitHooks)
 include(ECMQtDeclareLoggingCategory)
 
 find_package(Qt${QT_MAJOR_VERSION} REQUIRED COMPONENTS DBus Quick WaylandClient)
-find_package(KF6 REQUIRED COMPONENTS Wayland I18n CoreAddons)
-find_package(Wayland REQUIRED COMPONENTS Client)
+find_package(KF6 REQUIRED COMPONENTS I18n CoreAddons)
 
 find_package(PlasmaWaylandProtocols REQUIRED)
 if (QT_MAJOR_VERSION EQUAL "5")

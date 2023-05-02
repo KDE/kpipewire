@@ -1,3 +1,6 @@
+find_package(KF6 REQUIRED COMPONENTS Wayland)
+find_package(Wayland REQUIRED COMPONENTS Client)
+
 add_library(PipeWireScreencastingTest STATIC screencasting.cpp screencastingrequest.cpp)
 
 qt_add_dbus_interface(
