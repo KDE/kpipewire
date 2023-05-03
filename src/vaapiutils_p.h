@@ -24,12 +24,14 @@ public:
     VaapiUtils();
     ~VaapiUtils();
 
+    void init(const QSize &size);
+
     bool isValid() const;
 
     AVBufferRef *drmContext() const;
     AVBufferRef *drmFramesContext() const;
 
-    void init(const QSize &size);
+    bool supportsProfile(VAProfile profile);
 
 private:
     static VADisplay openDevice(int *fd, const QByteArray &path);
@@ -39,9 +41,6 @@ private:
     static uint32_t rateControlForProfile(VAProfile profile, VAEntrypoint entrypoint, VADisplay dpy, const QByteArray &path);
 
     QByteArray m_devicePath;
-    VADisplay m_vaDisplay;
-    VAContextID m_vaContext;
-    VASurfaceID m_vaSurface;
 
     AVBufferRef *m_drmContext = nullptr;
     AVBufferRef *m_drmFramesContext = nullptr;

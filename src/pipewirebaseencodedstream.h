@@ -70,7 +70,7 @@ public:
     Encoder encoder() const;
 
     /// Returns the encoders that are tested to work, sorted by preference
-    QList<QByteArray> suggestedEncoders() const;
+    QList<PipeWireBaseEncodedStream::Encoder> suggestedEncoders() const;
 
 Q_SIGNALS:
     void activeChanged(bool active);

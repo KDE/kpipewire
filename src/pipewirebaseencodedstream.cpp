@@ -141,11 +141,32 @@ PipeWireBaseEncodedStream::Encoder PipeWireBaseEncodedStream::encoder() const
     return d->m_encoder;
 }
 
-QList<QByteArray> PipeWireBaseEncodedStream::suggestedEncoders() const
+QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEncoders() const
 {
-    QList<QByteArray> ret = {"libvpx", "libx264"};
-    std::remove_if(ret.begin(), ret.end(), [](const QByteArray &encoder) {
-        return !avcodec_find_encoder_by_name(encoder.constData());
+    VaapiUtils vaapi;
+
+    QList<PipeWireBaseEncodedStream::Encoder> ret = {PipeWireBaseEncodedStream::VP8,
+                                                     PipeWireBaseEncodedStream::H264Main,
+                                                     PipeWireBaseEncodedStream::H264Baseline};
+    std::remove_if(ret.begin(), ret.end(), [&vaapi](PipeWireBaseEncodedStream::Encoder &encoder) {
+        switch (encoder) {
+        case PipeWireBaseEncodedStream::VP8:
+            if (vaapi.supportsProfile(VAProfileVP8Version0_3) && avcodec_find_encoder_by_name("vp8_vaapi")) {
+                return false;
+            } else {
+                return !avcodec_find_encoder_by_name("libvpx");
+            }
+        case PipeWireBaseEncodedStream::H264Main:
+        case PipeWireBaseEncodedStream::H264Baseline:
+            if (vaapi.supportsProfile(encoder == PipeWireBaseEncodedStream::H264Main ? VAProfileH264Main : VAProfileH264ConstrainedBaseline)
+                && avcodec_find_encoder_by_name("h264_vaapi")) {
+                return false;
+            } else {
+                return !avcodec_find_encoder_by_name("libx264");
+            }
+        default:
+            return true;
+        }
     });
     return ret;
 }

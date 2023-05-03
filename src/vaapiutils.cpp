@@ -69,6 +69,27 @@ bool VaapiUtils::isValid() const
     return !m_devicePath.isEmpty() && m_drmContext != nullptr && m_drmFramesContext != nullptr;
 }
 
+bool VaapiUtils::supportsProfile(VAProfile profile)
+{
+    if (m_devicePath.isEmpty()) {
+        return false;
+    }
+    bool ret = false;
+
+    int drmFd = -1;
+
+    VADisplay vaDpy = openDevice(&drmFd, m_devicePath);
+    if (!vaDpy) {
+        return false;
+    }
+
+    ret = supportsProfile(profile, vaDpy, m_devicePath);
+
+    closeDevice(&drmFd, vaDpy);
+
+    return ret;
+}
+
 bool VaapiUtils::supportsH264(const QByteArray &path) const
 {
     if (path.isEmpty()) {
