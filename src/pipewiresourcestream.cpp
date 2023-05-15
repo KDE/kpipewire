@@ -121,12 +121,20 @@ static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDispla
         return ret;
     }
 
+    qDebug() << "fallback mods = " << mods;
+
     for (spa_video_format format : formats) {
+        qDebug() << "***************************************";
+
+        qDebug() << "looking for SPA format " << format;
+
         uint32_t drm_format = PipeWireSourceStream::spaVideoFormatToDrmFormat(format);
         if (drm_format == DRM_FORMAT_INVALID) {
             qCDebug(PIPEWIRE_LOGGING) << "Failed to find matching DRM format." << format;
             break;
         }
+
+        qDebug() << "Matched to DRM format " << drm_format;
 
         if (std::find(drmFormats.begin(), drmFormats.end(), drm_format) == drmFormats.end()) {
             qCDebug(PIPEWIRE_LOGGING) << "Format " << drm_format << " not supported for modifiers.";
@@ -150,6 +158,8 @@ static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDispla
 
         // Support modifier-less buffers
         modifiers.push_back(DRM_FORMAT_MOD_INVALID);
+
+        qDebug() << "setting formats to " << modifiers;
         ret[format] = modifiers;
     }
     return ret;
