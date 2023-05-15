@@ -223,6 +223,7 @@ bool VaapiUtils::supportsProfile(VAProfile profile, VADisplay dpy, const QByteAr
         return true;
     } else {
         ret = rateControlForProfile(profile, VAEntrypointEncSliceLP, dpy, path);
+
         if (ret & VA_RC_CBR || ret & VA_RC_CQP || ret & VA_RC_VBR) {
             return true;
         }
@@ -243,10 +244,10 @@ uint32_t VaapiUtils::rateControlForProfile(VAProfile profile, VAEntrypoint entry
     case VA_STATUS_SUCCESS:
         return attrib->value;
     case VA_STATUS_ERROR_UNSUPPORTED_PROFILE:
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI:" << profile << "is not supported by the device" << path;
+        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: profile" << profile << "is not supported by the device" << path;
         return 0;
     case VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT:
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI:" << profile << "is not supported by the device" << path;
+        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: entrypoint" << entrypoint << "of profile" << profile << "is not supported by the device" << path;
         return 0;
     default:
         qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Fail to get RC attribute from the" << profile << entrypoint << "of the device" << path;
