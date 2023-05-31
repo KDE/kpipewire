@@ -552,16 +552,19 @@ void PipeWireReceiveEncodedThread::run()
     PipeWireReceiveEncoded writer(m_produce, m_avCodecContext);
     QThread::exec();
 
-    AVPacket pkt;
+    auto pkt = av_packet_alloc();
     avcodec_send_frame(m_avCodecContext, nullptr);
 
     for (;;) {
-        if (avcodec_receive_packet(m_avCodecContext, &pkt) < 0)
+        if (avcodec_receive_packet(m_avCodecContext, pkt) < 0) {
             break;
+        }
 
-        m_produce->processPacket(&pkt);
-        av_packet_unref(&pkt);
+        m_produce->processPacket(pkt);
+        av_packet_unref(pkt);
     }
+
+    av_packet_free(&pkt);
 }
 
 void PipeWireReceiveEncoded::addFrame()
