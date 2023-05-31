@@ -96,6 +96,8 @@ public:
         Q_UNUSED(frame);
     }
 
+    void deactivate();
+
     AVCodecContext *m_avCodecContext = nullptr;
     const AVCodec *m_codec = nullptr;
     const uint m_nodeId;

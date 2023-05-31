@@ -368,8 +368,7 @@ void PipeWireProduceThread::run()
 void PipeWireProduceThread::deactivate()
 {
     if (m_producer) {
-        m_producer->m_deactivated = true;
-        m_producer->m_stream->setActive(false);
+        QMetaObject::invokeMethod(m_producer, &PipeWireProduce::deactivate, Qt::QueuedConnection);
     }
 }
 
@@ -518,6 +517,12 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
     cleanup();
     QThread::currentThread()->quit();
+}
+
+void PipeWireProduce::deactivate()
+{
+    m_deactivated = true;
+    m_stream->setActive(false);
 }
 
 PipeWireReceiveEncodedThread::PipeWireReceiveEncodedThread(PipeWireProduce *produce, AVCodecContext *avCodecContext)
