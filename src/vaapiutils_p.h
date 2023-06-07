@@ -37,6 +37,7 @@ private:
     static VADisplay openDevice(int *fd, const QByteArray &path);
     static void closeDevice(int *fd, VADisplay dpy);
     bool supportsH264(const QByteArray &path) const;
+    void querySizeConstraints(VADisplay dpy) const;
     static bool supportsProfile(VAProfile profile, VADisplay dpy, const QByteArray &path);
     static uint32_t rateControlForProfile(VAProfile profile, VAEntrypoint entrypoint, VADisplay dpy, const QByteArray &path);
 
@@ -44,4 +45,7 @@ private:
 
     AVBufferRef *m_drmContext = nullptr;
     AVBufferRef *m_drmFramesContext = nullptr;
+
+    mutable QSize m_minSize;
+    mutable QSize m_maxSize = QSize{std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
 };

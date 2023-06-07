@@ -107,6 +107,8 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
     ret = supportsProfile(VAProfileH264ConstrainedBaseline, vaDpy, path) || supportsProfile(VAProfileH264Main, vaDpy, path)
         || supportsProfile(VAProfileH264High, vaDpy, path);
 
+    querySizeConstraints(vaDpy);
+
     closeDevice(&drmFd, vaDpy);
 
     return ret;
@@ -133,6 +135,16 @@ void VaapiUtils::init(const QSize &size)
     }
     if (m_drmFramesContext) {
         av_buffer_unref(&m_drmFramesContext);
+    }
+
+    if (size.width() < m_minSize.width() || size.height() < m_minSize.height()) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "less than minimum supported hardware size" << m_minSize;
+        return;
+    }
+
+    if (size.width() > m_maxSize.width() || size.height() > m_maxSize.height()) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "exceeds maximum supported hardware size" << m_maxSize;
+        return;
     }
 
     int err = av_hwdevice_ctx_create(&m_drmContext, AV_HWDEVICE_TYPE_DRM, m_devicePath.data(), NULL, AV_HWFRAME_MAP_READ);
@@ -253,4 +265,39 @@ uint32_t VaapiUtils::rateControlForProfile(VAProfile profile, VAEntrypoint entry
         qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Fail to get RC attribute from the" << profile << entrypoint << "of the device" << path;
         return 0;
     }
+}
+
+void VaapiUtils::querySizeConstraints(VADisplay dpy) const
+{
+    VAConfigID config;
+    if (auto status = vaCreateConfig(dpy, VAProfileH264ConstrainedBaseline, VAEntrypointEncSlice, nullptr, 0, &config); status != VA_STATUS_SUCCESS) {
+        return;
+    }
+
+    VASurfaceAttrib attrib[8];
+    uint32_t attribCount = 8;
+
+    auto status = vaQuerySurfaceAttributes(dpy, config, attrib, &attribCount);
+    if (status == VA_STATUS_SUCCESS) {
+        for (uint32_t i = 0; i < attribCount; ++i) {
+            switch (attrib[i].type) {
+            case VASurfaceAttribMinWidth:
+                m_minSize.setWidth(attrib[i].value.value.i);
+                break;
+            case VASurfaceAttribMinHeight:
+                m_minSize.setHeight(attrib[i].value.value.i);
+                break;
+            case VASurfaceAttribMaxWidth:
+                m_maxSize.setWidth(attrib[i].value.value.i);
+                break;
+            case VASurfaceAttribMaxHeight:
+                m_maxSize.setHeight(attrib[i].value.value.i);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    vaDestroyConfig(dpy, config);
 }
