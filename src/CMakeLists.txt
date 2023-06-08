@@ -59,16 +59,7 @@ target_compile_options(KPipeWire PUBLIC -Wno-gnu-statement-expression-from-macro
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
     KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM Libdrm::Libdrm)
 
-if (QT_MAJOR_VERSION EQUAL "5")
-    target_link_libraries(KPipeWire PRIVATE Qt5::Gui_EGL)
-    if (${Qt5Gui_OPENGL_IMPLEMENTATION} STREQUAL "GLESv2")
-        target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GLESv2)
-    else()
-        target_link_libraries(KPipeWire PRIVATE Qt5::Gui_GL)
-    endif()
-else()
-    target_link_libraries(KPipeWire PRIVATE EGL::EGL)
-endif()
+target_link_libraries(KPipeWire PRIVATE EGL::EGL)
 
 target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
                                      PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>" ${PipeWire_INCLUDE_DIRS}

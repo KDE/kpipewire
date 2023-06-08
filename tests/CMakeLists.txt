@@ -15,15 +15,8 @@ qt_add_dbus_interface(
    xdp_dbus_remotedesktop_interface
 )
 
-if (QT_MAJOR_VERSION EQUAL "5")
-    ecm_add_qtwayland_client_protocol(PipeWireScreencastingTest
-        PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml
-        BASENAME zkde-screencast-unstable-v1
-    )
-else()
-    qt6_generate_wayland_protocol_client_sources(PipeWireScreencastingTest FILES
-        ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml)
-endif()
+qt6_generate_wayland_protocol_client_sources(PipeWireScreencastingTest FILES
+    ${PLASMA_WAYLAND_PROTOCOLS_DIR}/zkde-screencast-unstable-v1.xml)
 
 target_link_libraries(PipeWireScreencastingTest PUBLIC KF6::WaylandClient Wayland::Client Qt::DBus Qt::GuiPrivate KPipeWire Qt::WaylandClient)
 
