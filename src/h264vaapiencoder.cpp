@@ -49,6 +49,9 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     }
 
     auto parameters = av_buffersrc_parameters_alloc();
+    if (!parameters) {
+        qFatal("Failed to allocate memory");
+    }
 
     parameters->format = AV_PIX_FMT_DRM_PRIME;
     parameters->width = size.width();
@@ -67,12 +70,18 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     }
 
     auto inputs = avfilter_inout_alloc();
+    if (!inputs) {
+        qFatal("Failed to allocate memory");
+    }
     inputs->name = av_strdup("in");
     inputs->filter_ctx = m_inputFilter;
     inputs->pad_idx = 0;
     inputs->next = nullptr;
 
     auto outputs = avfilter_inout_alloc();
+    if (!outputs) {
+        qFatal("Failed to allocate memory");
+    }
     outputs->name = av_strdup("out");
     outputs->filter_ctx = m_outputFilter;
     outputs->pad_idx = 0;

@@ -72,6 +72,9 @@ Encoder::~Encoder()
 void Encoder::encodeFrame()
 {
     auto frame = av_frame_alloc();
+    if (!frame) {
+        qFatal("Failed to allocate memory");
+    }
 
     for (;;) {
         if (auto result = av_buffersink_get_frame(m_outputFilter, frame); result < 0) {
@@ -101,6 +104,9 @@ void Encoder::encodeFrame()
 void Encoder::receivePacket()
 {
     auto packet = av_packet_alloc();
+    if (!packet) {
+        qFatal("Failed to allocate memory");
+    }
 
     for (;;) {
         auto ret = -1;
@@ -157,6 +163,9 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
     }
 
     AVFrame *avFrame = av_frame_alloc();
+    if (!avFrame) {
+        qFatal("Failed to allocate memory");
+    }
     avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
     avFrame->width = size.width();
     avFrame->height = size.height();
@@ -180,8 +189,7 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
 {
     m_avFilterGraph = avfilter_graph_alloc();
     if (!m_avFilterGraph) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create filter graph";
-        return false;
+        qFatal("Failed to allocate memory");
     }
 
     int ret = avfilter_graph_create_filter(&m_inputFilter,
@@ -196,6 +204,9 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
     }
 
     auto parameters = av_buffersrc_parameters_alloc();
+    if (!parameters) {
+        qFatal("Failed to allocate memory");
+    }
 
     parameters->format = AV_PIX_FMT_RGBA;
     parameters->width = size.width();
@@ -213,12 +224,18 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
     }
 
     auto inputs = avfilter_inout_alloc();
+    if (!inputs) {
+        qFatal("Failed to allocate memory");
+    }
     inputs->name = av_strdup("in");
     inputs->filter_ctx = m_inputFilter;
     inputs->pad_idx = 0;
     inputs->next = nullptr;
 
     auto outputs = avfilter_inout_alloc();
+    if (!outputs) {
+        qFatal("Failed to allocate memory");
+    }
     outputs->name = av_strdup("out");
     outputs->filter_ctx = m_outputFilter;
     outputs->pad_idx = 0;
@@ -263,6 +280,9 @@ void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
 
     auto attribs = frame.dmabuf.value();
     auto drmFrame = av_frame_alloc();
+    if (!drmFrame) {
+        qFatal("Failed to allocate memory");
+    }
     drmFrame->format = AV_PIX_FMT_DRM_PRIME;
     drmFrame->width = attribs.width;
     drmFrame->height = attribs.height;
