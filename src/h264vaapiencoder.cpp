@@ -7,7 +7,8 @@
 
 #include "h264vaapiencoder.h"
 
-#include "vaapiutils_p.h"
+#include <QSize>
+
 #include <libavcodec/avcodec.h>
 
 extern "C" {

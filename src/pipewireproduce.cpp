@@ -67,8 +67,6 @@ void PipeWireProduce::setMaxFramerate(const Fraction &framerate)
 
 void PipeWireProduce::setupStream()
 {
-    qDebug() << __PRETTY_FUNCTION__;
-
     const QSize size = m_stream->size();
 
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
@@ -149,7 +147,6 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 
 void PipeWireProduce::stateChanged(pw_stream_state state)
 {
-    qDebug() << __PRETTY_FUNCTION__ << state;
     if (state != PW_STREAM_STATE_PAUSED || !m_deactivated) {
         return;
     }
