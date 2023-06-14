@@ -81,13 +81,9 @@ PipeWireEncodedStream::PipeWireEncodedStream(QObject *parent)
 
 PipeWireEncodedStream::~PipeWireEncodedStream() = default;
 
-PipeWireProduce *PipeWireEncodedStream::createThread()
+PipeWireProduce *PipeWireEncodedStream::makeProduce()
 {
-    auto produce = new PipeWireEncodeProduce(PipeWireBaseEncodedStream::d->m_encoder,
-                                             PipeWireBaseEncodedStream::d->m_nodeId,
-                                             PipeWireBaseEncodedStream::d->m_fd.value_or(0),
-                                             PipeWireBaseEncodedStream::d->m_maxFramerate,
-                                             this);
+    auto produce = new PipeWireEncodeProduce(encoder(), nodeId(), fd(), maxFramerate(), this);
     connect(produce, &PipeWireEncodeProduce::newPacket, this, &PipeWireEncodedStream::newPacket);
     connect(this, &PipeWireEncodedStream::maxFramerateChanged, produce, [this, produce]() {
         produce->setMaxFramerate(maxFramerate());

@@ -121,6 +121,8 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             pipewirerecord.cpp
                             pipewireproduce.cpp
                             vaapiutils.cpp
+                            encoder.cpp
+                            h264vaapiencoder.cpp
 )
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
@@ -141,6 +143,8 @@ set_target_properties(KPipeWireRecord PROPERTIES
                              VERSION ${PROJECT_VERSION}
                              SOVERSION ${PROJECT_VERSION_MAJOR}
                       )
+
+target_compile_options(KPipeWireRecord PRIVATE -Wno-pedantic)
 
 install(FILES
   ${KPipeWireRecord_HEADERS}

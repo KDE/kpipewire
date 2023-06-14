@@ -411,7 +411,9 @@ QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_build
     const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
 
     d->m_allowDmaBuf = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion));
-    const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
+    // const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion &&
+    // pwServerVersion >= kDmaBufModifierMinVersion));
+    const bool withDontFixate = false;
 
     if (d->m_availableModifiers.isEmpty()) {
         d->m_availableModifiers = queryDmaBufModifiers(display, formats);

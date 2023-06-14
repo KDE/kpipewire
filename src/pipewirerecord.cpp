@@ -5,6 +5,7 @@
 */
 
 #include "pipewirerecord.h"
+#include "encoder.h"
 #include "glhelpers.h"
 #include "pipewirerecord_p.h"
 #include <logging_record.h>
@@ -85,7 +86,7 @@ QString PipeWireRecord::extension() const
         {PipeWireBaseEncodedStream::H264Baseline, QStringLiteral("mp4")},
         {PipeWireBaseEncodedStream::VP8, QStringLiteral("webm")},
     };
-    return s_extensions.value(PipeWireBaseEncodedStream::d->m_encoder, QStringLiteral("mkv"));
+    return s_extensions.value(encoder(), QStringLiteral("mkv"));
 }
 
 PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder,
@@ -124,7 +125,7 @@ bool PipeWireRecordProduce::setupFormat()
     avStream->avg_frame_rate.num = framerate.numerator;
     avStream->avg_frame_rate.den = framerate.denominator;
 
-    ret = avcodec_parameters_from_context(avStream->codecpar, m_avCodecContext);
+    ret = avcodec_parameters_from_context(avStream->codecpar, m_encoder->avCodecContext());
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when passing the codec:" << av_err2str(ret);
         return false;
@@ -143,7 +144,7 @@ void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
 {
     PipeWireProduce::processFrame(frame);
     if (frame.cursor && !frame.dmabuf && !frame.image && !m_frameWithoutMetadataCursor.isNull()) {
-        render(m_frameWithoutMetadataCursor, frame);
+        // render(m_frameWithoutMetadataCursor, frame);
     }
 }
 
@@ -170,7 +171,7 @@ void PipeWireRecordProduce::processPacket(AVPacket *packet)
     }
 
     packet->stream_index = (*m_avFormatContext->streams)->index;
-    av_packet_rescale_ts(packet, m_avCodecContext->time_base, (*m_avFormatContext->streams)->time_base);
+    av_packet_rescale_ts(packet, m_encoder->avCodecContext()->time_base, (*m_avFormatContext->streams)->time_base);
     log_packet(m_avFormatContext, packet);
     auto ret = av_interleaved_write_frame(m_avFormatContext, packet);
     if (ret < 0) {
@@ -178,13 +179,9 @@ void PipeWireRecordProduce::processPacket(AVPacket *packet)
     }
 }
 
-PipeWireProduce *PipeWireRecord::createThread()
+PipeWireProduce *PipeWireRecord::makeProduce()
 {
-    return new PipeWireRecordProduce(PipeWireBaseEncodedStream::d->m_encoder,
-                                     PipeWireBaseEncodedStream::d->m_nodeId,
-                                     PipeWireBaseEncodedStream::d->m_fd.value_or(0),
-                                     PipeWireBaseEncodedStream::d->m_maxFramerate,
-                                     d->m_output);
+    return new PipeWireRecordProduce(encoder(), nodeId(), fd(), maxFramerate(), d->m_output);
 }
 
 int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
@@ -194,7 +191,6 @@ int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanosec
         (*m_avFormatContext->streams)->start_time = current;
     }
 
-    // Q_ASSERT((*m_avFormatContext->streams)->start_time <= current);
     return current - (*m_avFormatContext->streams)->start_time;
 }
 

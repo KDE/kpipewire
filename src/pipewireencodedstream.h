@@ -40,5 +40,5 @@ Q_SIGNALS:
     void newPacket(const Packet &packet);
 
 protected:
-    PipeWireProduce *createThread() override;
+    PipeWireProduce *makeProduce() override;
 };
