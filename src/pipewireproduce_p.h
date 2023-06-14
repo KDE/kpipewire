@@ -50,7 +50,7 @@ class PipeWireProduce : public QObject
 {
     Q_OBJECT
 public:
-    PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, uint fd, const std::optional<Fraction> &framerate);
+    PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, uint fd, const Fraction &framerate);
     ~PipeWireProduce() override;
 
     virtual void initialize();
@@ -100,7 +100,7 @@ public:
     std::unique_ptr<Encoder> m_encoder;
 
     uint m_fd;
-    std::optional<Fraction> m_frameRate;
+    Fraction m_frameRate;
 
     std::optional<quint8> m_quality;
 

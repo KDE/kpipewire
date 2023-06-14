@@ -26,7 +26,7 @@ extern "C" {
 Q_DECLARE_METATYPE(std::optional<int>);
 Q_DECLARE_METATYPE(std::optional<std::chrono::nanoseconds>);
 
-PipeWireProduce::PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, uint fd, const std::optional<Fraction> &framerate)
+PipeWireProduce::PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, uint fd, const Fraction &framerate)
     : QObject()
     , m_nodeId(nodeId)
     , m_encoderType(encoderType)
@@ -44,9 +44,7 @@ PipeWireProduce::~PipeWireProduce()
 void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
-    if (m_frameRate) {
-        m_stream->setMaxFramerate(*m_frameRate);
-    }
+    m_stream->setMaxFramerate(m_frameRate);
     bool created = m_stream->createStream(m_nodeId, m_fd);
     if (!created || !m_stream->error().isEmpty()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "failed to set up stream for" << m_nodeId << m_stream->error();

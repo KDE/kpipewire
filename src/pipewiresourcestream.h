@@ -71,8 +71,20 @@ struct KPIPEWIRE_EXPORT PipeWireFrame {
 };
 
 struct Fraction {
-    quint32 numerator;
-    quint32 denominator;
+    bool operator==(const Fraction &other) const
+    {
+        return numerator == other.numerator && denominator == other.denominator;
+    }
+    explicit operator bool() const
+    {
+        return isValid();
+    }
+    bool isValid() const
+    {
+        return denominator > 0;
+    }
+    quint32 numerator = 0;
+    quint32 denominator = 0;
 };
 
 KPIPEWIRE_EXPORT QImage::Format SpaToQImageFormat(quint32 /*spa_video_format*/ format);

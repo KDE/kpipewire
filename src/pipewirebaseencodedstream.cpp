@@ -22,7 +22,7 @@ extern "C" {
 struct PipeWireEncodedStreamPrivate {
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
-    std::optional<Fraction> m_maxFramerate;
+    Fraction m_maxFramerate;
     bool m_active = false;
     PipeWireBaseEncodedStream::Encoder m_encoder;
     std::optional<quint8> m_quality;
@@ -95,15 +95,14 @@ void PipeWireBaseEncodedStream::setFd(uint fd)
 Fraction PipeWireBaseEncodedStream::maxFramerate() const
 {
     if (d->m_maxFramerate) {
-        return d->m_maxFramerate.value();
+        return d->m_maxFramerate;
     }
     return Fraction{60, 1};
 }
 
 void PipeWireBaseEncodedStream::setMaxFramerate(const Fraction &framerate)
 {
-    if (d->m_maxFramerate.has_value() && d->m_maxFramerate.value().numerator == framerate.numerator
-        && d->m_maxFramerate.value().denominator == framerate.denominator) {
+    if (d->m_maxFramerate == framerate) {
         return;
     }
     d->m_maxFramerate = framerate;
