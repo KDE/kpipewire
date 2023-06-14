@@ -6,6 +6,8 @@
 */
 
 #include "encoder.h"
+#include <libavutil/hwcontext.h>
+#include <mutex>
 
 extern "C" {
 #include <libavfilter/avfilter.h>
@@ -58,7 +60,11 @@ void Encoder::encodeFrame()
             break;
         }
 
-        auto ret = avcodec_send_frame(m_avCodecContext, frame);
+        auto ret = -1;
+        {
+            std::lock_guard guard(m_avCodecMutex);
+            ret = avcodec_send_frame(m_avCodecContext, frame);
+        }
         if (ret < 0) {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
             return;
@@ -74,7 +80,11 @@ void Encoder::receivePacket()
     auto packet = av_packet_alloc();
 
     for (;;) {
-        auto ret = avcodec_receive_packet(m_avCodecContext, packet);
+        auto ret = -1;
+        {
+            std::lock_guard guard(m_avCodecMutex);
+            ret = avcodec_receive_packet(m_avCodecContext, packet);
+        }
         if (ret < 0) {
             if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
                 qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
@@ -107,6 +117,17 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
 HardwareEncoder::HardwareEncoder(PipeWireProduce *produce)
     : Encoder(produce)
 {
+}
+
+HardwareEncoder::~HardwareEncoder()
+{
+    if (m_drmFramesContext) {
+        av_free(m_drmFramesContext);
+    }
+
+    if (m_drmContext) {
+        av_free(m_drmContext);
+    }
 }
 
 void HardwareEncoder::filterFrame(const PipeWireFrame &frame)

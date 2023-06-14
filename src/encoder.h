@@ -39,6 +39,8 @@ protected:
     PipeWireProduce *m_produce;
 
     AVCodecContext *m_avCodecContext = nullptr;
+    std::mutex m_avCodecMutex;
+
     AVFilterGraph *m_avFilterGraph = nullptr;
     AVFilterContext *m_inputFilter = nullptr;
     AVFilterContext *m_outputFilter = nullptr;
@@ -56,6 +58,7 @@ class HardwareEncoder : public Encoder
 {
 public:
     HardwareEncoder(PipeWireProduce *produce);
+    ~HardwareEncoder() override;
 
     void filterFrame(const PipeWireFrame &frame) override;
 
