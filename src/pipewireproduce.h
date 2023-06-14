@@ -92,7 +92,7 @@ public:
     void setupStream();
     virtual void processFrame(const PipeWireFrame &frame);
     void render(const QImage &image, const PipeWireFrame &frame);
-    virtual void aboutToEncode(QImage &frame)
+    virtual void aboutToEncode(PipeWireFrame &frame)
     {
         Q_UNUSED(frame);
     }

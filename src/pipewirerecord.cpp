@@ -140,17 +140,22 @@ bool PipeWireRecordProduce::setupFormat()
     return true;
 }
 
-void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
-{
-    PipeWireProduce::processFrame(frame);
-    if (frame.cursor && !frame.dmabuf && !frame.image && !m_frameWithoutMetadataCursor.isNull()) {
-        // render(m_frameWithoutMetadataCursor, frame);
-    }
-}
+// void PipeWireRecordProduce::processFrame(const PipeWireFrame &frame)
+// {
+//     PipeWireProduce::processFrame(frame);
+//     if (frame.cursor && !frame.dmabuf && !frame.image && !m_frameWithoutMetadataCursor.isNull()) {
+//         // render(m_frameWithoutMetadataCursor, frame);
+//     }
+// }
 
-void PipeWireRecordProduce::aboutToEncode(QImage &image)
+void PipeWireRecordProduce::aboutToEncode(PipeWireFrame &frame)
 {
-    if (!image.isNull() && m_cursor.position && !m_cursor.texture.isNull()) {
+    if (!frame.image) {
+        return;
+    }
+
+    if (m_cursor.position && !m_cursor.texture.isNull()) {
+        auto &image = *frame.image;
         // Do not copy the image if it's already ours
         if (m_frameWithoutMetadataCursor.cacheKey() != image.cacheKey()) {
             m_frameWithoutMetadataCursor = image.copy();

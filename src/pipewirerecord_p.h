@@ -18,10 +18,10 @@ class PipeWireRecordProduce : public PipeWireProduce
 public:
     PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, const std::optional<Fraction> &framerate, const QString &output);
 
-    void processFrame(const PipeWireFrame &frame) override;
+    // void processFrame(const PipeWireFrame &frame) override;
     void processPacket(AVPacket *packet) override;
     int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp) override;
-    void aboutToEncode(QImage &image) override;
+    void aboutToEncode(PipeWireFrame &frame) override;
     bool setupFormat() override;
     void cleanup() override;
 

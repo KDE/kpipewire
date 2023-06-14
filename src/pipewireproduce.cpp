@@ -133,6 +133,8 @@ void PipeWireProduce::deactivate()
 
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 {
+    auto f = frame;
+
     if (frame.cursor) {
         m_cursor.position = frame.cursor->position;
         m_cursor.hotspot = frame.cursor->hotspot;
@@ -142,7 +144,8 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         }
     }
 
-    m_encoder->filterFrame(frame);
+    aboutToEncode(f);
+    m_encoder->filterFrame(f);
 }
 
 void PipeWireProduce::stateChanged(pw_stream_state state)
