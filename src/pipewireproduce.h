@@ -66,6 +66,9 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(presentationTimestamp.value()).count();
     }
 
+    /**
+     * Note: This can be called from a separate thread
+     */
     virtual void processPacket(AVPacket *packet) = 0;
     virtual bool setupFormat()
     {
@@ -78,6 +81,9 @@ public:
     void stateChanged(pw_stream_state state);
     friend class PipeWireProduceThread;
     void setupStream();
+    /**
+     * Note: This can be called from a separate thread
+     */
     virtual void processFrame(const PipeWireFrame &frame);
     void render(const QImage &image, const PipeWireFrame &frame);
     virtual void aboutToEncode(PipeWireFrame &frame)
