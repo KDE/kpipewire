@@ -9,15 +9,12 @@
 #include "encoder.h"
 
 /**
- * A hardware encoder that uses VAAPI to encode to H264.
+ * A software encoder that uses libvpx to encode to VP8.
  */
-class H264VAAPIEncoder : public HardwareEncoder
+class LibVpxEncoder : public SoftwareEncoder
 {
 public:
-    H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce);
+    LibVpxEncoder(PipeWireProduce *produce);
 
     bool initialize(const QSize &size) override;
-
-private:
-    H264Profile m_profile = H264Profile::Main;
 };

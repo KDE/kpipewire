@@ -19,7 +19,7 @@ extern "C" {
 
 #include "logging_record.h"
 
-H264VAAPIEncoder::H264VAAPIEncoder(Profile profile, PipeWireProduce *produce)
+H264VAAPIEncoder::H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce)
     : HardwareEncoder(produce)
     , m_profile(profile)
 {
@@ -122,13 +122,13 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     m_avCodecContext->global_quality = 35;
 
     switch (m_profile) {
-    case Profile::Baseline:
+    case H264Profile::Baseline:
         m_avCodecContext->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
         break;
-    case Profile::Main:
+    case H264Profile::Main:
         m_avCodecContext->profile = FF_PROFILE_H264_MAIN;
         break;
-    case Profile::High:
+    case H264Profile::High:
         m_avCodecContext->profile = FF_PROFILE_H264_HIGH;
         break;
     }

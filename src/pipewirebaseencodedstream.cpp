@@ -16,6 +16,8 @@ extern "C" {
 }
 #include <unistd.h>
 
+#include "vaapiutils_p.h"
+
 struct PipeWireEncodedStreamPrivate {
     uint m_nodeId = 0;
     std::optional<uint> m_fd;

@@ -10,6 +10,8 @@
 
 #include <QObject>
 
+#include "dmabufhandler.h"
+
 extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libavfilter/avfilter.h"
@@ -29,6 +31,8 @@ class Encoder : public QObject
 {
     Q_OBJECT
 public:
+    enum class H264Profile { Baseline, Main, High };
+
     /**
      * Constructor.
      *
@@ -91,6 +95,16 @@ public:
     SoftwareEncoder(PipeWireProduce *produce);
 
     void filterFrame(const PipeWireFrame &frame) override;
+
+protected:
+    /**
+     * Create a default filter graph that converts from RGBA to YUV420P.
+     *
+     * @param size The size of the stream to encode.
+     */
+    bool createFilterGraph(const QSize &size);
+
+    DmaBufHandler m_dmaBufHandler;
 };
 
 /**

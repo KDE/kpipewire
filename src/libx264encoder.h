@@ -9,12 +9,12 @@
 #include "encoder.h"
 
 /**
- * A hardware encoder that uses VAAPI to encode to H264.
+ * A software encoder that uses libx264 to encode to H264.
  */
-class H264VAAPIEncoder : public HardwareEncoder
+class LibX264Encoder : public SoftwareEncoder
 {
 public:
-    H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce);
+    LibX264Encoder(H264Profile profile, PipeWireProduce *produce);
 
     bool initialize(const QSize &size) override;
 

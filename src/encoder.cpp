@@ -7,15 +7,18 @@
 */
 
 #include "encoder.h"
+#include <libavutil/frame.h>
 #include <libavutil/hwcontext.h>
 #include <mutex>
 
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/avutil.h>
 #include <libavutil/hwcontext_drm.h>
+#include <libavutil/imgutils.h>
 }
 
 #include "pipewireproduce.h"
@@ -29,6 +32,23 @@ char str[AV_ERROR_MAX_STRING_SIZE];
 char *av_err2str(int errnum)
 {
     return av_make_error_string(str, AV_ERROR_MAX_STRING_SIZE, errnum);
+}
+
+static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
+{
+    // Listing those handed by SpaToQImageFormat
+    switch (format) {
+    case QImage::Format_BGR888:
+        return AV_PIX_FMT_BGR24;
+    case QImage::Format_RGBX8888:
+    case QImage::Format_RGBA8888_Premultiplied:
+        return AV_PIX_FMT_RGBA;
+    case QImage::Format_RGB32:
+        return AV_PIX_FMT_RGB32;
+    default:
+        qDebug() << "Unexpected pixel format" << format;
+        return AV_PIX_FMT_RGB32;
+    }
 }
 
 Encoder::Encoder(PipeWireProduce *produce)
@@ -113,6 +133,93 @@ SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
 
 void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
 {
+    auto size = m_produce->m_stream->size();
+
+    QImage image(m_produce->m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
+    if (!m_dmaBufHandler.downloadFrame(image, frame)) {
+        m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+        return;
+    }
+
+    AVFrame *avFrame = av_frame_alloc();
+    avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
+    avFrame->width = size.width();
+    avFrame->height = size.height();
+    av_frame_get_buffer(avFrame, 32);
+
+    const std::uint8_t *buffers[] = {image.constBits(), nullptr};
+    const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
+
+    av_image_copy(avFrame->data, avFrame->linesize, buffers, strides, static_cast<AVPixelFormat>(avFrame->format), size.width(), size.height());
+
+    avFrame->pts = m_produce->framePts(frame.presentationTimestamp);
+
+    if (auto result = av_buffersrc_add_frame(m_inputFilter, avFrame); result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to submit frame for filtering";
+    }
+}
+
+bool SoftwareEncoder::createFilterGraph(const QSize &size)
+{
+    m_avFilterGraph = avfilter_graph_alloc();
+    if (!m_avFilterGraph) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create filter graph";
+        return false;
+    }
+
+    int ret = avfilter_graph_create_filter(&m_inputFilter,
+                                           avfilter_get_by_name("buffer"),
+                                           "in",
+                                           "width=1:height=1:pix_fmt=rgba:time_base=1/1",
+                                           nullptr,
+                                           m_avFilterGraph);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create the buffer filter";
+        return false;
+    }
+
+    auto parameters = av_buffersrc_parameters_alloc();
+
+    parameters->format = AV_PIX_FMT_RGBA;
+    parameters->width = size.width();
+    parameters->height = size.height();
+    parameters->time_base = {1, 1000};
+
+    av_buffersrc_parameters_set(m_inputFilter, parameters);
+    av_free(parameters);
+    parameters = nullptr;
+
+    ret = avfilter_graph_create_filter(&m_outputFilter, avfilter_get_by_name("buffersink"), "out", nullptr, nullptr, m_avFilterGraph);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create buffer output filter";
+        return false;
+    }
+
+    auto inputs = avfilter_inout_alloc();
+    inputs->name = av_strdup("in");
+    inputs->filter_ctx = m_inputFilter;
+    inputs->pad_idx = 0;
+    inputs->next = nullptr;
+
+    auto outputs = avfilter_inout_alloc();
+    outputs->name = av_strdup("out");
+    outputs->filter_ctx = m_outputFilter;
+    outputs->pad_idx = 0;
+    outputs->next = nullptr;
+
+    ret = avfilter_graph_parse(m_avFilterGraph, "format=pix_fmts=yuv420p", outputs, inputs, NULL);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
+        return false;
+    }
+
+    ret = avfilter_graph_config(m_avFilterGraph, nullptr);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed configuring filter graph";
+        return false;
+    }
+
+    return true;
 }
 
 HardwareEncoder::HardwareEncoder(PipeWireProduce *produce)
@@ -161,7 +268,7 @@ void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
     drmFrame->data[0] = reinterpret_cast<uint8_t *>(frameDesc);
     drmFrame->buf[0] = av_buffer_create(reinterpret_cast<uint8_t *>(frameDesc), sizeof(*frameDesc), av_buffer_default_free, nullptr, 0);
     if (frame.presentationTimestamp) {
-        drmFrame->pts = std::chrono::duration_cast<std::chrono::milliseconds>(frame.presentationTimestamp.value()).count();
+        drmFrame->pts = m_produce->framePts(frame.presentationTimestamp);
     }
 
     if (auto result = av_buffersrc_add_frame(m_inputFilter, drmFrame); result < 0) {
