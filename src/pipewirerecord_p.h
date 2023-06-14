@@ -6,7 +6,6 @@
 
 #pragma once
 #include "pipewireproduce.h"
-#include <QRunnable>
 
 struct gbm_device;
 struct AVFormatContext;

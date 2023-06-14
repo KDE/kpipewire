@@ -177,7 +177,6 @@ private:
     AVPacket *m_packet;
     AVCodecContext *const m_avCodecContext;
     PipeWireProduce *const m_produce;
-    struct SwsContext *sws_context = nullptr;
     int64_t m_lastPts = -1;
     uint m_lastKeyFrame = 0;
     QSize m_lastReceivedSize;
