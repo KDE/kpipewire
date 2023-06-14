@@ -72,6 +72,9 @@ Encoder::~Encoder()
 void Encoder::encodeFrame()
 {
     auto frame = av_frame_alloc();
+    if (!frame) {
+        abort();
+    }
 
     for (;;) {
         if (auto result = av_buffersink_get_frame(m_outputFilter, frame); result < 0) {
@@ -99,6 +102,9 @@ void Encoder::encodeFrame()
 void Encoder::receivePacket()
 {
     auto packet = av_packet_alloc();
+    if (!packet) {
+        abort();
+    }
 
     for (;;) {
         auto ret = -1;
@@ -148,6 +154,9 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
     }
 
     AVFrame *avFrame = av_frame_alloc();
+    if (!avFrame) {
+        abort();
+    }
     avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
     avFrame->width = size.width();
     avFrame->height = size.height();
@@ -169,8 +178,7 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
 {
     m_avFilterGraph = avfilter_graph_alloc();
     if (!m_avFilterGraph) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create filter graph";
-        return false;
+        abort();
     }
 
     int ret = avfilter_graph_create_filter(&m_inputFilter,
@@ -185,6 +193,9 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
     }
 
     auto parameters = av_buffersrc_parameters_alloc();
+    if (!parameters) {
+        abort();
+    }
 
     parameters->format = AV_PIX_FMT_RGBA;
     parameters->width = size.width();
@@ -202,12 +213,18 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
     }
 
     auto inputs = avfilter_inout_alloc();
+    if (!inputs) {
+        abort();
+    }
     inputs->name = av_strdup("in");
     inputs->filter_ctx = m_inputFilter;
     inputs->pad_idx = 0;
     inputs->next = nullptr;
 
     auto outputs = avfilter_inout_alloc();
+    if (!outputs) {
+        abort();
+    }
     outputs->name = av_strdup("out");
     outputs->filter_ctx = m_outputFilter;
     outputs->pad_idx = 0;
@@ -252,6 +269,9 @@ void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
 
     auto attribs = frame.dmabuf.value();
     auto drmFrame = av_frame_alloc();
+    if (!drmFrame) {
+        abort();
+    }
     drmFrame->format = AV_PIX_FMT_DRM_PRIME;
     drmFrame->width = attribs.width;
     drmFrame->height = attribs.height;
