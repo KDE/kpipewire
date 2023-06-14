@@ -89,11 +89,7 @@ QString PipeWireRecord::extension() const
     return s_extensions.value(encoder(), QStringLiteral("mkv"));
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder,
-                                             uint nodeId,
-                                             uint fd,
-                                             const std::optional<Fraction> &framerate,
-                                             const QString &output)
+PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, const Fraction &framerate, const QString &output)
     : PipeWireProduce(encoder, nodeId, fd, framerate)
     , m_output(output)
 {
@@ -120,10 +116,12 @@ bool PipeWireRecordProduce::setupFormat()
 
     auto avStream = avformat_new_stream(m_avFormatContext, nullptr);
     avStream->start_time = 0;
-    avStream->r_frame_rate.num = framerate.numerator;
-    avStream->r_frame_rate.den = framerate.denominator;
-    avStream->avg_frame_rate.num = framerate.numerator;
-    avStream->avg_frame_rate.den = framerate.denominator;
+    if (framerate) {
+        avStream->r_frame_rate.num = framerate.numerator;
+        avStream->r_frame_rate.den = framerate.denominator;
+        avStream->avg_frame_rate.num = framerate.numerator;
+        avStream->avg_frame_rate.den = framerate.denominator;
+    }
 
     ret = avcodec_parameters_from_context(avStream->codecpar, m_encoder->avCodecContext());
     if (ret < 0) {

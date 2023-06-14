@@ -68,7 +68,7 @@ struct PipeWireSourceStreamPrivate
     spa_source *m_renegotiateEvent = nullptr;
 
     bool m_withDamage = false;
-    std::optional<Fraction> maxFramerate;
+    Fraction maxFramerate;
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
@@ -205,11 +205,8 @@ void PipeWireSourceStream::renegotiateModifierFailed(spa_video_format format, qu
     pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
 }
 
-static spa_pod *buildFormat(spa_pod_builder *builder,
-                            spa_video_format format,
-                            const QVector<uint64_t> &modifiers,
-                            bool withDontFixate,
-                            const std::optional<Fraction> &requestedMaxFramerate)
+static spa_pod *
+buildFormat(spa_pod_builder *builder, spa_video_format format, const QVector<uint64_t> &modifiers, bool withDontFixate, const Fraction &requestedMaxFramerate)
 {
     spa_pod_frame f[2];
     const spa_rectangle pw_min_screen_bounds{1, 1};
@@ -223,7 +220,7 @@ static spa_pod *buildFormat(spa_pod_builder *builder,
     if (requestedMaxFramerate) {
         auto defFramerate = SPA_FRACTION(0, 1);
         auto minFramerate = SPA_FRACTION(1, 1);
-        auto maxFramerate = SPA_FRACTION(requestedMaxFramerate->numerator, requestedMaxFramerate->denominator);
+        auto maxFramerate = SPA_FRACTION(requestedMaxFramerate.numerator, requestedMaxFramerate.denominator);
         spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_framerate, SPA_POD_Fraction(&defFramerate), 0);
         spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_maxFramerate, SPA_POD_CHOICE_RANGE_Fraction(&maxFramerate, &minFramerate, &maxFramerate), 0);
     }

@@ -44,7 +44,7 @@ bool PipeWireEncodedStream::Packet::isKeyFrame() const
 PipeWireEncodeProduce::PipeWireEncodeProduce(PipeWireBaseEncodedStream::Encoder encoder,
                                              uint nodeId,
                                              uint fd,
-                                             const std::optional<Fraction> &framerate,
+                                             const Fraction &framerate,
                                              PipeWireEncodedStream *stream)
     : PipeWireProduce(encoder, nodeId, fd, framerate)
     , m_encodedStream(stream)
