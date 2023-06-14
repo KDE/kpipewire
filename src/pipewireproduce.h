@@ -29,10 +29,8 @@ extern "C" {
 #include <optional>
 #include <thread>
 
-#include "dmabufhandler.h"
 #include "pipewirebaseencodedstream.h"
 #include "pipewiresourcestream.h"
-#include "vaapiutils_p.h"
 
 struct AVCodec;
 struct AVCodecContext;
@@ -45,16 +43,6 @@ struct AVFilterGraph;
 class CustomAVFrame;
 class Encoder;
 class PipeWireReceiveEncodedThread;
-/*
-#undef av_err2str
-// The one provided by libav fails to compile on GCC due to passing data from the function scope outside
-char *av_err2str(int errnum);*/
-
-// struct PipeWireRecordFrame {
-//     QImage image;
-//     std::optional<int> sequential;
-//     std::optional<std::chrono::nanoseconds> presentationTimestamp;
-// };
 
 class PipeWireProduce : public QObject
 {
@@ -122,25 +110,6 @@ public:
 
     std::atomic_bool m_deactivated = false;
 
-    // DmaBufHandler m_dmabufHandler;
-    // QAtomicInt m_deactivated = false;
-    // PipeWireReceiveEncodedThread *m_writeThread = nullptr;
-
-    // QMutex m_framesMutex;
-    // QQueue<PipeWireRecordFrame> m_frames;
-    // QAtomicInt m_processing = false;
-    // void enqueueFrame(const PipeWireRecordFrame &frame);
-    // PipeWireRecordFrame dequeueFrame(int *remaining);
-
-    // AVFilterGraph *m_avFilterGraph;
-    // AVFilterContext *m_bufferFilter;
-    // AVFilterContext *m_formatFilter;
-    // AVFilterContext *m_outputFilter;
-    // AVFilterContext *m_inputFormatFilter;
-    // AVFilterContext *m_uploadFilter;
-    //
-    // VaapiUtils m_vaapi;
-
 Q_SIGNALS:
     void producedFrames();
 
@@ -148,70 +117,3 @@ private:
     void initFiltersVaapi();
     void initFiltersSoftware();
 };
-
-// class PipeWireReceive : public QObject
-// {
-//     Q_OBJECT
-// public:
-//     PipeWireReceive(Encoder* encoder);
-//
-//
-// }
-
-// class PipeWireProduceThread : public QThread
-// {
-//     Q_OBJECT
-// public:
-//     PipeWireProduceThread(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, PipeWireBaseEncodedStream *base)
-//         : m_nodeId(nodeId)
-//         , m_fd(fd)
-//         , m_encoder(encoder)
-//         , m_base(base)
-//     {
-//     }
-//     void run() override;
-//     void deactivate();
-//
-// Q_SIGNALS:
-//     void errorFound(const QString &error);
-//
-// protected:
-//     friend class PipeWireProduce;
-//     const uint m_nodeId;
-//     const uint m_fd;
-//     PipeWireProduce *m_producer = nullptr;
-//     const PipeWireBaseEncodedStream::Encoder m_encoder;
-//     PipeWireBaseEncodedStream *const m_base;
-// };
-
-// class PipeWireReceiveEncoded : public QObject
-// {
-// public:
-//     PipeWireReceiveEncoded(PipeWireProduce *produce, AVCodecContext *avCodecContext);
-//     ~PipeWireReceiveEncoded();
-//
-//     void addFrame();
-//
-// private:
-//     QAtomicInt m_active = true;
-//     AVPacket *m_packet;
-//     AVCodecContext *const m_avCodecContext;
-//     PipeWireProduce *const m_produce;
-//     struct SwsContext *sws_context = nullptr;
-//     int64_t m_lastPts = -1;
-//     uint m_lastKeyFrame = 0;
-//     QSize m_lastReceivedSize;
-// };
-//
-// class PipeWireReceiveEncodedThread : public QThread
-// {
-//     Q_OBJECT
-// public:
-//     PipeWireReceiveEncodedThread(PipeWireProduce *produce, AVCodecContext *avCodecContext);
-//
-//     void run() override;
-//
-// private:
-//     PipeWireProduce *const m_produce;
-//     AVCodecContext *const m_avCodecContext;
-// };
