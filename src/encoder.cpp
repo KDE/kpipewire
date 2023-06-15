@@ -148,6 +148,44 @@ HardwareEncoder::~HardwareEncoder()
 
 void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
 {
+    if (!frame.dmabuf) {
+        return;
+    }
+
+    auto attribs = frame.dmabuf.value();
+    auto drmFrame = av_frame_alloc();
+    drmFrame->format = AV_PIX_FMT_DRM_PRIME;
+    drmFrame->width = attribs.width;
+    drmFrame->height = attribs.height;
+
+    auto frameDesc = new AVDRMFrameDescriptor;
+    frameDesc->nb_layers = 1;
+    frameDesc->layers[0].nb_planes = attribs.planes.count();
+    frameDesc->layers[0].format = attribs.format;
+    for (int i = 0; i < attribs.planes.count(); ++i) {
+        const auto &plane = attribs.planes[i];
+        frameDesc->layers[0].planes[i].object_index = 0;
+        frameDesc->layers[0].planes[i].offset = plane.offset;
+        frameDesc->layers[0].planes[i].pitch = plane.stride;
+    }
+    frameDesc->nb_objects = 1;
+    frameDesc->objects[0].fd = attribs.planes[0].fd;
+    frameDesc->objects[0].format_modifier = attribs.modifier;
+    frameDesc->objects[0].size = attribs.width * attribs.height * 4;
+
+    drmFrame->data[0] = reinterpret_cast<uint8_t *>(frameDesc);
+    drmFrame->buf[0] = av_buffer_create(reinterpret_cast<uint8_t *>(frameDesc), sizeof(*frameDesc), av_buffer_default_free, nullptr, 0);
+    if (frame.presentationTimestamp) {
+        drmFrame->pts = m_produce->framePts(frame.presentationTimestamp);
+    }
+
+    if (auto result = av_buffersrc_add_frame(m_inputFilter, drmFrame); result < 0) {
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Failed sending frame for encoding" << av_err2str(result);
+        av_frame_unref(drmFrame);
+        return;
+    }
+
+    av_frame_free(&drmFrame);
 }
 
 QByteArray HardwareEncoder::checkVaapi(const QSize &size)
