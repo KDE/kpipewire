@@ -9,6 +9,7 @@
 #include "libvpxencoder.h"
 
 #include <QSize>
+#include <QThread>
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixfmt.h>
@@ -52,7 +53,7 @@ bool LibVpxEncoder::initialize(const QSize &size)
     m_avCodecContext->global_quality = 35;
 
     AVDictionary *options = nullptr;
-    // av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
+    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
     av_dict_set(&options, "deadline", "realtime", 0);

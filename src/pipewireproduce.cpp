@@ -78,26 +78,29 @@ void PipeWireProduce::setupStream()
     case PipeWireBaseEncodedStream::H264Baseline:
     case PipeWireBaseEncodedStream::H264Main: {
         auto profile = m_encoderType == PipeWireBaseEncodedStream::H264Baseline ? Encoder::H264Profile::Baseline : Encoder::H264Profile::Main;
-        auto encoder = std::make_unique<H264VAAPIEncoder>(profile, this);
-        if (encoder->initialize(size)) {
-            m_encoder = std::move(encoder);
+        auto hardwareEncoder = std::make_unique<H264VAAPIEncoder>(profile, this);
+        if (hardwareEncoder->initialize(size)) {
+            m_encoder = std::move(hardwareEncoder);
             break;
         }
 
-        m_encoder = std::make_unique<LibX264Encoder>(profile, this);
-        if (!m_encoder->initialize(size)) {
+        auto softwareEncoder = std::make_unique<LibX264Encoder>(profile, this);
+        if (!softwareEncoder->initialize(size)) {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Could not initialize H264 encoder";
             return;
         }
+        m_encoder = std::move(softwareEncoder);
         break;
     }
-    case PipeWireBaseEncodedStream::VP8:
-        m_encoder = std::make_unique<LibVpxEncoder>(this);
-        if (!m_encoder->initialize(size)) {
+    case PipeWireBaseEncodedStream::VP8: {
+        auto encoder = std::make_unique<LibVpxEncoder>(this);
+        if (!encoder->initialize(size)) {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Could not initialize VP8 encoder";
             return;
         }
+        m_encoder = std::move(encoder);
         break;
+    }
     default:
         qCWarning(PIPEWIRERECORD_LOGGING) << "Unknown encoder type" << m_encoderType;
         return;

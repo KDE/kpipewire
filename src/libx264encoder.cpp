@@ -9,6 +9,7 @@
 #include "libx264encoder.h"
 
 #include <QSize>
+#include <QThread>
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixfmt.h>
@@ -65,7 +66,7 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     AVDictionary *options = nullptr;
-    // av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
+    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
     av_dict_set(&options, "deadline", "realtime", 0);
