@@ -124,6 +124,7 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             encoder.cpp
                             h264vaapiencoder.cpp
                             libx264encoder.cpp
+                            libvpxencoder.cpp
 )
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
