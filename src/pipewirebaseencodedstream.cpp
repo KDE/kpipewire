@@ -5,9 +5,10 @@
 */
 
 #include "pipewirebaseencodedstream.h"
-#include "pipewirerecord_p.h"
+
 #include <logging_libav.h>
 #include <logging_record.h>
+#include <memory>
 
 extern "C" {
 #include <libavcodec/codec.h>
@@ -15,12 +16,27 @@ extern "C" {
 }
 #include <unistd.h>
 
+#include "pipewireproduce.h"
+#include "vaapiutils_p.h"
+
+struct PipeWireEncodedStreamPrivate {
+    uint m_nodeId = 0;
+    std::optional<uint> m_fd;
+    std::optional<Fraction> m_maxFramerate;
+    bool m_active = false;
+    PipeWireBaseEncodedStream::Encoder m_encoder;
+
+    std::unique_ptr<QThread> m_produceThread;
+    PipeWireProduce *m_produce;
+};
+
 PipeWireBaseEncodedStream::State PipeWireBaseEncodedStream::state() const
 {
-    if (isActive())
+    if (isActive()) {
         return Recording;
-    else if (d->m_recordThread || !d->m_produceThreadFinished)
+    } else if (d->m_produceThread && d->m_produce->m_deactivated && d->m_produceThread->isRunning()) {
         return Rendering;
+    }
 
     return Idle;
 }
@@ -46,10 +62,6 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
 PipeWireBaseEncodedStream::~PipeWireBaseEncodedStream()
 {
     setActive(false);
-
-    if (d->m_recordThread && d->m_recordThread->isRunning()) {
-        d->m_recordThread->wait();
-    }
 
     if (d->m_fd) {
         close(*d->m_fd);
@@ -81,7 +93,10 @@ void PipeWireBaseEncodedStream::setFd(uint fd)
 
 Fraction PipeWireBaseEncodedStream::maxFramerate() const
 {
-    return d->m_maxFramerate.value();
+    if (d->m_maxFramerate) {
+        return d->m_maxFramerate.value();
+    }
+    return Fraction{60, 1};
 }
 
 void PipeWireBaseEncodedStream::setMaxFramerate(const Fraction &framerate)
@@ -107,23 +122,16 @@ void PipeWireBaseEncodedStream::setActive(bool active)
 void PipeWireBaseEncodedStream::refresh()
 {
     if (d->m_active && d->m_nodeId > 0) {
-        d->m_recordThread.reset(new PipeWireProduceThread(d->m_encoder, d->m_nodeId, d->m_fd.value_or(0), this));
-        connect(d->m_recordThread.get(), &PipeWireProduceThread::errorFound, this, &PipeWireBaseEncodedStream::errorFound);
-        connect(d->m_recordThread.get(), &PipeWireProduceThread::finished, this, [this] {
-            setActive(false);
-        });
-        d->m_recordThread->start();
-    } else if (d->m_recordThread) {
-        d->m_recordThread->deactivate();
-
-        connect(d->m_recordThread.get(), &PipeWireProduceThread::finished, this, [this] {
-            qCDebug(PIPEWIRERECORD_LOGGING) << "produce thread finished" << d->m_recordThread.get();
-            d->m_recordThread.reset();
-            d->m_produceThreadFinished = true;
-            Q_EMIT stateChanged();
-        });
-        d->m_produceThreadFinished = false;
+        d->m_produceThread = std::make_unique<QThread>();
+        d->m_produce = makeProduce();
+        d->m_produce->moveToThread(d->m_produceThread.get());
+        d->m_produceThread->start();
+        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::initialize, Qt::QueuedConnection);
+    } else if (d->m_produceThread) {
+        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::deactivate, Qt::QueuedConnection);
+        d->m_produceThread->wait();
     }
+
     Q_EMIT stateChanged();
 }
 

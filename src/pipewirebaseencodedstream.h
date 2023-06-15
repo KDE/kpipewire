@@ -82,8 +82,7 @@ Q_SIGNALS:
     void encoderChanged();
 
 protected:
-    friend class PipeWireProduceThread;
-    virtual PipeWireProduce *createThread() = 0;
+    virtual PipeWireProduce *makeProduce() = 0;
 
     void refresh();
     QScopedPointer<PipeWireEncodedStreamPrivate> d;
