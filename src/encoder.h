@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <mutex>
+
 #include <QObject>
 
 extern "C" {

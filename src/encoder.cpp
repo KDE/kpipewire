@@ -8,13 +8,20 @@
 
 #include "encoder.h"
 
+#include <mutex>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavfilter/avfilter.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
 #include <libavutil/avutil.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_drm.h>
+#include <libavutil/imgutils.h>
 }
 
+#include "pipewireproduce.h"
 #include "vaapiutils_p.h"
 
 #include "logging_record.h"
@@ -47,14 +54,63 @@ Encoder::~Encoder()
 
 void Encoder::encodeFrame()
 {
+    auto frame = av_frame_alloc();
+
+    for (;;) {
+        if (auto result = av_buffersink_get_frame(m_outputFilter, frame); result < 0) {
+            if (result != AVERROR_EOF && result != AVERROR(EAGAIN)) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Failed receiving filtered frame:" << av_err2str(result);
+            }
+            break;
+        }
+
+        auto ret = -1;
+        {
+            std::lock_guard guard(m_avCodecMutex);
+            ret = avcodec_send_frame(m_avCodecContext, frame);
+        }
+        if (ret < 0) {
+            if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
+            }
+            break;
+        }
+        av_frame_unref(frame);
+    }
+
+    av_frame_free(&frame);
 }
 
 void Encoder::receivePacket()
 {
+    auto packet = av_packet_alloc();
+
+    for (;;) {
+        auto ret = -1;
+        {
+            std::lock_guard guard(m_avCodecMutex);
+            ret = avcodec_receive_packet(m_avCodecContext, packet);
+        }
+        if (ret < 0) {
+            if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Error encoding a frame: " << av_err2str(ret);
+            }
+            av_packet_unref(packet);
+            break;
+        }
+
+        m_produce->processPacket(packet);
+        av_packet_unref(packet);
+    }
+
+    av_packet_free(&packet);
 }
 
 void Encoder::finish()
 {
+    std::lock_guard guard(m_avCodecMutex);
+    avcodec_send_frame(m_avCodecContext, nullptr);
+}
 
 AVCodecContext *Encoder::avCodecContext() const
 {
