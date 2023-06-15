@@ -27,5 +27,30 @@ void Encoder::receivePacket()
 
 void Encoder::finish()
 {
+SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
+    : Encoder(produce)
+{
 }
 
+void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
+{
+}
+
+bool SoftwareEncoder::createFilterGraph(const QSize &size)
+{
+}
+
+HardwareEncoder::HardwareEncoder(PipeWireProduce *produce)
+    : Encoder(produce)
+{
+}
+
+HardwareEncoder::~HardwareEncoder()
+{
+}
+
+void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
+{
+}
+
+}

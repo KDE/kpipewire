@@ -63,5 +63,28 @@ public:
 
 protected:
     PipeWireProduce *m_produce;
+
 };
 
+/**
+ * Encoder subclass that can be used as base class for software encoders.
+ */
+class SoftwareEncoder : public Encoder
+{
+public:
+    SoftwareEncoder(PipeWireProduce *produce);
+
+    void filterFrame(const PipeWireFrame &frame) override;
+};
+
+/**
+ * Encoder subclass that can be used as base class for hardware encoders.
+ */
+class HardwareEncoder : public Encoder
+{
+public:
+    HardwareEncoder(PipeWireProduce *produce);
+    ~HardwareEncoder() override;
+
+    void filterFrame(const PipeWireFrame &frame) override;
+};
