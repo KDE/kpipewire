@@ -11,18 +11,9 @@
 
 extern "C" {
 #include <fcntl.h>
-#include <libavformat/avformat.h>
 #include <unistd.h>
 #include <va/va_drm.h>
 #include <xf86drm.h>
-}
-
-#undef av_err2str
-// The one provided by libav fails to compile on GCC due to passing data from the function scope outside
-char str[AV_ERROR_MAX_STRING_SIZE];
-char *av_err2str(int errnum)
-{
-    return av_make_error_string(str, AV_ERROR_MAX_STRING_SIZE, errnum);
 }
 
 VaapiUtils::VaapiUtils()
@@ -60,13 +51,6 @@ VaapiUtils::VaapiUtils()
 
 VaapiUtils::~VaapiUtils()
 {
-    av_buffer_unref(&m_drmContext);
-    av_buffer_unref(&m_drmFramesContext);
-}
-
-bool VaapiUtils::isValid() const
-{
-    return !m_devicePath.isEmpty() && m_drmContext != nullptr && m_drmFramesContext != nullptr;
 }
 
 bool VaapiUtils::supportsProfile(VAProfile profile)
@@ -114,61 +98,19 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
     return ret;
 }
 
-AVBufferRef *VaapiUtils::drmContext() const
+QByteArray VaapiUtils::devicePath()
 {
-    return m_drmContext;
+    return m_devicePath;
 }
 
-AVBufferRef *VaapiUtils::drmFramesContext() const
+QSize VaapiUtils::minimumSize() const
 {
-    return m_drmFramesContext;
+    return m_minSize;
 }
 
-void VaapiUtils::init(const QSize &size)
+QSize VaapiUtils::maximumSize() const
 {
-    if (m_devicePath.isEmpty()) {
-        return;
-    }
-
-    if (m_drmContext) {
-        av_buffer_unref(&m_drmContext);
-    }
-    if (m_drmFramesContext) {
-        av_buffer_unref(&m_drmFramesContext);
-    }
-
-    if (size.width() < m_minSize.width() || size.height() < m_minSize.height()) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "less than minimum supported hardware size" << m_minSize;
-        return;
-    }
-
-    if (size.width() > m_maxSize.width() || size.height() > m_maxSize.height()) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "exceeds maximum supported hardware size" << m_maxSize;
-        return;
-    }
-
-    int err = av_hwdevice_ctx_create(&m_drmContext, AV_HWDEVICE_TYPE_DRM, m_devicePath.data(), NULL, AV_HWFRAME_MAP_READ);
-    if (err < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create DRM device. Error" << av_err2str(err);
-        return;
-    }
-
-    m_drmFramesContext = av_hwframe_ctx_alloc(m_drmContext);
-    if (!m_drmFramesContext) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create DRM frames context";
-        return;
-    }
-
-    auto framesContext = reinterpret_cast<AVHWFramesContext *>(m_drmFramesContext->data);
-    framesContext->format = AV_PIX_FMT_DRM_PRIME;
-    framesContext->sw_format = AV_PIX_FMT_0BGR;
-    framesContext->width = size.width();
-    framesContext->height = size.height();
-
-    if (auto result = av_hwframe_ctx_init(m_drmFramesContext); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed initializing DRM frames context" << av_err2str(result);
-        av_buffer_unref(&m_drmFramesContext);
-    }
+    return m_maxSize;
 }
 
 VADisplay VaapiUtils::openDevice(int *fd, const QByteArray &path)

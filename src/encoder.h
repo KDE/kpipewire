@@ -10,6 +10,15 @@
 
 #include <QObject>
 
+extern "C" {
+#include "libavcodec/avcodec.h"
+#include "libavfilter/avfilter.h"
+}
+
+#undef av_err2str
+// The one provided by libav fails to compile on GCC due to passing data from the function scope outside
+char *av_err2str(int errnum);
+
 struct PipeWireFrame;
 class PipeWireProduce;
 
@@ -94,4 +103,30 @@ public:
     ~HardwareEncoder() override;
 
     void filterFrame(const PipeWireFrame &frame) override;
+
+protected:
+    /**
+     * Check if VAAPI is supported for a given size stream.
+     *
+     * @param size The size of the stream to check.
+     *
+     * @return The path to a device node that can encode this stream. If
+     *         the stream cannot be encoded by the current hardware, an
+     *         empty QByteArray will be returned.
+     */
+    QByteArray checkVaapi(const QSize &size);
+    /**
+     * Create the libav contexts for the DRM subsystem.
+     *
+     * These contexts are used when doing import of dma-buf based frames.
+     *
+     * @param path The path to a device node where the frames are.
+     * @param size The size of the frames.
+     *
+     * @return true if the contexts were successfully created, false if not.
+     */
+    bool createDrmContext(const QSize &size);
+
+    AVBufferRef *m_drmContext = nullptr;
+    AVBufferRef *m_drmFramesContext = nullptr;
 };
