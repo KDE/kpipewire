@@ -80,6 +80,12 @@ public:
 protected:
     PipeWireProduce *m_produce;
 
+    AVCodecContext *m_avCodecContext = nullptr;
+    std::mutex m_avCodecMutex;
+
+    AVFilterGraph *m_avFilterGraph = nullptr;
+    AVFilterContext *m_inputFilter = nullptr;
+    AVFilterContext *m_outputFilter = nullptr;
 };
 
 /**

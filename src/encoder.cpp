@@ -35,6 +35,14 @@ Encoder::Encoder(PipeWireProduce *produce)
 
 Encoder::~Encoder()
 {
+    if (m_avFilterGraph) {
+        avfilter_graph_free(&m_avFilterGraph);
+    }
+
+    if (m_avCodecContext) {
+        avcodec_close(m_avCodecContext);
+        av_free(m_avCodecContext);
+    }
 }
 
 void Encoder::encodeFrame()
@@ -47,6 +55,10 @@ void Encoder::receivePacket()
 
 void Encoder::finish()
 {
+
+AVCodecContext *Encoder::avCodecContext() const
+{
+    return m_avCodecContext;
 }
 
 SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
