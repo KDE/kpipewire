@@ -20,6 +20,8 @@ class Encoder : public QObject
 {
     Q_OBJECT
 public:
+    enum class H264Profile { Baseline, Main, High };
+
     /**
      * Constructor.
      *
@@ -60,6 +62,11 @@ public:
      * End encoding and perform any necessary cleanup.
      */
     virtual void finish();
+
+    /**
+     * Return the AVCodecContext for this encoder.
+     */
+    AVCodecContext *avCodecContext() const;
 
 protected:
     PipeWireProduce *m_produce;
