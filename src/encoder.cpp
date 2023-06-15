@@ -121,6 +121,12 @@ void Encoder::receivePacket()
     av_packet_free(&packet);
 }
 
+void Encoder::finish()
+{
+    std::lock_guard guard(m_avCodecMutex);
+    avcodec_send_frame(m_avCodecContext, nullptr);
+}
+
 AVCodecContext *Encoder::avCodecContext() const
 {
     return m_avCodecContext;

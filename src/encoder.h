@@ -69,6 +69,10 @@ public:
      * @note This method will be called on its own thread.
      */
     virtual void receivePacket();
+    /**
+     * End encoding and perform any necessary cleanup.
+     */
+    virtual void finish();
 
     /**
      * Return the AVCodecContext for this encoder.

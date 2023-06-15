@@ -131,6 +131,8 @@ void PipeWireProduce::setupStream()
 
 void PipeWireProduce::deactivate()
 {
+    m_deactivated = true;
+    m_stream->setActive(false);
 }
 
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)
@@ -161,6 +163,8 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     }
 
     disconnect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
+
+    m_encoder->finish();
 
     if (m_passthroughThread.joinable()) {
         m_passthroughThread.request_stop();

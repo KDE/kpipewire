@@ -127,8 +127,7 @@ void PipeWireBaseEncodedStream::refresh()
         d->m_produceThread->start();
         QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::initialize, Qt::QueuedConnection);
     } else if (d->m_produceThread) {
-        d->m_produce->deactivate();
-        d->m_produceThread->exit();
+        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::deactivate, Qt::QueuedConnection);
         d->m_produceThread->wait();
     }
 

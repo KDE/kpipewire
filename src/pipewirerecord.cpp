@@ -167,14 +167,6 @@ void PipeWireRecordProduce::aboutToEncode(PipeWireFrame &frame)
 
 void PipeWireRecordProduce::processPacket(AVPacket *packet)
 {
-    if (!packet) {
-        auto ret = av_write_trailer(m_avFormatContext);
-        if (ret < 0) {
-            qCWarning(PIPEWIRERECORD_LOGGING) << "failed to write trailer" << av_err2str(ret);
-        }
-        return;
-    }
-
     packet->stream_index = (*m_avFormatContext->streams)->index;
     av_packet_rescale_ts(packet, m_encoder->avCodecContext()->time_base, (*m_avFormatContext->streams)->time_base);
     log_packet(m_avFormatContext, packet);
@@ -201,6 +193,13 @@ int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanosec
 
 void PipeWireRecordProduce::cleanup()
 {
+    // Clear the queue of encoded packets.
+    m_encoder->receivePacket();
+
+    if (auto result = av_write_trailer(m_avFormatContext); result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not write trailer";
+    }
+
     avio_closep(&m_avFormatContext->pb);
     avformat_free_context(m_avFormatContext);
 }
