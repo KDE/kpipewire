@@ -134,6 +134,7 @@ void PipeWireProduce::setupStream()
             m_frameReceivedCondition.notify_all();
         }
     });
+    pthread_setname_np(m_passthroughThread.native_handle(), "PipeWireProduce::passthrough");
 
     m_outputThread = std::thread([this]() {
         m_outputRunning = true;
@@ -148,6 +149,7 @@ void PipeWireProduce::setupStream()
             m_encoder->receivePacket();
         }
     });
+    pthread_setname_np(m_outputThread.native_handle(), "PipeWireProduce::output");
 }
 
 void PipeWireProduce::deactivate()

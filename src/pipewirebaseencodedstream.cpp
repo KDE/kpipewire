@@ -123,6 +123,7 @@ void PipeWireBaseEncodedStream::refresh()
 {
     if (d->m_active && d->m_nodeId > 0) {
         d->m_produceThread = std::make_unique<QThread>();
+        d->m_produceThread->setObjectName("PipeWireProduce::input");
         d->m_produce = makeProduce();
         d->m_produce->moveToThread(d->m_produceThread.get());
         d->m_produceThread->start();
