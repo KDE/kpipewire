@@ -122,17 +122,25 @@ void PipeWireProduce::setupStream()
     m_passthroughThread = std::thread([this]() {
         m_passthroughRunning = true;
         while (m_passthroughRunning) {
+            std::unique_lock<std::mutex> lock(m_frameReceivedMutex);
+            m_frameReceivedCondition.wait(lock);
+
             if (!m_passthroughRunning) {
                 break;
             }
 
             m_encoder->encodeFrame();
+
+            m_frameReceivedCondition.notify_all();
         }
     });
 
     m_outputThread = std::thread([this]() {
         m_outputRunning = true;
         while (m_outputRunning) {
+            std::unique_lock<std::mutex> lock(m_frameReceivedMutex);
+            m_frameReceivedCondition.wait(lock);
+
             if (!m_outputRunning) {
                 break;
             }
@@ -163,6 +171,8 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 
     aboutToEncode(f);
     m_encoder->filterFrame(f);
+
+    m_frameReceivedCondition.notify_all();
 }
 
 void PipeWireProduce::stateChanged(pw_stream_state state)
@@ -181,11 +191,13 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
 
     if (m_passthroughThread.joinable()) {
         m_passthroughRunning = false;
+        m_frameReceivedCondition.notify_all();
         m_passthroughThread.join();
     }
 
     if (m_outputThread.joinable()) {
         m_outputRunning = false;
+        m_frameReceivedCondition.notify_all();
         m_outputThread.join();
     }
 

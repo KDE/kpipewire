@@ -25,7 +25,9 @@ extern "C" {
 #include <QThread>
 #include <QWaitCondition>
 
+#include <condition_variable>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <thread>
 
@@ -111,6 +113,9 @@ public:
     // so manually handle the stop source.
     std::atomic_bool m_passthroughRunning = false;
     std::atomic_bool m_outputRunning = false;
+
+    std::condition_variable m_frameReceivedCondition;
+    std::mutex m_frameReceivedMutex;
 
     std::atomic_bool m_deactivated = false;
 
