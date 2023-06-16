@@ -4,7 +4,7 @@
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
 */
 
-#include "pipewireproduce.h"
+#include "pipewireproduce_p.h"
 
 #include <QMutex>
 #include <QPainter>
@@ -15,9 +15,9 @@
 #include <memory>
 #include <qstringliteral.h>
 
-#include "h264vaapiencoder.h"
-#include "libvpxencoder.h"
-#include "libx264encoder.h"
+#include "h264vaapiencoder_p.h"
+#include "libvpxencoder_p.h"
+#include "libx264encoder_p.h"
 
 extern "C" {
 #include <fcntl.h>

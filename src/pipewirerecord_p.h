@@ -5,7 +5,7 @@
 */
 
 #pragma once
-#include "pipewireproduce.h"
+#include "pipewireproduce_p.h"
 #include <QRunnable>
 
 struct gbm_device;

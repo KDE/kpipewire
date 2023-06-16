@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "pipewireproduce.h"
+#include "pipewireproduce_p.h"
 
 class PipeWireEncodeProduce : public PipeWireProduce
 {

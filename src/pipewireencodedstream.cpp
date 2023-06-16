@@ -6,7 +6,7 @@
 
 #include "pipewireencodedstream.h"
 #include "pipewireencodedstream_p.h"
-#include "pipewireproduce.h"
+#include "pipewireproduce_p.h"
 #include <QDebug>
 
 extern "C" {

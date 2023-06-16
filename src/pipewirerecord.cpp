@@ -5,7 +5,7 @@
 */
 
 #include "pipewirerecord.h"
-#include "encoder.h"
+#include "encoder_p.h"
 #include "glhelpers.h"
 #include "pipewirerecord_p.h"
 #include <logging_record.h>

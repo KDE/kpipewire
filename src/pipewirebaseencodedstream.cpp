@@ -16,7 +16,7 @@ extern "C" {
 }
 #include <unistd.h>
 
-#include "pipewireproduce.h"
+#include "pipewireproduce_p.h"
 #include "vaapiutils_p.h"
 
 struct PipeWireEncodedStreamPrivate {
