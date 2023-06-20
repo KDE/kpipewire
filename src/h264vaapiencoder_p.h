@@ -18,6 +18,9 @@ public:
 
     bool initialize(const QSize &size) override;
 
+protected:
+    int percentageToAbsoluteQuality(const std::optional<quint8> &quality) override;
+
 private:
     H264Profile m_profile = H264Profile::Main;
 };

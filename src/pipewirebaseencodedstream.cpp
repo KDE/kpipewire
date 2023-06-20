@@ -25,9 +25,10 @@ struct PipeWireEncodedStreamPrivate {
     std::optional<Fraction> m_maxFramerate;
     bool m_active = false;
     PipeWireBaseEncodedStream::Encoder m_encoder;
+    std::optional<quint8> m_quality;
 
     std::unique_ptr<QThread> m_produceThread;
-    PipeWireProduce *m_produce;
+    PipeWireProduce *m_produce = nullptr;
 };
 
 PipeWireBaseEncodedStream::State PipeWireBaseEncodedStream::state() const
@@ -119,12 +120,26 @@ void PipeWireBaseEncodedStream::setActive(bool active)
     Q_EMIT activeChanged(active);
 }
 
+std::optional<quint8> PipeWireBaseEncodedStream::quality() const
+{
+    return d->m_quality;
+}
+
+void PipeWireBaseEncodedStream::setQuality(quint8 quality)
+{
+    d->m_quality = quality;
+    if (d->m_produce) {
+        d->m_produce->setQuality(d->m_quality);
+    }
+}
+
 void PipeWireBaseEncodedStream::refresh()
 {
     if (d->m_active && d->m_nodeId > 0) {
         d->m_produceThread = std::make_unique<QThread>();
         d->m_produceThread->setObjectName("PipeWireProduce::input");
         d->m_produce = makeProduce();
+        d->m_produce->setQuality(d->m_quality);
         d->m_produce->moveToThread(d->m_produceThread.get());
         d->m_produceThread->start();
         QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::initialize, Qt::QueuedConnection);

@@ -79,12 +79,14 @@ void PipeWireProduce::setupStream()
     case PipeWireBaseEncodedStream::H264Main: {
         auto profile = m_encoderType == PipeWireBaseEncodedStream::H264Baseline ? Encoder::H264Profile::Baseline : Encoder::H264Profile::Main;
         auto hardwareEncoder = std::make_unique<H264VAAPIEncoder>(profile, this);
+        hardwareEncoder->setQuality(m_quality);
         if (hardwareEncoder->initialize(size)) {
             m_encoder = std::move(hardwareEncoder);
             break;
         }
 
         auto softwareEncoder = std::make_unique<LibX264Encoder>(profile, this);
+        softwareEncoder->setQuality(m_quality);
         if (!softwareEncoder->initialize(size)) {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Could not initialize H264 encoder";
             return;
@@ -94,6 +96,7 @@ void PipeWireProduce::setupStream()
     }
     case PipeWireBaseEncodedStream::VP8: {
         auto encoder = std::make_unique<LibVpxEncoder>(this);
+        encoder->setQuality(m_quality);
         if (!encoder->initialize(size)) {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Could not initialize VP8 encoder";
             return;
@@ -156,6 +159,14 @@ void PipeWireProduce::deactivate()
 {
     m_deactivated = true;
     m_stream->setActive(false);
+}
+
+void PipeWireProduce::setQuality(const std::optional<quint8> &quality)
+{
+    m_quality = quality;
+    if (m_encoder) {
+        m_encoder->setQuality(quality);
+    }
 }
 
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)

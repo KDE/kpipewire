@@ -89,6 +89,8 @@ public:
 
     void deactivate();
 
+    void setQuality(const std::optional<quint8> &quality);
+
     const uint m_nodeId;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
@@ -99,6 +101,8 @@ public:
 
     uint m_fd;
     std::optional<Fraction> m_frameRate;
+
+    std::optional<quint8> m_quality;
 
     struct {
         QImage texture;

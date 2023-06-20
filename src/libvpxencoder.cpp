@@ -11,12 +11,11 @@
 #include <QSize>
 #include <QThread>
 
-#include <libavcodec/avcodec.h>
-#include <libavutil/pixfmt.h>
-
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
+#include <libavutil/pixfmt.h>
 }
 
 #include "logging_record.h"
@@ -52,6 +51,12 @@ bool LibVpxEncoder::initialize(const QSize &size)
     m_avCodecContext->time_base = AVRational{1, 1000};
     m_avCodecContext->global_quality = 35;
 
+    if (m_quality) {
+        m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
+    } else {
+        m_avCodecContext->global_quality = 35;
+    }
+
     AVDictionary *options = nullptr;
     av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     av_dict_set(&options, "preset", "veryfast", 0);
@@ -71,4 +76,14 @@ bool LibVpxEncoder::initialize(const QSize &size)
     }
 
     return true;
+}
+
+int LibVpxEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
+{
+    if (!quality) {
+        return -1;
+    }
+
+    constexpr int MinQuality = 63;
+    return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
 }

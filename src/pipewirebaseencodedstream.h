@@ -52,6 +52,21 @@ public:
     bool isActive() const;
     void setActive(bool active);
 
+    /**
+     * The quality used for encoding.
+     */
+    std::optional<quint8> quality() const;
+    /**
+     * Set the quality to use for encoding.
+     *
+     * This uses a range of 0-100 as a percentage, with 0 being lowest quality
+     * and 100 being highest. This is internally converted to a value relevant to
+     * the encoder.
+     *
+     * @param quality The quality level to use.
+     */
+    void setQuality(quint8 quality);
+
     enum State {
         Idle, //< ready to get started
         Recording, //< actively recording

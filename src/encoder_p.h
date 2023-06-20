@@ -81,7 +81,16 @@ public:
      */
     AVCodecContext *avCodecContext() const;
 
+    /**
+     * Set the quality level, from 0 (lowest) to 100 (highest).
+     *
+     * Internally this will be converted to an encoder-specific quality value.
+     */
+    void setQuality(std::optional<quint8> quality);
+
 protected:
+    virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
+
     PipeWireProduce *m_produce;
 
     AVCodecContext *m_avCodecContext = nullptr;
@@ -90,6 +99,8 @@ protected:
     AVFilterGraph *m_avFilterGraph = nullptr;
     AVFilterContext *m_inputFilter = nullptr;
     AVFilterContext *m_outputFilter = nullptr;
+
+    std::optional<quint8> m_quality;
 };
 
 /**

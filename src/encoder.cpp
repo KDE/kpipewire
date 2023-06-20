@@ -53,6 +53,11 @@ static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
     }
 }
 
+static int percentageToFrameQuality(quint8 quality)
+{
+    return std::max(1, int(FF_LAMBDA_MAX - (quality / 100.0) * FF_LAMBDA_MAX));
+}
+
 Encoder::Encoder(PipeWireProduce *produce)
     : QObject(nullptr)
     , m_produce(produce)
@@ -142,6 +147,14 @@ AVCodecContext *Encoder::avCodecContext() const
     return m_avCodecContext;
 }
 
+void Encoder::setQuality(std::optional<quint8> quality)
+{
+    m_quality = quality;
+    if (m_avCodecContext) {
+        m_avCodecContext->global_quality = percentageToAbsoluteQuality(quality);
+    }
+}
+
 SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
     : Encoder(produce)
 {
@@ -171,6 +184,10 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
     avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
     avFrame->width = size.width();
     avFrame->height = size.height();
+    if (m_quality) {
+        avFrame->quality = percentageToFrameQuality(m_quality.value());
+    }
+
     av_frame_get_buffer(avFrame, 32);
 
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
@@ -294,6 +311,9 @@ void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
     drmFrame->format = AV_PIX_FMT_DRM_PRIME;
     drmFrame->width = attribs.width;
     drmFrame->height = attribs.height;
+    if (m_quality) {
+        drmFrame->quality = percentageToFrameQuality(m_quality.value());
+    }
 
     auto frameDesc = new AVDRMFrameDescriptor;
     frameDesc->nb_layers = 1;

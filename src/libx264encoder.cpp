@@ -11,12 +11,11 @@
 #include <QSize>
 #include <QThread>
 
-#include <libavcodec/avcodec.h>
-#include <libavutil/pixfmt.h>
-
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
+#include <libavutil/pixfmt.h>
 }
 
 #include "logging_record.h"
@@ -42,7 +41,6 @@ bool LibX264Encoder::initialize(const QSize &size)
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not allocate video codec context";
         return false;
     }
-    m_avCodecContext->bit_rate = size.width() * size.height() * 2;
 
     Q_ASSERT(!size.isEmpty());
     m_avCodecContext->width = size.width();
@@ -51,7 +49,12 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
-    m_avCodecContext->global_quality = 35;
+
+    if (m_quality) {
+        m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
+    } else {
+        m_avCodecContext->global_quality = 35;
+    }
 
     switch (m_profile) {
     case H264Profile::Baseline:
@@ -76,7 +79,6 @@ bool LibX264Encoder::initialize(const QSize &size)
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
-    av_dict_set(&options, "crf", "45", 0);
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
@@ -84,4 +86,14 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     return true;
+}
+
+int LibX264Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
+{
+    if (!quality) {
+        return -1;
+    }
+
+    constexpr int MinQuality = 51 + 6 * 6;
+    return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
 }
