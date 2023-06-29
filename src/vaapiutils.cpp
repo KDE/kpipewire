@@ -13,6 +13,7 @@ extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
 #include <va/va_drm.h>
+#include <va/va_drmcommon.h>
 #include <xf86drm.h>
 }
 
@@ -216,8 +217,8 @@ void VaapiUtils::querySizeConstraints(VADisplay dpy) const
         return;
     }
 
-    VASurfaceAttrib attrib[8];
-    uint32_t attribCount = 8;
+    VASurfaceAttrib attrib[VASurfaceAttribCount];
+    uint32_t attribCount = VASurfaceAttribCount;
 
     auto status = vaQuerySurfaceAttributes(dpy, config, attrib, &attribCount);
     if (status == VA_STATUS_SUCCESS) {
@@ -235,6 +236,12 @@ void VaapiUtils::querySizeConstraints(VADisplay dpy) const
             case VASurfaceAttribMaxHeight:
                 m_maxSize.setHeight(attrib[i].value.value.i);
                 break;
+            case VASurfaceAttribDRMFormatModifiers: {
+                auto mods = static_cast<VADRMFormatModifierList *>(attrib[i].value.value.p);
+                for (int i = 0; i < mods->num_modifiers; ++i) {
+                    qDebug() << "VAAPI: DRM format modifier" << mods->modifiers[i];
+                }
+            } break;
             default:
                 break;
             }
