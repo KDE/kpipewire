@@ -26,10 +26,6 @@
 #include <libdrm/drm_fourcc.h>
 #include <unistd.h>
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-#include <QtPlatformHeaders/QEGLNativeContext>
-#endif
-
 static void pwInit()
 {
     pw_init(nullptr, nullptr);
@@ -355,11 +351,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         return;
     }
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    const auto openglContext = window()->openglContext();
-#else
     const auto openglContext = static_cast<QOpenGLContext *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::OpenGLContextResource));
-#endif
     if (!openglContext || !d->m_stream) {
         qCWarning(PIPEWIRE_LOGGING) << "need a window and a context" << window();
         return;
@@ -396,11 +388,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         QQuickWindow::CreateTextureOption textureOption =
             format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
         setEnabled(true);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-        return window()->createTextureFromNativeObject(QQuickWindow::NativeObjectTexture, &textureId, 0 /*a vulkan thing?*/, size, textureOption);
-#else
         return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
-#endif
     };
 }
 
