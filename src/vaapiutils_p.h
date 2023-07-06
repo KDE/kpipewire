@@ -26,6 +26,8 @@ public:
     QSize minimumSize() const;
     QSize maximumSize() const;
 
+    bool supportsHardwareModifiers() const;
+
 private:
     static VADisplay openDevice(int *fd, const QByteArray &path);
     static void closeDevice(int *fd, VADisplay dpy);
@@ -36,6 +38,7 @@ private:
 
     QByteArray m_devicePath;
 
+    mutable bool m_supportsHardwareModifiers = true;
     mutable QSize m_minSize;
     mutable QSize m_maxSize = QSize{std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
 };

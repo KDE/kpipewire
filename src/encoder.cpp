@@ -21,6 +21,8 @@ extern "C" {
 #include <libavutil/imgutils.h>
 }
 
+#include <libdrm/drm_fourcc.h>
+
 #include "pipewireproduce_p.h"
 #include "vaapiutils_p.h"
 
@@ -279,6 +281,12 @@ void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
     }
 
     auto attribs = frame.dmabuf.value();
+
+    if (!m_supportsHardwareModifiers && attribs.modifier != 0) {
+        m_produce->m_stream->renegotiateModifierFailed(frame.format, attribs.modifier);
+        return;
+    }
+
     auto drmFrame = av_frame_alloc();
     if (!drmFrame) {
         qFatal("Failed to allocate memory");
@@ -336,6 +344,7 @@ QByteArray HardwareEncoder::checkVaapi(const QSize &size)
         qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "exceeds maximum supported hardware size" << maxSize;
         return QByteArray{};
     }
+    m_supportsHardwareModifiers = utils.supportsHardwareModifiers();
 
     return utils.devicePath();
 }

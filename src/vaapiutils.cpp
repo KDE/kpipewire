@@ -93,6 +93,23 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
 
     querySizeConstraints(vaDpy);
 
+    /**
+     * If FFPEG fails to import a buffer with modifiers, it silently goes into
+     * of importing as linear, which looks to us like it works, but obviously results in
+     * a messed up image. At the time of writing the Intel iHD driver does not
+     *
+     * Manually blacklist drivers which are known to fail import
+     *
+     * 10/7/23 - FFmpeg 2.6 with intel-media-driver 23.2.3-1
+     */
+    const bool blackListed = QByteArray(vaQueryVendorString(vaDpy)).startsWith("Intel iHD driver");
+
+    const bool disabledByEnvVar = qEnvironmentVariableIntValue("KPIPEWIRE_NO_MODIFIERS_FOR_ENCODING") > 0;
+
+    if (blackListed || disabledByEnvVar) {
+        m_supportsHardwareModifiers = false;
+    }
+
     closeDevice(&drmFd, vaDpy);
 
     return ret;
@@ -111,6 +128,11 @@ QSize VaapiUtils::minimumSize() const
 QSize VaapiUtils::maximumSize() const
 {
     return m_maxSize;
+}
+
+bool VaapiUtils::supportsHardwareModifiers() const
+{
+    return m_supportsHardwareModifiers;
 }
 
 VADisplay VaapiUtils::openDevice(int *fd, const QByteArray &path)
