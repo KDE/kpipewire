@@ -3,7 +3,7 @@ include(ECMQmlModule)
 include(ECMGenerateHeaders)
 include(ECMSetupVersion)
 
-add_definitions(-DTRANSLATION_DOMAIN=\"kpipewire5\")
+add_definitions(-DTRANSLATION_DOMAIN=\"kpipewire6\")
 
 add_library(KPipeWire)
 
