@@ -11,24 +11,28 @@ ecm_qt_declare_logging_category(kpipewire_SRCS
                             HEADER logging.h
                             IDENTIFIER PIPEWIRE_LOGGING
                             CATEGORY_NAME kpipewire_logging
+                            DEFAULT_SEVERITY Warning
                             DESCRIPTION "PipeWire components for KDE"
                             EXPORT KPipeWire)
 ecm_qt_declare_logging_category(kpipewiredmabuf_SRCS
                             HEADER logging_dmabuf.h
                             IDENTIFIER PIPEWIREDMABUF_LOGGING
                             CATEGORY_NAME kpipewire_dmabuf_logging
+                            DEFAULT_SEVERITY Warning
                             DESCRIPTION "PipeWire and DMABuf components for KDE"
                             EXPORT KPipeWireDmaBuf)
 ecm_qt_declare_logging_category(kpipewirerecord_SRCS
                             HEADER logging_record.h
                             IDENTIFIER PIPEWIRERECORD_LOGGING
                             CATEGORY_NAME kpipewire_record_logging
+                            DEFAULT_SEVERITY Warning
                             DESCRIPTION "PipeWire and FFmpeg components for KDE"
                             EXPORT KPipeWireRecord)
 ecm_qt_declare_logging_category(kpipewirerecord_SRCS
                             HEADER logging_libav.h
                             IDENTIFIER PIPEWIRELIBAV_LOGGING
                             CATEGORY_NAME kpipewire_libav_logging
+                            DEFAULT_SEVERITY Warning
                             DESCRIPTION "PipeWire components for KDE - libav log output"
                             DEFAULT_SEVERITY Info)
 
