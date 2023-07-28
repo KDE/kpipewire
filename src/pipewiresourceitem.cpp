@@ -115,6 +115,8 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
     default:
         break;
     }
+
+    QQuickItem::itemChange(change, data);
 }
 
 void PipeWireSourceItem::releaseResources()
