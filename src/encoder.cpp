@@ -402,3 +402,5 @@ bool HardwareEncoder::createDrmContext(const QSize &size)
 
     return true;
 }
+
+#include "moc_encoder_p.cpp"

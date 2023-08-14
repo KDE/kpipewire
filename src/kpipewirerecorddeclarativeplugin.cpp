@@ -13,3 +13,5 @@ void KPipewireRecordDeclarativePlugin::registerTypes(const char *uri)
 {
     qmlRegisterType<PipeWireRecord>(uri, 0, 1, "PipeWireRecord");
 }
+
+#include "moc_kpipewirerecorddeclarativeplugin.cpp"

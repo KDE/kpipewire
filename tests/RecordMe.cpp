@@ -199,3 +199,5 @@ void RecordMe::setDuration(int duration)
 {
     m_durationTimer->setInterval(duration);
 }
+
+#include "moc_RecordMe.cpp"

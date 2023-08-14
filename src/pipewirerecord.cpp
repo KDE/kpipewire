@@ -205,3 +205,7 @@ void PipeWireRecordProduce::cleanup()
     avio_closep(&m_avFormatContext->pb);
     avformat_free_context(m_avFormatContext);
 }
+
+#include "moc_pipewirerecord.cpp"
+
+#include "moc_pipewirerecord_p.cpp"

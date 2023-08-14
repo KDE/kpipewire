@@ -209,3 +209,5 @@ uint PipeWireBaseEncodedStream::fd() const
 {
     return d->m_fd.value_or(0);
 }
+
+#include "moc_pipewirebaseencodedstream.cpp"

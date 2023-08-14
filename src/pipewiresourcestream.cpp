@@ -607,3 +607,5 @@ void PipeWireSourceStream::setAllowDmaBuf(bool allowed)
 {
     d->m_allowDmaBuf = allowed;
 }
+
+#include "moc_pipewiresourcestream.cpp"

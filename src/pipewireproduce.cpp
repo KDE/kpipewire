@@ -218,3 +218,5 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     cleanup();
     QThread::currentThread()->quit();
 }
+
+#include "moc_pipewireproduce_p.cpp"

@@ -125,3 +125,5 @@ QString PipeWireCore::error() const
 {
     return m_error;
 }
+
+#include "moc_pipewirecore.cpp"

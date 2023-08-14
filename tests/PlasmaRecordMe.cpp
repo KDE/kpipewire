@@ -250,3 +250,5 @@ QRect PlasmaRecordMe::region() const
 {
     return m_region.normalized();
 }
+
+#include "moc_PlasmaRecordMe.cpp"

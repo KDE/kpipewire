@@ -152,3 +152,5 @@ void Screencasting::destroy()
 {
     d.reset(nullptr);
 }
+
+#include "moc_screencasting.cpp"

@@ -90,3 +90,7 @@ PipeWireProduce *PipeWireEncodedStream::makeProduce()
     });
     return produce;
 }
+
+#include "moc_pipewireencodedstream_p.cpp"
+
+#include "moc_pipewireencodedstream.cpp"
