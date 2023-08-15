@@ -190,7 +190,7 @@ void RecordMe::handleStreams(const QVector<Stream> &streams)
         for (auto root : roots) {
             auto mo = root->metaObject();
             qDebug() << "feeding..." << stream.id << fd;
-            mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(stream.id)), Q_ARG(QVariant, m_handleToken), Q_ARG(QVariant, fd));
+            mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(stream.id)), Q_ARG(QVariant, m_handleToken), Q_ARG(QVariant, fd), Q_ARG(QVariant, true));
         }
     }
 }
