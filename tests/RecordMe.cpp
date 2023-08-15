@@ -104,10 +104,15 @@ void RecordMe::init(const QDBusObjectPath& path)
         } else {
             cursor_mode = Hidden;
         }
-        const QVariantMap sourcesParameters = {{QLatin1String("handle_token"), m_handleToken},
-                                               {QLatin1String("types"), iface->availableSourceTypes()},
-                                               {QLatin1String("multiple"), false}, // for now?
-                                               {QLatin1String("cursor_mode"), uint(cursor_mode)}};
+        QVariantMap sourcesParameters = {{QLatin1String("handle_token"), m_handleToken},
+                                         {QLatin1String("types"), iface->availableSourceTypes()},
+                                         {QLatin1String("multiple"), false}, // for now?
+                                         {QLatin1String("cursor_mode"), uint(cursor_mode)},
+                                         {QLatin1String("persist_mode"), uint(m_persistMode)}};
+
+        if (!m_restoreToken.isEmpty()) {
+            sourcesParameters[QLatin1String("restore_token")] = m_restoreToken;
+        }
 
         auto reply = iface->SelectSources(m_path, sourcesParameters);
         reply.waitForFinished();
@@ -127,6 +132,10 @@ void RecordMe::response(uint code, const QVariantMap& results)
         qWarning() << "error!!!" << code << results;
         exit(666);
         return;
+    }
+
+    if (results.contains(QLatin1String("restore_token"))) {
+        qDebug() << "Restore token:" << results[QLatin1String("restore_token")].toString();
     }
 
     const auto streamsIt = results.constFind(QStringLiteral("streams"));
@@ -190,9 +199,24 @@ void RecordMe::handleStreams(const QVector<Stream> &streams)
         for (auto root : roots) {
             auto mo = root->metaObject();
             qDebug() << "feeding..." << stream.id << fd;
-            mo->invokeMethod(root, "addStream", Q_ARG(QVariant, QVariant::fromValue<quint32>(stream.id)), Q_ARG(QVariant, m_handleToken), Q_ARG(QVariant, fd), Q_ARG(QVariant, true));
+            mo->invokeMethod(root,
+                             "addStream",
+                             Q_ARG(QVariant, QVariant::fromValue<quint32>(stream.id)),
+                             Q_ARG(QVariant, m_handleToken),
+                             Q_ARG(QVariant, fd),
+                             Q_ARG(QVariant, true));
         }
     }
+}
+
+void RecordMe::setPersistMode(PersistMode persistMode)
+{
+    m_persistMode = persistMode;
+}
+
+void RecordMe::setRestoreToken(const QString &restoreToken)
+{
+    m_restoreToken = restoreToken;
 }
 
 void RecordMe::setDuration(int duration)
