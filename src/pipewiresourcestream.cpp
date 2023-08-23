@@ -477,6 +477,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         using namespace std::chrono;
         auto now = system_clock::now();
         d->m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
+        frame.presentationTimestamp = d->m_currentPresentationTimestamp;
     }
 
     if (spa_meta *vd = spa_buffer_find_meta(spaBuffer, SPA_META_VideoDamage)) {
