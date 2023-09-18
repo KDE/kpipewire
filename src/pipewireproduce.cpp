@@ -144,6 +144,13 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         }
     }
 
+    auto pts = framePts(frame.presentationTimestamp);
+    if (m_previousPts >= 0 && pts <= m_previousPts) {
+        return;
+    }
+
+    m_previousPts = pts;
+
     aboutToEncode(f);
     m_encoder->filterFrame(f);
 

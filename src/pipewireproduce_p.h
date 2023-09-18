@@ -123,6 +123,8 @@ public:
 
     std::atomic_bool m_deactivated = false;
 
+    int64_t m_previousPts = -1;
+
 Q_SIGNALS:
     void producedFrames();
 
