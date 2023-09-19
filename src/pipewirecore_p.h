@@ -11,7 +11,9 @@
 #include <QVersionNumber>
 #include <pipewire/pipewire.h>
 
-class PipeWireCore : public QObject
+#include <kpipewire_export.h>
+
+class KPIPEWIRE_EXPORT PipeWireCore : public QObject
 {
     Q_OBJECT
 public:
@@ -23,6 +25,7 @@ public:
     ~PipeWireCore();
 
     bool init(int fd);
+    bool init_core();
     QString error() const;
     QVersionNumber serverVersion() const
     {
@@ -34,10 +37,14 @@ public:
         return m_pwMainLoop;
     }
 
-    pw_core *operator*() const { return m_pwCore; };
+    pw_core *operator*() const
+    {
+        return m_pwCore;
+    };
     static QSharedPointer<PipeWireCore> fetch(int fd);
 
 private:
+    int m_fd = 0;
     pw_core *m_pwCore = nullptr;
     pw_context *m_pwContext = nullptr;
     pw_loop *m_pwMainLoop = nullptr;
@@ -49,4 +56,9 @@ private:
 
 Q_SIGNALS:
     void pipewireFailed(const QString &message);
+
+    /**
+     * Clients should disconnect from the core and reconnect to it on receiving this signal
+     */
+    void pipeBroken();
 };

@@ -46,9 +46,11 @@ add_definitions(-DMESA_EGL_NO_X11_HEADERS)
 add_definitions(-DEGL_NO_X11)
 add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
 
-add_subdirectory(src)
 if (BUILD_TESTING)
+   include(ECMAddTests)
+   find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
    add_subdirectory(tests)
 endif()
+add_subdirectory(src)
 
 ki18n_install(po)

@@ -189,3 +189,4 @@ target_sources(KPipeWireRecordDeclarative PRIVATE kpipewirerecorddeclarativeplug
 target_link_libraries(KPipeWireRecordDeclarative PRIVATE KPipeWire KPipeWireRecord Qt::Quick)
 ecm_finalize_qml_module(KPipeWireRecordDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
 
+add_subdirectory(monitors)

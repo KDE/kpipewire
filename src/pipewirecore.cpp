@@ -5,14 +5,16 @@
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
 */
 
-#include "pipewirecore.h"
-#include "logging.h"
+#include "pipewirecore_p.h"
+
 #include <KLocalizedString>
 #include <QSocketNotifier>
 #include <QThread>
 #include <QThreadStorage>
-#include <spa/utils/result.h>
 #include <mutex>
+#include <spa/utils/result.h>
+
+#include "logging.h"
 
 pw_core_events PipeWireCore::s_pwCoreEvents = {
     .version = PW_VERSION_CORE_EVENTS,
@@ -40,6 +42,16 @@ void PipeWireCore::onCoreError(void *data, uint32_t id, int seq, int res, const 
     if (id == PW_ID_CORE) {
         PipeWireCore *pw = static_cast<PipeWireCore *>(data);
         Q_EMIT pw->pipewireFailed(QString::fromUtf8(message));
+
+        if (res == -EPIPE) {
+            // Broken pipe, need reconnecting
+            if (pw->m_pwCore) {
+                Q_EMIT pw->pipeBroken();
+                spa_hook_remove(&pw->m_coreListener);
+                pw_core_disconnect(pw->m_pwCore);
+                pw->init_core();
+            }
+        }
     }
 }
 
@@ -87,14 +99,21 @@ bool PipeWireCore::init(int fd)
         return false;
     }
 
-    if (fd > 0) {
-        m_pwCore = pw_context_connect_fd(m_pwContext, fd, nullptr, 0);
+    m_fd = fd;
+
+    return init_core();
+}
+
+bool PipeWireCore::init_core()
+{
+    if (m_fd > 0) {
+        m_pwCore = pw_context_connect_fd(m_pwContext, m_fd, nullptr, 0);
     } else {
         m_pwCore = pw_context_connect(m_pwContext, nullptr, 0);
     }
     if (!m_pwCore) {
         m_error = i18n("Failed to connect to PipeWire");
-        qCWarning(PIPEWIRE_LOGGING) << "error:" << m_error << fd;
+        qCWarning(PIPEWIRE_LOGGING) << "error:" << m_error << m_fd;
         return false;
     }
 
@@ -125,5 +144,3 @@ QString PipeWireCore::error() const
 {
     return m_error;
 }
-
-#include "moc_pipewirecore.cpp"

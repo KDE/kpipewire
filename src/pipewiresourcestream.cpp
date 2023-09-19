@@ -9,7 +9,7 @@
 #include "pipewiresourcestream.h"
 #include "glhelpers.h"
 #include "logging.h"
-#include "pipewirecore.h"
+#include "pipewirecore_p.h"
 #include "pwhelpers.h"
 
 #include <libdrm/drm_fourcc.h>
