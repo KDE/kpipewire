@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2022-05-31 00:52+0000\n"
+"POT-Creation-Date: 2023-09-25 01:41+0000\n"
 "PO-Revision-Date: 2022-06-05 11:21+0200\n"
 "Last-Translator: Łukasz Wojniłowicz <lukasz.wojnilowicz@gmail.com>\n"
 "Language-Team: Polish <kde-i18n-doc@kde.org>\n"
@@ -18,17 +18,17 @@ msgstr ""
 "|| n%100>=20) ? 1 : 2);\n"
 "X-Generator: Lokalize 22.03.70\n"
 
-#: pipewirecore.cpp:86
+#: pipewirecore.cpp:98
 #, kde-format
 msgid "Failed to create PipeWire context"
 msgstr "Nie udało się utworzyć kontekstu PipeWire"
 
-#: pipewirecore.cpp:96
+#: pipewirecore.cpp:115
 #, kde-format
 msgid "Failed to connect to PipeWire"
 msgstr "Nie udało się połączyć z PipeWire"
 
-#: pipewirecore.cpp:103
+#: pipewirecore.cpp:122
 #, kde-format
 msgid "Failed to start main PipeWire loop"
 msgstr "Nie udało się uruchomić głównej pętli PipeWire"

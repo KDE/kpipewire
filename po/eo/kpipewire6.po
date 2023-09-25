@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2022-05-31 00:52+0000\n"
+"POT-Creation-Date: 2023-09-25 01:41+0000\n"
 "PO-Revision-Date: 2023-04-28 23:02+0100\n"
 "Last-Translator: Oliver Kellogg <okellogg@users.sourceforge.net>\n"
 "Language-Team: Esperanto <kde-i18n-eo@kde.org>\n"
@@ -16,17 +16,17 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-#: pipewirecore.cpp:86
+#: pipewirecore.cpp:98
 #, kde-format
 msgid "Failed to create PipeWire context"
 msgstr "Malsukcesis krei PipeWire-kuntekston"
 
-#: pipewirecore.cpp:96
+#: pipewirecore.cpp:115
 #, kde-format
 msgid "Failed to connect to PipeWire"
 msgstr "Malsukcesis konekti al PipeWire"
 
-#: pipewirecore.cpp:103
+#: pipewirecore.cpp:122
 #, kde-format
 msgid "Failed to start main PipeWire loop"
 msgstr "Malsukcesis startigi ĉefan PipeWire-buklon"

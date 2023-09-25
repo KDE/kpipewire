@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kdeorg\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2022-05-31 00:52+0000\n"
+"POT-Creation-Date: 2023-09-25 01:41+0000\n"
 "PO-Revision-Date: 2023-09-16 10:06\n"
 "Last-Translator: \n"
 "Language-Team: Chinese Simplified\n"
@@ -17,17 +17,17 @@ msgstr ""
 "X-Crowdin-File: /kf6-trunk/messages/kpipewire/kpipewire6.pot\n"
 "X-Crowdin-File-ID: 44497\n"
 
-#: pipewirecore.cpp:86
+#: pipewirecore.cpp:98
 #, kde-format
 msgid "Failed to create PipeWire context"
 msgstr "创建 PipeWire 环境信息失败"
 
-#: pipewirecore.cpp:96
+#: pipewirecore.cpp:115
 #, kde-format
 msgid "Failed to connect to PipeWire"
 msgstr "无法连接到 PipeWire"
 
-#: pipewirecore.cpp:103
+#: pipewirecore.cpp:122
 #, kde-format
 msgid "Failed to start main PipeWire loop"
 msgstr "无法启动 PipeWire 主循环"

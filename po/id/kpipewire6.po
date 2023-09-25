@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2022-05-31 00:52+0000\n"
+"POT-Creation-Date: 2023-09-25 01:41+0000\n"
 "PO-Revision-Date: 2023-05-30 20:40+0700\n"
 "Last-Translator: Wantoyèk <wantoyek@gmail.com>\n"
 "Language-Team: Indonesian <kde-i18n-doc@kde.org>\n"
@@ -17,17 +17,17 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Lokalize 23.04.0\n"
 
-#: pipewirecore.cpp:86
+#: pipewirecore.cpp:98
 #, kde-format
 msgid "Failed to create PipeWire context"
 msgstr "Gagal membuat PipeWire"
 
-#: pipewirecore.cpp:96
+#: pipewirecore.cpp:115
 #, kde-format
 msgid "Failed to connect to PipeWire"
 msgstr "Gagal menyambungkan ke PipeWire"
 
-#: pipewirecore.cpp:103
+#: pipewirecore.cpp:122
 #, kde-format
 msgid "Failed to start main PipeWire loop"
 msgstr "Gagal memulai loop PipeWire utama"
