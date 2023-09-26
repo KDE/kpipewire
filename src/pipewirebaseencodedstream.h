@@ -31,6 +31,7 @@ class KPIPEWIRE_EXPORT PipeWireBaseEncodedStream : public QObject
 
 public:
     enum Encoder {
+        NoEncoder,
         VP8,
         H264Main,
         H264Baseline,

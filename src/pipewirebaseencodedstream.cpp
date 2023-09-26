@@ -46,7 +46,7 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
     : QObject(parent)
     , d(new PipeWireEncodedStreamPrivate)
 {
-    d->m_encoder = Encoder::VP8;
+    d->m_encoder = suggestedEncoders().value(0, NoEncoder);
 
     const auto &category = PIPEWIRELIBAV_LOGGING();
     if (category.isDebugEnabled()) {
@@ -152,7 +152,7 @@ void PipeWireBaseEncodedStream::refresh()
 
 void PipeWireBaseEncodedStream::setEncoder(Encoder encoder)
 {
-    if (d->m_encoder == encoder) {
+    if (d->m_encoder == encoder || !suggestedEncoders().contains(encoder)) {
         return;
     }
     d->m_encoder = encoder;
