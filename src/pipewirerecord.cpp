@@ -86,7 +86,7 @@ QString PipeWireRecord::extension() const
         {PipeWireBaseEncodedStream::H264Baseline, QStringLiteral("mp4")},
         {PipeWireBaseEncodedStream::VP8, QStringLiteral("webm")},
     };
-    return s_extensions.value(encoder(), QStringLiteral("mkv"));
+    return s_extensions.value(encoder());
 }
 
 PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, const Fraction &framerate, const QString &output)
