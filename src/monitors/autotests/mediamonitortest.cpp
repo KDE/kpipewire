@@ -85,7 +85,8 @@ void MediaMonitorTest::test_MediaMonitor()
 
     QQuickItem *rootObject = view->rootObject();
     QSignalSpy countSpy(rootObject, SIGNAL(countChanged()));
-    bool ok = false;
+    // To make sure modelData is not null after count changes
+    QSignalSpy modelDataChangedSpy(rootObject, SIGNAL(modelDataChanged()));
 
     QProcess player;
     player.setProgram(QStringLiteral("pw-play"));
@@ -94,16 +95,21 @@ void MediaMonitorTest::test_MediaMonitor()
     QVERIFY2(player.waitForStarted(), player.readAllStandardError().constData());
 
     if (evaluate<int>(rootObject, QStringLiteral("root.count")) == 0) {
-        QVERIFY2(countSpy.wait(), player.readAllStandardError().constData());
+        countSpy.wait();
     }
+    if (evaluate<QObject *>(rootObject, QStringLiteral("root.modelData")) == nullptr) {
+        modelDataChangedSpy.wait();
+    }
+
     QVERIFY(evaluate<bool>(rootObject, QStringLiteral("monitor.detectionAvailable")));
     QCOMPARE(evaluate<int>(rootObject, QStringLiteral("root.count")), 1);
     if (qEnvironmentVariableIsSet("KDECI_BUILD")) {
         // There is no output in CI
-        QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.modelData.state")),
-                     evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Suspended")));
+        const int suspendedInt = evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Suspended"));
+        QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.modelData.state")), suspendedInt);
     } else {
-        QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.modelData.state")), evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Running")));
+        const int runningInt = evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Running"));
+        QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.modelData.state")), runningInt);
     }
 
     // Changing role will trigger reconnecting
@@ -138,7 +144,7 @@ void MediaMonitorTest::test_MediaMonitor()
     if (evaluate<int>(rootObject, QStringLiteral("root.count")) > 0) {
         QVERIFY(countSpy.wait());
     }
-    QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.count")), 0);
+    QCOMPARE(evaluate<int>(rootObject, QStringLiteral("root.count")), 0);
 
     if (pipewire.state() == QProcess::Running) {
         pipewire.terminate();
