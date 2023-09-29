@@ -33,6 +33,7 @@ public:
     enum Encoder {
         NoEncoder,
         VP8,
+        VP9,
         H264Main,
         H264Baseline,
     };

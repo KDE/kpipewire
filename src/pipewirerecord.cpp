@@ -85,6 +85,7 @@ QString PipeWireRecord::extension() const
         {PipeWireBaseEncodedStream::H264Main, QStringLiteral("mp4")},
         {PipeWireBaseEncodedStream::H264Baseline, QStringLiteral("mp4")},
         {PipeWireBaseEncodedStream::VP8, QStringLiteral("webm")},
+        {PipeWireBaseEncodedStream::VP9, QStringLiteral("webm")},
     };
     return s_extensions.value(encoder());
 }

@@ -17,6 +17,7 @@
 
 #include "h264vaapiencoder_p.h"
 #include "libvpxencoder_p.h"
+#include "libvpxvp9encoder_p.h"
 #include "libx264encoder_p.h"
 
 extern "C" {
@@ -200,6 +201,10 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
             qCWarning(PIPEWIRERECORD_LOGGING) << "Forcing VP8 Software encoding";
             encoderType = PipeWireBaseEncodedStream::VP8;
             forceSoftware = true;
+        } else if (forcedEncoder == u"libvpx-vp9") {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Forcing VP9 Software encoding";
+            encoderType = PipeWireBaseEncodedStream::VP9;
+            forceSoftware = true;
         } else if (forcedEncoder == u"libx264") {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Forcing H264 Software encoding, main profile";
             encoderType = PipeWireBaseEncodedStream::H264Main;
@@ -246,6 +251,16 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     case PipeWireBaseEncodedStream::VP8: {
         if (!forceHardware) {
             auto encoder = std::make_unique<LibVpxEncoder>(this);
+            encoder->setQuality(m_quality);
+            if (encoder->initialize(size)) {
+                return std::move(encoder);
+            }
+        }
+        break;
+    }
+    case PipeWireBaseEncodedStream::VP9: {
+        if (!forceHardware) {
+            auto encoder = std::make_unique<LibVpxVp9Encoder>(this);
             encoder->setQuality(m_quality);
             if (encoder->initialize(size)) {
                 return std::move(encoder);

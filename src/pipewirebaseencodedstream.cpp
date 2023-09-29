@@ -9,6 +9,7 @@
 #include <logging_libav.h>
 #include <logging_record.h>
 #include <memory>
+#include <va/va.h>
 
 extern "C" {
 #include <libavcodec/codec.h>
@@ -169,9 +170,10 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
     VaapiUtils vaapi;
 
     QList<PipeWireBaseEncodedStream::Encoder> ret = {PipeWireBaseEncodedStream::VP8,
+                                                     PipeWireBaseEncodedStream::VP9,
                                                      PipeWireBaseEncodedStream::H264Main,
                                                      PipeWireBaseEncodedStream::H264Baseline};
-    std::remove_if(ret.begin(), ret.end(), [&vaapi](PipeWireBaseEncodedStream::Encoder &encoder) {
+    auto removeUnavailableEncoders = [&vaapi](const PipeWireBaseEncodedStream::Encoder &encoder) {
         switch (encoder) {
         case PipeWireBaseEncodedStream::VP8:
             if (vaapi.supportsProfile(VAProfileVP8Version0_3) && avcodec_find_encoder_by_name("vp8_vaapi")) {
@@ -179,6 +181,8 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
             } else {
                 return !avcodec_find_encoder_by_name("libvpx");
             }
+        case PipeWireBaseEncodedStream::VP9:
+            return !avcodec_find_encoder_by_name("libvpx-vp9");
         case PipeWireBaseEncodedStream::H264Main:
         case PipeWireBaseEncodedStream::H264Baseline:
             if (vaapi.supportsProfile(encoder == PipeWireBaseEncodedStream::H264Main ? VAProfileH264Main : VAProfileH264ConstrainedBaseline)
@@ -190,7 +194,8 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
         default:
             return true;
         }
-    });
+    };
+    ret.removeIf(removeUnavailableEncoders);
     return ret;
 }
 

@@ -43,13 +43,15 @@ void createStream(int nodeId, std::optional<int> fd = {})
             encoded->setMaxFramerate(*s_framerate);
         }
         if (s_encoder) {
-            PipeWireBaseEncodedStream::Encoder enc;
+            PipeWireBaseEncodedStream::Encoder enc = PipeWireBaseEncodedStream::NoEncoder;
             if (s_encoder.value() == QByteArray("H264Main")) {
                 enc = PipeWireBaseEncodedStream::H264Main;
             } else if (s_encoder.value() == QByteArray("H264Baseline")) {
                 enc = PipeWireBaseEncodedStream::H264Baseline;
             } else if (s_encoder.value() == QByteArray("VP8")) {
                 enc = PipeWireBaseEncodedStream::VP8;
+            } else if (s_encoder.value() == QByteArray("VP9")) {
+                enc = PipeWireBaseEncodedStream::VP9;
             }
             encoded->setEncoder(enc);
         }
