@@ -20,14 +20,14 @@ msgstr ""
 #: pipewirecore.cpp:86
 #, kde-format
 msgid "Failed to create PipeWire context"
-msgstr "Non se puido crear o contexto de PipeWire"
+msgstr "Non foi posíbel crear o contexto de PipeWire"
 
 #: pipewirecore.cpp:96
 #, kde-format
 msgid "Failed to connect to PipeWire"
-msgstr "Non se puido conectar a PipeWire"
+msgstr "Non foi posíbel conectar a PipeWire"
 
 #: pipewirecore.cpp:103
 #, kde-format
 msgid "Failed to start main PipeWire loop"
-msgstr "Non se puido iniciar o bucle principal de PipeWire"
+msgstr "Non foi posíbel iniciar o bucle principal de PipeWire"
