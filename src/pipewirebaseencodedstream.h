@@ -50,6 +50,7 @@ public:
 
     Fraction maxFramerate() const;
     void setMaxFramerate(const Fraction &framerate);
+    void setMaxFramerate(quint32 numerator, quint32 denominator = 1);
 
     bool isActive() const;
     void setActive(bool active);

@@ -110,6 +110,11 @@ void PipeWireBaseEncodedStream::setMaxFramerate(const Fraction &framerate)
     Q_EMIT maxFramerateChanged();
 }
 
+void PipeWireBaseEncodedStream::setMaxFramerate(quint32 numerator, quint32 denominator)
+{
+    setMaxFramerate({numerator, denominator});
+}
+
 void PipeWireBaseEncodedStream::setActive(bool active)
 {
     if (d->m_active == active)
