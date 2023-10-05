@@ -191,8 +191,16 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
             } else {
                 return !avcodec_find_encoder_by_name("libvpx");
             }
-        case PipeWireBaseEncodedStream::VP9:
-            return !avcodec_find_encoder_by_name("libvpx-vp9");
+        case PipeWireBaseEncodedStream::VP9: {
+            // VP9 will automatically use the correct profile, so check for any profile.
+            bool profileFound = vaapi.supportsProfile(VAProfileVP9Profile0) || vaapi.supportsProfile(VAProfileVP9Profile1)
+                || vaapi.supportsProfile(VAProfileVP9Profile2) || vaapi.supportsProfile(VAProfileVP9Profile3);
+            if (profileFound && avcodec_find_encoder_by_name("vp9_vaapi")) {
+                return false;
+            } else {
+                return !avcodec_find_encoder_by_name("libvpx-vp9");
+            }
+        }
         case PipeWireBaseEncodedStream::H264Main:
         case PipeWireBaseEncodedStream::H264Baseline:
             if (vaapi.supportsProfile(encoder == PipeWireBaseEncodedStream::H264Main ? VAProfileH264Main : VAProfileH264ConstrainedBaseline)

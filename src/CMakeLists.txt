@@ -127,6 +127,7 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             vaapiutils.cpp
                             encoder.cpp
                             h264vaapiencoder.cpp
+                            vp9vaapiencoder.cpp
                             libx264encoder.cpp
                             libvpxencoder.cpp
                             libvpxvp9encoder.cpp
