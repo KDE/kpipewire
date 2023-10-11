@@ -13,7 +13,7 @@ include(KDEClangFormat)
 include(KDEGitCommitHooks)
 include(ECMQtDeclareLoggingCategory)
 
-find_package(Qt6 REQUIRED COMPONENTS DBus Quick WaylandClient)
+find_package(Qt6 REQUIRED COMPONENTS DBus Quick)
 find_package(KF6 REQUIRED COMPONENTS I18n CoreAddons)
 
 find_package(PlasmaWaylandProtocols REQUIRED)

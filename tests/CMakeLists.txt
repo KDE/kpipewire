@@ -1,4 +1,5 @@
 find_package(KF6 REQUIRED COMPONENTS Wayland)
+find_package(Qt6 REQUIRED COMPONENTS WaylandClient)
 find_package(Wayland REQUIRED COMPONENTS Client)
 
 add_library(PipeWireScreencastingTest STATIC screencasting.cpp screencastingrequest.cpp)
