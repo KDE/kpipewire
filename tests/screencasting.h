@@ -21,8 +21,6 @@ namespace KWayland
 namespace Client
 {
 class PlasmaWindow;
-class Registry;
-class Output;
 }
 }
 

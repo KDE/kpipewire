@@ -7,10 +7,9 @@
 #include "screencasting.h"
 #include "logging.h"
 #include "qwayland-zkde-screencast-unstable-v1.h"
-#include <KWayland/Client/output.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
-#include <KWayland/Client/registry.h>
 #include <QGuiApplication>
+#include <QPointer>
 #include <QRect>
 #include <QtWaylandClient/QWaylandClientExtensionTemplate>
 #include <qpa/qplatformnativeinterface.h>

@@ -7,8 +7,6 @@
 #include "screencastingrequest.h"
 #include "logging.h"
 
-#include <KWayland/Client/connection_thread.h>
-#include <KWayland/Client/registry.h>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QPointer>

@@ -19,12 +19,10 @@
 #include <QThread>
 #include <QTimer>
 
-#include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/connection_thread.h>
-#include <KWayland/Client/output.h>
-#include <KWayland/Client/xdgoutput.h>
-#include <KWayland/Client/registry.h>
+#include <KWayland/Client/event_queue.h>
 #include <KWayland/Client/plasmawindowmanagement.h>
+#include <KWayland/Client/registry.h>
 
 using namespace KWayland::Client;
 
