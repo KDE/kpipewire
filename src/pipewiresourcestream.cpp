@@ -61,7 +61,7 @@ struct PipeWireSourceStreamPrivate
     bool m_allowDmaBuf = true;
     bool m_usingDmaBuf = false;
 
-    QHash<spa_video_format, QVector<uint64_t>> m_availableModifiers;
+    QHash<spa_video_format, QList<uint64_t>> m_availableModifiers;
     spa_source *m_renegotiateEvent = nullptr;
 
     bool m_withDamage = false;
@@ -94,9 +94,9 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     }
 }
 
-static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QVector<spa_video_format> &formats)
+static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QList<spa_video_format> &formats)
 {
-    QHash<spa_video_format, QVector<uint64_t>> ret;
+    QHash<spa_video_format, QList<uint64_t>> ret;
     ret.reserve(formats.size());
     const bool hasEglImageDmaBufImportExt = epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import");
     static auto eglQueryDmaBufModifiersEXT = (PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress("eglQueryDmaBufModifiersEXT");
@@ -105,12 +105,12 @@ static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDispla
     EGLint count = 0;
     EGLBoolean successFormats = eglQueryDmaBufFormatsEXT(display, 0, nullptr, &count);
 
-    QVector<uint32_t> drmFormats(count);
+    QList<uint32_t> drmFormats(count);
     successFormats &= eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(drmFormats.data()), &count);
     if (!successFormats)
         qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
 
-    const QVector<uint64_t> mods = hasEglImageDmaBufImportExt ? QVector<uint64_t>{DRM_FORMAT_MOD_INVALID} : QVector<uint64_t>{};
+    const QList<uint64_t> mods = hasEglImageDmaBufImportExt ? QList<uint64_t>{DRM_FORMAT_MOD_INVALID} : QList<uint64_t>{};
     if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT || !hasEglImageDmaBufImportExt || !successFormats) {
         for (spa_video_format format : formats) {
             ret[format] = mods;
@@ -138,7 +138,7 @@ static QHash<spa_video_format, QVector<uint64_t>> queryDmaBufModifiers(EGLDispla
             break;
         }
 
-        QVector<uint64_t> modifiers(count);
+        QList<uint64_t> modifiers(count);
         if (count > 0) {
             if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, modifiers.data(), nullptr, &count)) {
                 qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifiers.";
@@ -203,7 +203,7 @@ void PipeWireSourceStream::renegotiateModifierFailed(spa_video_format format, qu
 }
 
 static spa_pod *
-buildFormat(spa_pod_builder *builder, spa_video_format format, const QVector<uint64_t> &modifiers, bool withDontFixate, const Fraction &requestedMaxFramerate)
+buildFormat(spa_pod_builder *builder, spa_video_format format, const QList<uint64_t> &modifiers, bool withDontFixate, const Fraction &requestedMaxFramerate)
 {
     spa_pod_frame f[2];
     const spa_rectangle pw_min_screen_bounds{1, 1};
@@ -342,7 +342,7 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
     : QObject(parent)
     , d(new PipeWireSourceStreamPrivate)
 {
-    qRegisterMetaType<QVector<DmaBufPlane>>();
+    qRegisterMetaType<QList<DmaBufPlane>>();
     qRegisterMetaType<PipeWireCursor>();
 
     pwStreamEvents.version = PW_VERSION_STREAM_EVENTS;
@@ -385,10 +385,10 @@ uint PipeWireSourceStream::nodeId()
     return d->pwNodeId;
 }
 
-QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
+QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
-    const QVector<spa_video_format> formats = {
+    const QList<spa_video_format> formats = {
         SPA_VIDEO_FORMAT_RGBx,
         SPA_VIDEO_FORMAT_RGBA,
         SPA_VIDEO_FORMAT_BGRx,
@@ -400,7 +400,7 @@ QVector<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_build
         SPA_VIDEO_FORMAT_ABGR,
         SPA_VIDEO_FORMAT_xBGR,
     };
-    QVector<const spa_pod *> params;
+    QList<const spa_pod *> params;
     params.reserve(formats.size() * 2);
     const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
 

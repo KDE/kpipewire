@@ -55,7 +55,7 @@ public Q_SLOTS:
 
 private:
     void init(const QDBusObjectPath &path);
-    void handleStreams(const QVector<Stream> &streams);
+    void handleStreams(const QList<Stream> &streams);
     void start();
 
     OrgFreedesktopPortalScreenCastInterface *iface;

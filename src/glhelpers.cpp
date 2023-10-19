@@ -114,7 +114,7 @@ EGLImage createImage(EGLDisplay display, const DmaBufAttributes &dmabufAttribs, 
     const bool hasModifiers = dmabufAttribs.modifier != DRM_FORMAT_MOD_INVALID;
 
     static int lastSize = 37; // 37 is what we get on a normal system with working dmabuf, it's just a reasonable default
-    QVector<EGLint> attribs;
+    QList<EGLint> attribs;
     attribs.reserve(lastSize);
     attribs << EGL_WIDTH << size.width() << EGL_HEIGHT << size.height() << EGL_LINUX_DRM_FOURCC_EXT << EGLint(format)
 

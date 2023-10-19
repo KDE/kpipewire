@@ -63,8 +63,8 @@ private:
     KWayland::Client::PlasmaWindowManagement* m_management = nullptr;
     Screencasting* m_screencasting = nullptr;
     QQmlApplicationEngine* m_engine;
-    QVector<ScreencastingStream *> m_workspaceStreams;
-    QVector<ScreencastingStream *> m_regionStreams;
+    QList<ScreencastingStream *> m_workspaceStreams;
+    QList<ScreencastingStream *> m_regionStreams;
     QRect m_workspace;
 
     QRect m_region;

@@ -38,7 +38,7 @@ const QDBusArgument &operator>>(const QDBusArgument &argument, Stream &stream)
     return argument;
 }
 
-const QDBusArgument &operator>>(const QDBusArgument &argument, QVector<Stream> &stream)
+const QDBusArgument &operator>>(const QDBusArgument &argument, QList<Stream> &stream)
 {
     argument.beginArray();
     while ( !argument.atEnd() ) {
@@ -87,7 +87,7 @@ RecordMe::RecordMe(QObject* parent)
     }
 
     qDBusRegisterMetaType<Stream>();
-    qDBusRegisterMetaType<QVector<Stream>>();
+    qDBusRegisterMetaType<QList<Stream>>();
 
     m_durationTimer->setSingleShot(true);
 }
@@ -140,7 +140,7 @@ void RecordMe::response(uint code, const QVariantMap& results)
 
     const auto streamsIt = results.constFind(QStringLiteral("streams"));
     if (streamsIt != results.constEnd()) {
-        QVector<Stream> streams;
+        QList<Stream> streams;
         streamsIt->value<QDBusArgument>() >> streams;
 
         handleStreams(streams);
@@ -177,7 +177,7 @@ void RecordMe::start()
     qDebug() << "started!" << reply.value().path();
 }
 
-void RecordMe::handleStreams(const QVector<Stream> &streams)
+void RecordMe::handleStreams(const QList<Stream> &streams)
 {
     const QVariantMap startParameters = {
         { QLatin1String("handle_token"), m_handleToken }

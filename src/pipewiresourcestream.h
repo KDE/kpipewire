@@ -42,7 +42,7 @@ struct DmaBufAttributes {
     uint32_t format = 0;
     uint64_t modifier = 0; ///< The layout modifier
 
-    QVector<DmaBufPlane> planes;
+    QList<DmaBufPlane> planes;
 };
 
 struct PipeWireCursor {
@@ -133,10 +133,10 @@ private:
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
     static void onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message);
     static void onRenegotiate(void *data, uint64_t);
-    QVector<const spa_pod *> createFormatsParams(spa_pod_builder podBuilder);
+    QList<const spa_pod *> createFormatsParams(spa_pod_builder podBuilder);
 
     void coreFailed(const QString &errorMessage);
     QScopedPointer<PipeWireSourceStreamPrivate> d;
 };
 
-Q_DECLARE_METATYPE(QVector<DmaBufPlane>);
+Q_DECLARE_METATYPE(QList<DmaBufPlane>);
