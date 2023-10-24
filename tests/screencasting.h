@@ -63,7 +63,6 @@ public:
     ScreencastingStream *createOutputStream(const QString &outputName, CursorMode mode);
     ScreencastingStream *createOutputStream(QScreen *screen, CursorMode mode);
     ScreencastingStream *createRegionStream(const QRect &region, qreal scaling, CursorMode mode);
-    ScreencastingStream *createWindowStream(KWayland::Client::PlasmaWindow *window, CursorMode mode);
     ScreencastingStream *createWindowStream(const QString &uuid, CursorMode mode);
     ScreencastingStream *createVirtualMonitorStream(const QString &name, const QSize &size, qreal scale, CursorMode mode);
 

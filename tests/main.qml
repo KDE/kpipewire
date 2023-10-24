@@ -8,6 +8,7 @@ import QtQuick 2.1
 import QtQuick.Layouts 1.1
 import QtQuick.Controls 2.1
 import org.kde.kirigami 2.15 as Kirigami
+import org.kde.taskmanager
 
 import org.kde.pipewire 0.1 as PipeWire
 
@@ -30,6 +31,19 @@ Kirigami.ApplicationWindow
                rep.model.remove(i)
                 break;
             }
+        }
+    }
+
+    Instantiator {
+        model: TasksModel {
+            groupMode: TasksModel.GroupDisabled
+        }
+        delegate: Item {
+            property var uuid: model.WinIdList
+            property var appId: model.AppId
+        }
+        onObjectAdded: (index, object) => {
+           app.addWindow(object.uuid, object.appId)
         }
     }
 

@@ -7,7 +7,6 @@
 #include "screencasting.h"
 #include "logging.h"
 #include "qwayland-zkde-screencast-unstable-v1.h"
-#include <KWayland/Client/plasmawindowmanagement.h>
 #include <QGuiApplication>
 #include <QPointer>
 #include <QRect>
@@ -123,13 +122,6 @@ ScreencastingStream *Screencasting::createRegionStream(const QRect &geometry, qr
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(QStringLiteral("region-%1,%2 (%3x%4)").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
     stream->d->init(d->stream_region(geometry.x(), geometry.y(), geometry.width(), geometry.height(), wl_fixed_from_double(scaling), mode));
-    return stream;
-}
-
-ScreencastingStream *Screencasting::createWindowStream(PlasmaWindow *window, CursorMode mode)
-{
-    auto stream = createWindowStream(QString::fromUtf8(window->uuid()), mode);
-    stream->setObjectName(window->appId());
     return stream;
 }
 

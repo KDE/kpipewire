@@ -38,6 +38,7 @@ public:
     void setDuration(int duration);
 
     QRect region() const;
+    Q_SCRIPTABLE void addWindow(const QVariantList &uuid, const QString &appId);
     Q_SCRIPTABLE void createVirtualMonitor();
     Q_SCRIPTABLE void requestSelection();
     Q_SCRIPTABLE void setRegionPressed(const QString &screen, int x, int y);

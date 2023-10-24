@@ -18,13 +18,8 @@
 #include <QScreen>
 #include <QThread>
 #include <QTimer>
+#include <QUuid>
 
-#include <KWayland/Client/connection_thread.h>
-#include <KWayland/Client/event_queue.h>
-#include <KWayland/Client/plasmawindowmanagement.h>
-#include <KWayland/Client/registry.h>
-
-using namespace KWayland::Client;
 
 PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStringList &sources, bool doSelection, QObject *parent)
     : QObject(parent)
@@ -39,29 +34,9 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
     });
     m_engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
 
-    auto connection = ConnectionThread::fromApplication(this);
-    if (!connection) {
-        qWarning() << "Failed getting Wayland connection from QPA";
-        QCoreApplication::exit(1);
-        return;
-    }
     m_screencasting = new Screencasting(this);
 
     m_durationTimer->setSingleShot(true);
-    auto registry = new Registry(qApp);
-    connect(registry, &KWayland::Client::Registry::plasmaWindowManagementAnnounced, this, [this, registry] (quint32 name, quint32 version) {
-        m_management = registry->createPlasmaWindowManagement(name, version, this);
-        auto addWindow = [this](KWayland::Client::PlasmaWindow *window) {
-            if (matches(window->appId())) {
-                qDebug() << "window" << window << window->uuid() << m_screencasting;
-                start(m_screencasting->createWindowStream(window, m_cursorMode), true);
-                start(m_screencasting->createWindowStream(window, m_cursorMode), false);
-            }
-        };
-        for (auto w : m_management->windows())
-            addWindow(w);
-        connect(m_management, &KWayland::Client::PlasmaWindowManagement::windowCreated, this, addWindow);
-    });
 
     for (auto screen : qGuiApp->screens()) {
         addScreen(screen);
@@ -81,9 +56,6 @@ PlasmaRecordMe::PlasmaRecordMe(Screencasting::CursorMode cursorMode, const QStri
     if (doSelection) {
         requestSelection();
     }
-
-    registry->create(connection);
-    registry->setup();
 
     for (const auto &source : m_sources) {
         bool ok = false;
@@ -116,6 +88,19 @@ bool PlasmaRecordMe::matches(const QString &value)
         }
     }
     return false;
+}
+
+void PlasmaRecordMe::addWindow(const QVariantList &uuid, const QString &appId)
+{
+    if (matches(appId) && uuid.size() > 0) {
+        QString uuidString = uuid.at(0).value<QString>();
+        auto stream = m_screencasting->createWindowStream(uuidString, m_cursorMode);
+        stream->setObjectName(appId);
+        start(stream, true);
+        stream = m_screencasting->createWindowStream(uuidString, m_cursorMode);
+        stream->setObjectName(appId);
+        start(stream, false);
+    }
 }
 
 void PlasmaRecordMe::addStream(int nodeid, const QString &displayText, int fd, bool allowDmaBuf)
