@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(KPipewire)
 set(PROJECT_VERSION "5.27.80")
-set(PROJECT_VERSION_MAJOR 5)
+set(PROJECT_VERSION_MAJOR 6)
 
 set(KF6_MIN_VERSION "5.240.0")
 find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
