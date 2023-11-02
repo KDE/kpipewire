@@ -160,7 +160,7 @@ install(TARGETS KPipeWire KPipeWireRecord KPipeWireDmaBuf EXPORT KPipeWireTarget
 ecm_setup_version(PROJECT VARIABLE_PREFIX KPIPEWIRE
                         VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/kpipewire_version.h"
                         PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/KPipeWireConfigVersion.cmake"
-                        SOVERSION 5)
+                        SOVERSION ${PROJECT_VERSION_MAJOR})
 
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/KPipeWire")
 install(EXPORT KPipeWireTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE KPipeWireTargets.cmake NAMESPACE K::)
