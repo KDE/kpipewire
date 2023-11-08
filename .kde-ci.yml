@@ -7,7 +7,7 @@ Dependencies:
     'frameworks/extra-cmake-modules': '@latest'
     'frameworks/kcoreaddons': '@latest'
     'frameworks/ki18n': '@latest'
-    'frameworks/kwayland': '@latest'
+    'plasma/kwayland': 'kf5'
     'libraries/plasma-wayland-protocols': '@latest'
 Options:
   require-passing-tests-on: [ 'Linux', 'FreeBSD']
