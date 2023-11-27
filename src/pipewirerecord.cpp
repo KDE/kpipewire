@@ -177,9 +177,9 @@ void PipeWireRecordProduce::processPacket(AVPacket *packet)
     }
 }
 
-PipeWireProduce *PipeWireRecord::makeProduce()
+std::unique_ptr<PipeWireProduce> PipeWireRecord::makeProduce()
 {
-    return new PipeWireRecordProduce(encoder(), nodeId(), fd(), maxFramerate(), d->m_output);
+    return std::make_unique<PipeWireRecordProduce>(encoder(), nodeId(), fd(), maxFramerate(), d->m_output);
 }
 
 int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)

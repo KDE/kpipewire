@@ -37,7 +37,7 @@ Q_SIGNALS:
     void outputChanged(const QString &output);
 
 private:
-    PipeWireProduce *makeProduce() override;
+    std::unique_ptr<PipeWireProduce> makeProduce() override;
 
     QScopedPointer<PipeWireRecordPrivate> d;
 };

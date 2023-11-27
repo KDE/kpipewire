@@ -81,14 +81,14 @@ PipeWireEncodedStream::PipeWireEncodedStream(QObject *parent)
 
 PipeWireEncodedStream::~PipeWireEncodedStream() = default;
 
-PipeWireProduce *PipeWireEncodedStream::makeProduce()
+std::unique_ptr<PipeWireProduce> PipeWireEncodedStream::makeProduce()
 {
     auto produce = new PipeWireEncodeProduce(encoder(), nodeId(), fd(), maxFramerate(), this);
     connect(produce, &PipeWireEncodeProduce::newPacket, this, &PipeWireEncodedStream::newPacket);
     connect(this, &PipeWireEncodedStream::maxFramerateChanged, produce, [this, produce]() {
         produce->setMaxFramerate(maxFramerate());
     });
-    return produce;
+    return std::unique_ptr<PipeWireProduce>(produce);
 }
 
 #include "moc_pipewireencodedstream_p.cpp"

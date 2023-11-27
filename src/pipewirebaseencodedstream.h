@@ -100,7 +100,7 @@ Q_SIGNALS:
     void encoderChanged();
 
 protected:
-    virtual PipeWireProduce *makeProduce() = 0;
+    virtual std::unique_ptr<PipeWireProduce> makeProduce() = 0;
 
     void refresh();
     QScopedPointer<PipeWireEncodedStreamPrivate> d;

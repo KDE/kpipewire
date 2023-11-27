@@ -40,5 +40,5 @@ Q_SIGNALS:
     void newPacket(const Packet &packet);
 
 protected:
-    PipeWireProduce *makeProduce() override;
+    std::unique_ptr<PipeWireProduce> makeProduce() override;
 };

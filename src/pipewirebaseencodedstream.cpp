@@ -29,7 +29,7 @@ struct PipeWireEncodedStreamPrivate {
     std::optional<quint8> m_quality;
 
     std::unique_ptr<QThread> m_produceThread;
-    PipeWireProduce *m_produce = nullptr;
+    std::unique_ptr<PipeWireProduce> m_produce;
 };
 
 PipeWireBaseEncodedStream::State PipeWireBaseEncodedStream::state() const
@@ -141,9 +141,10 @@ void PipeWireBaseEncodedStream::setQuality(quint8 quality)
 void PipeWireBaseEncodedStream::refresh()
 {
     if (d->m_produceThread) {
-        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::deactivate, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::deactivate, Qt::QueuedConnection);
         d->m_produceThread->wait();
 
+        d->m_produce.reset();
         d->m_produceThread.reset();
     }
 
@@ -154,7 +155,7 @@ void PipeWireBaseEncodedStream::refresh()
         d->m_produce->setQuality(d->m_quality);
         d->m_produce->moveToThread(d->m_produceThread.get());
         d->m_produceThread->start();
-        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::initialize, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);
     }
 
     Q_EMIT stateChanged();
