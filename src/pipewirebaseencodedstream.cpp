@@ -140,6 +140,13 @@ void PipeWireBaseEncodedStream::setQuality(quint8 quality)
 
 void PipeWireBaseEncodedStream::refresh()
 {
+    if (d->m_produceThread) {
+        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::deactivate, Qt::QueuedConnection);
+        d->m_produceThread->wait();
+
+        d->m_produceThread.reset();
+    }
+
     if (d->m_active && d->m_nodeId > 0) {
         d->m_produceThread = std::make_unique<QThread>();
         d->m_produceThread->setObjectName("PipeWireProduce::input");
@@ -148,9 +155,6 @@ void PipeWireBaseEncodedStream::refresh()
         d->m_produce->moveToThread(d->m_produceThread.get());
         d->m_produceThread->start();
         QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::initialize, Qt::QueuedConnection);
-    } else if (d->m_produceThread) {
-        QMetaObject::invokeMethod(d->m_produce, &PipeWireProduce::deactivate, Qt::QueuedConnection);
-        d->m_produceThread->wait();
     }
 
     Q_EMIT stateChanged();
