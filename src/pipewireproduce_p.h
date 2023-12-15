@@ -125,6 +125,9 @@ public:
 
     int64_t m_previousPts = -1;
 
+    std::atomic_int m_pendingFilterFrames = 0;
+    std::atomic_int m_pendingEncodeFrames = 0;
+
 Q_SIGNALS:
     void producedFrames();
 

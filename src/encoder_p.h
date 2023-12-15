@@ -62,15 +62,22 @@ public:
     /**
      * Get the next finished frames from the libav filter chain and queue them for encoding.
      *
-     * @note This method will be called on its own thread.
-     */
-    virtual void encodeFrame();
-    /**
-     * Get the next encoded frames from libav and pass them to PipeWireProduce.
+     * @param maximumFrames The maximum number of frames that can be queued for encoding.
+     *
+     * @return A pair with the number of frames removed from the filter chain as first entry
+     *         and the number of frames queued for encoding as the second entry.
      *
      * @note This method will be called on its own thread.
      */
-    virtual void receivePacket();
+    virtual std::pair<int, int> encodeFrame(int maximumFrames);
+    /**
+     * Get the next encoded frames from libav and pass them to PipeWireProduce.
+     *
+     * @return The number of encoded frames that were received.
+     *
+     * @note This method will be called on its own thread.
+     */
+    virtual int receivePacket();
     /**
      * End encoding and perform any necessary cleanup.
      */

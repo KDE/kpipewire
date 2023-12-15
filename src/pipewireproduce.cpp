@@ -24,6 +24,11 @@ extern "C" {
 #include <fcntl.h>
 }
 
+// The maximum number of frames to allow in either the filter or encode queue.
+// Note that this needs to be large enough for the encoder to be able to do
+// intra-frame analysis.
+static constexpr int MaxQueueSize = 50;
+
 Q_DECLARE_METATYPE(std::optional<int>);
 Q_DECLARE_METATYPE(std::optional<std::chrono::nanoseconds>);
 
@@ -95,7 +100,9 @@ void PipeWireProduce::setupStream()
                 break;
             }
 
-            m_encoder->encodeFrame();
+            auto [filtered, queued] = m_encoder->encodeFrame(MaxQueueSize - m_pendingEncodeFrames);
+            m_pendingFilterFrames -= filtered;
+            m_pendingEncodeFrames += queued;
 
             m_frameReceivedCondition.notify_all();
         }
@@ -112,7 +119,8 @@ void PipeWireProduce::setupStream()
                 break;
             }
 
-            m_encoder->receivePacket();
+            auto received = m_encoder->receivePacket();
+            m_pendingEncodeFrames -= received;
         }
     });
     pthread_setname_np(m_outputThread.native_handle(), "PipeWireProduce::output");
@@ -150,6 +158,12 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         return;
     }
 
+    if (m_pendingFilterFrames + 1 > MaxQueueSize) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Filter queue is full, dropping frame" << pts;
+        return;
+    }
+
+    m_pendingFilterFrames++;
     m_previousPts = pts;
 
     aboutToEncode(f);
@@ -235,7 +249,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
             auto hardwareEncoder = std::make_unique<H264VAAPIEncoder>(profile, this);
             hardwareEncoder->setQuality(m_quality);
             if (hardwareEncoder->initialize(size)) {
-                return std::move(hardwareEncoder);
+                return hardwareEncoder;
             }
         }
 
@@ -243,7 +257,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
             auto softwareEncoder = std::make_unique<LibX264Encoder>(profile, this);
             softwareEncoder->setQuality(m_quality);
             if (softwareEncoder->initialize(size)) {
-                return std::move(softwareEncoder);
+                return softwareEncoder;
             }
         }
         break;
@@ -253,7 +267,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
             auto encoder = std::make_unique<LibVpxEncoder>(this);
             encoder->setQuality(m_quality);
             if (encoder->initialize(size)) {
-                return std::move(encoder);
+                return encoder;
             }
         }
         break;
@@ -263,7 +277,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
             auto encoder = std::make_unique<LibVpxVp9Encoder>(this);
             encoder->setQuality(m_quality);
             if (encoder->initialize(size)) {
-                return std::move(encoder);
+                return encoder;
             }
         }
         break;

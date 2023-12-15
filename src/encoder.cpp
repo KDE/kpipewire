@@ -76,12 +76,15 @@ Encoder::~Encoder()
     }
 }
 
-void Encoder::encodeFrame()
+std::pair<int, int> Encoder::encodeFrame(int maximumFrames)
 {
     auto frame = av_frame_alloc();
     if (!frame) {
         qFatal("Failed to allocate memory");
     }
+
+    int filtered = 0;
+    int queued = 0;
 
     for (;;) {
         if (auto result = av_buffersink_get_frame(m_outputFilter, frame); result < 0) {
@@ -91,29 +94,40 @@ void Encoder::encodeFrame()
             break;
         }
 
-        auto ret = -1;
-        {
-            std::lock_guard guard(m_avCodecMutex);
-            ret = avcodec_send_frame(m_avCodecContext, frame);
-        }
-        if (ret < 0) {
-            if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-                qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
+        filtered++;
+
+        if (queued + 1 < maximumFrames) {
+            auto ret = -1;
+            {
+                std::lock_guard guard(m_avCodecMutex);
+                ret = avcodec_send_frame(m_avCodecContext, frame);
             }
-            break;
+            if (ret < 0) {
+                if (ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
+                    qCWarning(PIPEWIRERECORD_LOGGING) << "Error sending a frame for encoding:" << av_err2str(ret);
+                }
+                break;
+            }
+            queued++;
+        } else {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Encode queue is full, discarding filtered frame" << frame->pts;
         }
         av_frame_unref(frame);
     }
 
     av_frame_free(&frame);
+
+    return std::make_pair(filtered, queued);
 }
 
-void Encoder::receivePacket()
+int Encoder::receivePacket()
 {
     auto packet = av_packet_alloc();
     if (!packet) {
         qFatal("Failed to allocate memory");
     }
+
+    int received = 0;
 
     for (;;) {
         auto ret = -1;
@@ -129,11 +143,15 @@ void Encoder::receivePacket()
             break;
         }
 
+        received++;
+
         m_produce->processPacket(packet);
         av_packet_unref(packet);
     }
 
     av_packet_free(&packet);
+
+    return received;
 }
 
 void Encoder::finish()
