@@ -4,25 +4,26 @@
 # Frederik Schwarzer <schwarzer@kde.org>, 2022.
 #
 # Automatically generated, 2022.
+# Johannes Obermayr <johannesobermayr@gmx.de>, 2023.
 msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
 "POT-Creation-Date: 2023-09-25 01:41+0000\n"
-"PO-Revision-Date: 2022-06-08 01:35+0200\n"
-"Last-Translator: Frederik Schwarzer <schwarzer@kde.org>\n"
+"PO-Revision-Date: 2023-12-18 15:17+0100\n"
+"Last-Translator: Johannes Obermayr <johannesobermayr@gmx.de>\n"
 "Language-Team: German <kde-i18n-de@kde.org>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Lokalize 21.12.2\n"
+"X-Generator: Lokalize 23.08.4\n"
 
 #: pipewirecore.cpp:98
 #, kde-format
 msgid "Failed to create PipeWire context"
-msgstr ""
+msgstr "Der PipeWire-Kontext wurde nicht erstellt"
 
 #: pipewirecore.cpp:115
 #, kde-format
@@ -32,4 +33,4 @@ msgstr "Fehler beim Verbinden mit PipeWire"
 #: pipewirecore.cpp:122
 #, kde-format
 msgid "Failed to start main PipeWire loop"
-msgstr ""
+msgstr "Die Hauptschleife von PipeWire konnte nicht gestartet werden"
