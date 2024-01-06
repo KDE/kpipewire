@@ -19,6 +19,7 @@ namespace
 struct Node {
     MediaMonitor *monitor;
     QString deviceName;
+    QString objectSerial;
     NodeState::State state = NodeState::Error;
     spa_hook proxyListener;
     spa_hook objectListener;
@@ -85,6 +86,8 @@ QVariant MediaMonitor::data(const QModelIndex &index, int role) const
         return node->deviceName;
     case StateRole:
         return node->state;
+    case ObjectSerialRole:
+        return node->objectSerial;
     default:
         return QVariant();
     }
@@ -100,6 +103,7 @@ QHash<int, QByteArray> MediaMonitor::roleNames() const
     return {
         {Qt::DisplayRole, QByteArrayLiteral("display")},
         {StateRole, QByteArrayLiteral("state")},
+        {ObjectSerialRole, QByteArrayLiteral("objectSerial")},
     };
 }
 
@@ -277,6 +281,8 @@ void MediaMonitor::readProps(const spa_dict *props, pw_proxy *proxy, bool emitSi
         changedRoles.clear();
         updateProp(props, PW_KEY_NODE_DESCRIPTION, node->deviceName, Qt::DisplayRole, changedRoles);
     }
+
+    updateProp(props, PW_KEY_OBJECT_SERIAL, node->objectSerial, ObjectSerialRole, changedRoles);
 
     if (emitSignal && !changedRoles.empty()) {
         const auto proxyIt = std::find_if(node->monitor->m_nodeList.cbegin(), node->monitor->m_nodeList.cend(), [proxy](const auto &p) {

@@ -89,7 +89,9 @@ class MediaMonitor : public QAbstractListModel, public QQmlParserStatus
 public:
     enum Role {
         StateRole = Qt::UserRole + 1,
+        ObjectSerialRole,
     };
+    Q_ENUM(Role);
 
     explicit MediaMonitor(QObject *parent = nullptr);
     ~MediaMonitor() override;
