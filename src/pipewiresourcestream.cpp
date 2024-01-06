@@ -92,6 +92,8 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
         return DRM_FORMAT_RGBX8888;
     case SPA_VIDEO_FORMAT_ABGR:
         return DRM_FORMAT_RGBA8888;
+    case SPA_VIDEO_FORMAT_GRAY8:
+        return DRM_FORMAT_R8;
     default:
         qCWarning(PIPEWIRE_LOGGING) << "cannot convert spa format to fourcc" << spa_format;
         return DRM_FORMAT_INVALID;
@@ -124,6 +126,8 @@ spa_video_format drmFormatToSpaVideoFormat(uint32_t drm_format)
         return SPA_VIDEO_FORMAT_BGR;
     case DRM_FORMAT_RGB888:
         return SPA_VIDEO_FORMAT_RGB;
+    case DRM_FORMAT_R8:
+        return SPA_VIDEO_FORMAT_GRAY8;
     default:
         qCWarning(PIPEWIRE_LOGGING) << "cannot convert drm format to spa" << drmFormatName(drm_format);
         return SPA_VIDEO_FORMAT_UNKNOWN;
@@ -434,6 +438,7 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
         SPA_VIDEO_FORMAT_BGR,
         SPA_VIDEO_FORMAT_xBGR,
         SPA_VIDEO_FORMAT_ABGR,
+        SPA_VIDEO_FORMAT_GRAY8,
     };
     QList<const spa_pod *> params;
     params.reserve(formats.size() * 2);

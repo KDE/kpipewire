@@ -24,6 +24,8 @@ QImage::Format SpaToQImageFormat(quint32 format)
         return QImage::Format_RGB888;
     case SPA_VIDEO_FORMAT_RGBA:
         return QImage::Format_RGBA8888_Premultiplied;
+    case SPA_VIDEO_FORMAT_GRAY8:
+        return QImage::Format_Grayscale8;
     default:
         qCWarning(PIPEWIRE_LOGGING) << "cannot convert spa format to QImage" << format;
         return QImage::Format_RGB32;
@@ -41,7 +43,7 @@ QImage PWHelpers::SpaBufferToQImage(const uchar *data, int width, int height, qs
         // This is obviously a much slower path, it makes sense to avoid it as much as possible
         return QImage(data, width, height, bytesPerLine, SpaToQImageFormat(format)).rgbSwapped();
     }
-    case SPA_VIDEO_FORMAT_BGR:
+    case SPA_VIDEO_FORMAT_GRAY8:
     case SPA_VIDEO_FORMAT_RGBx:
     case SPA_VIDEO_FORMAT_RGB:
     case SPA_VIDEO_FORMAT_RGBA:
