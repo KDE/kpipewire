@@ -47,3 +47,6 @@ if(INSTALL_TESTS)
    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/org.kde.kpipewireheadlesstest.desktop DESTINATION ${KDE_INSTALL_APPDIR})
    install(TARGETS xdp-recordme DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 endif()
+
+add_executable(webcamtest webcamtest.cpp webcamtest.qml webcamtest.qrc)
+target_link_libraries(webcamtest Qt::Quick KPipeWire)
