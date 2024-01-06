@@ -98,6 +98,38 @@ uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_fo
     }
 }
 
+static QString drmFormatName(uint32_t format)
+{
+    return QString::asprintf("%c%c%c%c %s-endian (0x%08x)",
+                             QLatin1Char(format & 0xff).toLatin1(),
+                             QLatin1Char((format >> 8) & 0xff).toLatin1(),
+                             QLatin1Char((format >> 16) & 0xff).toLatin1(),
+                             QLatin1Char((format >> 24) & 0x7f).toLatin1(),
+                             format & DRM_FORMAT_BIG_ENDIAN ? "big" : "little",
+                             format);
+}
+
+spa_video_format drmFormatToSpaVideoFormat(uint32_t drm_format)
+{
+    switch (drm_format) {
+    case DRM_FORMAT_ABGR8888:
+        return SPA_VIDEO_FORMAT_RGBA;
+    case DRM_FORMAT_XBGR8888:
+        return SPA_VIDEO_FORMAT_RGBx;
+    case DRM_FORMAT_ARGB8888:
+        return SPA_VIDEO_FORMAT_BGRA;
+    case DRM_FORMAT_XRGB8888:
+        return SPA_VIDEO_FORMAT_BGRx;
+    case DRM_FORMAT_BGR888:
+        return SPA_VIDEO_FORMAT_BGR;
+    case DRM_FORMAT_RGB888:
+        return SPA_VIDEO_FORMAT_RGB;
+    default:
+        qCWarning(PIPEWIRE_LOGGING) << "cannot convert drm format to spa" << drmFormatName(drm_format);
+        return SPA_VIDEO_FORMAT_UNKNOWN;
+    }
+}
+
 static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QList<spa_video_format> &formats)
 {
     QHash<spa_video_format, QList<uint64_t>> ret;
@@ -153,6 +185,7 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
         modifiers.push_back(DRM_FORMAT_MOD_INVALID);
         ret[format] = modifiers;
     }
+    qDebug() << "found..." << SPA_VIDEO_FORMAT_YUY2 << ret.keys() << formats;
     return ret;
 }
 
