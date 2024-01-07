@@ -480,6 +480,9 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
 
         params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate);
     }
+
+    qDebug() << "available" << d->m_availableModifiers.contains(SPA_VIDEO_FORMAT_YUY2);
+
     return params;
 }
 
