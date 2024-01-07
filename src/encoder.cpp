@@ -192,8 +192,8 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
             m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
             return;
         }
-    } else if (frame.image) {
-        image = frame.image.value();
+    } else if (frame.dataFrame) {
+        image = frame.dataFrame->toImage();
     } else {
         return;
     }

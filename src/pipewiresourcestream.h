@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <QDebug>
 #include <QHash>
 #include <QImage>
 #include <QObject>
@@ -25,6 +26,7 @@
 
 #undef Status
 
+class PipeWireFrameCleanupFunction;
 class PipeWireCore;
 struct gbm_device;
 
@@ -60,14 +62,31 @@ struct PipeWireCursor {
 };
 Q_DECLARE_METATYPE(PipeWireCursor);
 
+class KPIPEWIRE_EXPORT PipeWireFrameData
+{
+    Q_DISABLE_COPY(PipeWireFrameData)
+public:
+    PipeWireFrameData(spa_video_format format, void *data, QSize size, qint32 stride, PipeWireFrameCleanupFunction *cleanup);
+    ~PipeWireFrameData();
+
+    QImage toImage() const;
+    std::shared_ptr<PipeWireFrameData> copy() const;
+
+    const spa_video_format format;
+    void *const data = nullptr;
+    const QSize size;
+    const qint32 stride = 0;
+    PipeWireFrameCleanupFunction *const cleanup = nullptr;
+};
+
 struct KPIPEWIRE_EXPORT PipeWireFrame {
     spa_video_format format;
     std::optional<int> sequential;
     std::optional<std::chrono::nanoseconds> presentationTimestamp;
     std::optional<DmaBufAttributes> dmabuf;
-    std::optional<QImage> image;
     std::optional<QRegion> damage;
     std::optional<PipeWireCursor> cursor;
+    std::shared_ptr<PipeWireFrameData> dataFrame;
 };
 
 struct Fraction {
@@ -86,8 +105,6 @@ struct Fraction {
     quint32 numerator = 0;
     quint32 denominator = 0;
 };
-
-KPIPEWIRE_EXPORT QImage::Format SpaToQImageFormat(quint32 /*spa_video_format*/ format);
 
 struct PipeWireSourceStreamPrivate;
 
