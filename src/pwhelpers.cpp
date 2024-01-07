@@ -32,8 +32,9 @@ QImage::Format SpaToQImageFormat(quint32 format)
     }
 }
 
-QImage PWHelpers::SpaBufferToQImage(const uchar *data, int width, int height, qsizetype bytesPerLine, spa_video_format format)
+QImage PWHelpers::SpaBufferToQImage(const uchar *data, int width, int height, qsizetype bytesPerLine, spa_video_format format, PipeWireFrameCleanupFunction *c)
 {
+    c->ref();
     switch (format) {
     case SPA_VIDEO_FORMAT_BGRx:
     case SPA_VIDEO_FORMAT_BGRA:
@@ -41,13 +42,28 @@ QImage PWHelpers::SpaBufferToQImage(const uchar *data, int width, int height, qs
     case SPA_VIDEO_FORMAT_ABGR: {
         // This is needed because QImage does not support BGRA
         // This is obviously a much slower path, it makes sense to avoid it as much as possible
-        return QImage(data, width, height, bytesPerLine, SpaToQImageFormat(format)).rgbSwapped();
+        return QImage(data, width, height, bytesPerLine, SpaToQImageFormat(format), &PipeWireFrameCleanupFunction::unref, c).rgbSwapped();
     }
     case SPA_VIDEO_FORMAT_GRAY8:
     case SPA_VIDEO_FORMAT_RGBx:
     case SPA_VIDEO_FORMAT_RGB:
     case SPA_VIDEO_FORMAT_RGBA:
     default:
-        return QImage(data, width, height, bytesPerLine, SpaToQImageFormat(format));
+        return QImage(data, width, height, bytesPerLine, SpaToQImageFormat(format), &PipeWireFrameCleanupFunction::unref, c);
     }
+}
+
+QImage PipeWireFrameData::toImage() const
+{
+    return PWHelpers::SpaBufferToQImage(static_cast<uchar *>(data), size.width(), size.height(), stride, format, cleanup);
+}
+
+std::shared_ptr<PipeWireFrameData> PipeWireFrameData::copy() const
+{
+    const uint bufferSize = size.height() * stride * 4;
+    auto newMap = malloc(bufferSize);
+    memcpy(newMap, data, bufferSize);
+    return std::make_shared<PipeWireFrameData>(format, newMap, size, stride, new PipeWireFrameCleanupFunction([newMap] {
+                                                   free(newMap);
+                                               }));
 }

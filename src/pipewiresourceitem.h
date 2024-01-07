@@ -22,6 +22,7 @@
 struct DmaBufAttributes;
 class PipeWireSourceStream;
 struct PipeWireFrame;
+class PipeWireFrameData;
 class QSGTexture;
 class QOpenGLTexture;
 typedef void *EGLImage;
@@ -97,7 +98,7 @@ private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
     void processFrame(const PipeWireFrame &frame);
     void updateTextureDmaBuf(const DmaBufAttributes &attribs, spa_video_format format);
-    void updateTextureImage(const QImage &image);
+    void updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data);
     void refresh();
 
     QScopedPointer<PipeWireSourceItemPrivate> d;

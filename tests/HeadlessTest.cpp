@@ -88,8 +88,8 @@ void createStream(int nodeId, std::optional<int> fd = {})
             } else {
                 qDebug() << "dmabuf" << frame.format;
             }
-        } else if (frame.image) {
-            qDebug() << "image" << frame.image->format() << frame.format;
+        } else if (frame.dataFrame) {
+            qDebug() << "image" << frame.dataFrame->format << frame.format;
         } else {
             qDebug() << "no-frame";
         }
