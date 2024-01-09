@@ -62,7 +62,7 @@ Q_DECLARE_METATYPE(PipeWireCursor);
 
 struct KPIPEWIRE_EXPORT PipeWireFrame {
     spa_video_format format;
-    std::optional<int> sequential;
+    std::optional<quint64> sequential;
     std::optional<std::chrono::nanoseconds> presentationTimestamp;
     std::optional<DmaBufAttributes> dmabuf;
     std::optional<QImage> image;
