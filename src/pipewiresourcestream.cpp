@@ -162,20 +162,20 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
         uint32_t drm_format = PipeWireSourceStream::spaVideoFormatToDrmFormat(format);
         if (drm_format == DRM_FORMAT_INVALID) {
             qCDebug(PIPEWIRE_LOGGING) << "Failed to find matching DRM format." << format;
-            break;
+            continue;
         }
 
         if (std::find(drmFormats.begin(), drmFormats.end(), drm_format) == drmFormats.end()) {
-            qCDebug(PIPEWIRE_LOGGING) << "Format " << drm_format << " not supported for modifiers.";
+            qCDebug(PIPEWIRE_LOGGING) << "Format " << drmFormatName(drm_format) << " not supported for modifiers.";
             ret[format] = mods;
-            break;
+            continue;
         }
 
         successFormats = eglQueryDmaBufModifiersEXT(display, drm_format, 0, nullptr, nullptr, &count);
         if (!successFormats) {
             qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifier count.";
             ret[format] = mods;
-            break;
+            continue;
         }
 
         QList<uint64_t> modifiers(count);
@@ -429,7 +429,7 @@ uint PipeWireSourceStream::nodeId()
 QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
-    const QList<spa_video_format> formats = {
+    static constexpr auto formats = {
         SPA_VIDEO_FORMAT_RGBx,
         SPA_VIDEO_FORMAT_RGBA,
         SPA_VIDEO_FORMAT_BGRx,
@@ -448,7 +448,8 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
 
     if (d->m_availableModifiers.isEmpty()) {
-        d->m_availableModifiers = queryDmaBufModifiers(display, formats);
+        static const auto availableModifiers = queryDmaBufModifiers(display, formats);
+        d->m_availableModifiers = availableModifiers;
     }
 
     for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
