@@ -40,12 +40,15 @@ static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
 {
     // Listing those handed by SpaToQImageFormat
     switch (format) {
+    case QImage::Format_RGB888:
+        return AV_PIX_FMT_RGB24;
     case QImage::Format_BGR888:
         return AV_PIX_FMT_BGR24;
     case QImage::Format_RGBX8888:
     case QImage::Format_RGBA8888_Premultiplied:
         return AV_PIX_FMT_RGBA;
     case QImage::Format_RGB32:
+    case QImage::Format_ARGB32:
         return AV_PIX_FMT_RGB32;
     default:
         qDebug() << "Unexpected pixel format" << format;
