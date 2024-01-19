@@ -6,6 +6,7 @@
 
 #include "pwhelpers.h"
 #include "logging.h"
+#include <libyuv.h>
 
 QImage::Format SpaToQImageFormat(quint32 format)
 {
@@ -55,6 +56,13 @@ QImage PWHelpers::SpaBufferToQImage(const uchar *data, int width, int height, qs
 
 QImage PipeWireFrameData::toImage() const
 {
+    if (format == SPA_VIDEO_FORMAT_YUY2) {
+        // TODO Port to upload textures and shaders
+        QImage image(size, QImage::Format_ARGB32);
+
+        libyuv::YUY2ToARGB(static_cast<const uchar *>(data), stride, image.bits(), image.bytesPerLine(), size.width(), size.height());
+        return image;
+    }
     return PWHelpers::SpaBufferToQImage(static_cast<uchar *>(data), size.width(), size.height(), stride, format, cleanup);
 }
 

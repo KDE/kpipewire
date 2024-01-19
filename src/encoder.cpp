@@ -56,6 +56,18 @@ static AVPixelFormat convertQImageFormatToAVPixelFormat(QImage::Format format)
     }
 }
 
+static AVPixelFormat convertSPAVideoFormatToAVPixelFormat(spa_video_format format)
+{
+    // Listing those handed by SpaToQImageFormat
+    switch (format) {
+    case SPA_VIDEO_FORMAT_YUY2:
+        return AV_PIX_FMT_YUYV422;
+    default:
+        qDebug() << "Unexpected pixel format" << format;
+        return AV_PIX_FMT_RGB32;
+    }
+}
+
 static int percentageToFrameQuality(quint8 quality)
 {
     return std::max(1, int(FF_LAMBDA_MAX - (quality / 100.0) * FF_LAMBDA_MAX));
@@ -185,43 +197,51 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
 {
     auto size = m_produce->m_stream->size();
 
-    QImage image;
-    if (frame.dmabuf) {
-        image = QImage(m_produce->m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
-        if (!m_dmaBufHandler.downloadFrame(image, frame)) {
-            m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
-            return;
-        }
-    } else if (frame.dataFrame) {
-        image = frame.dataFrame->toImage();
-    } else {
-        return;
-    }
-
     AVFrame *avFrame = av_frame_alloc();
     if (!avFrame) {
         qFatal("Failed to allocate memory");
     }
-    avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
     avFrame->width = size.width();
     avFrame->height = size.height();
     if (m_quality) {
         avFrame->quality = percentageToFrameQuality(m_quality.value());
     }
 
-    av_frame_get_buffer(avFrame, 32);
+    if (frame.dmabuf) {
+        // TODO: cache image
+        QImage image(m_produce->m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
+        avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
+        // TODO Allow downloading directly to AVFrame
+        if (!m_dmaBufHandler.downloadFrame(image, frame)) {
+            av_frame_free(&avFrame);
+            m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+            return;
+        }
+        av_frame_get_buffer(avFrame, 32);
 
-    const std::uint8_t *buffers[] = {image.constBits(), nullptr};
-    const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
+        const std::uint8_t *buffers[] = {image.constBits(), nullptr};
+        const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
 
-    av_image_copy(avFrame->data, avFrame->linesize, buffers, strides, static_cast<AVPixelFormat>(avFrame->format), size.width(), size.height());
+        av_image_copy(avFrame->data, avFrame->linesize, buffers, strides, static_cast<AVPixelFormat>(avFrame->format), size.width(), size.height());
+    } else if (frame.dataFrame) {
+        avFrame->format = convertSPAVideoFormatToAVPixelFormat(frame.format);
+        av_frame_get_buffer(avFrame, 32);
+
+        const uint8_t *buffers[] = {static_cast<uint8_t *>(frame.dataFrame->data), nullptr};
+        const int strides[] = {static_cast<int>(frame.dataFrame->stride), 0, 0, 0};
+
+        av_image_copy(avFrame->data, avFrame->linesize, buffers, strides, static_cast<AVPixelFormat>(avFrame->format), size.width(), size.height());
+    } else {
+        av_frame_free(&avFrame);
+        return;
+    }
 
     if (frame.presentationTimestamp) {
         avFrame->pts = m_produce->framePts(frame.presentationTimestamp);
     }
 
     if (auto result = av_buffersrc_add_frame(m_inputFilter, avFrame); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to submit frame for filtering";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to submit frame for filtering" << av_err2str(result);
     }
 }
 
@@ -232,10 +252,12 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
         qFatal("Failed to allocate memory");
     }
 
+    const AVPixelFormat format = m_produce->m_stream->usingDmaBuf() ? AV_PIX_FMT_RGBA : convertSPAVideoFormatToAVPixelFormat(m_produce->m_stream->format());
+    QLatin1String stringFormat(av_get_pix_fmt_name(format));
     int ret = avfilter_graph_create_filter(&m_inputFilter,
                                            avfilter_get_by_name("buffer"),
                                            "in",
-                                           "width=1:height=1:pix_fmt=rgba:time_base=1/1",
+                                           qPrintable(QStringLiteral("width=1:height=1:pix_fmt=%1:time_base=1/1").arg(stringFormat)),
                                            nullptr,
                                            m_avFilterGraph);
     if (ret < 0) {
@@ -248,7 +270,7 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
         qFatal("Failed to allocate memory");
     }
 
-    parameters->format = AV_PIX_FMT_RGBA;
+    parameters->format = format;
     parameters->width = size.width();
     parameters->height = size.height();
     parameters->time_base = {1, 1000};

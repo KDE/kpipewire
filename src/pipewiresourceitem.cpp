@@ -404,6 +404,9 @@ void PipeWireSourceItem::updateTextureImage(const std::shared_ptr<PipeWireFrameD
 
     d->m_createNextTexture = [this, data] {
         setEnabled(true);
+        if (data->format == SPA_VIDEO_FORMAT_YUY2) {
+            // TODO Port to upload textures and shaders
+        }
         return window()->createTextureFromImage(data->toImage(), QQuickWindow::TextureIsOpaque);
     };
 }

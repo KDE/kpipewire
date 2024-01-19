@@ -121,6 +121,7 @@ public:
     QString error() const;
 
     QSize size() const;
+    spa_video_format format() const;
     pw_stream_state state() const;
     bool createStream(uint nodeid, int fd);
     void setActive(bool active);

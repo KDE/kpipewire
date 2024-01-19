@@ -29,6 +29,7 @@ void updateProp(const spa_dict *props, const char *key, QString &prop, int role,
 {
     const char *new_prop = spa_dict_lookup(props, key);
     if (!new_prop) {
+        qDebug() << "no prop" << key;
         return;
     }
     if (QString newProp = QString::fromUtf8(new_prop); prop != newProp) {
@@ -192,6 +193,16 @@ void MediaMonitor::onRegistryEventGlobal(void *data, uint32_t id, uint32_t /*per
         return;
     }
 
+    const struct spa_dict_item *item;
+    spa_dict_for_each(item, props)
+    {
+        qDebug() << "ffffffff" << props << item->key << item->value;
+    }
+    qDebug() << "xxxxxxxxx" << spa_dict_lookup(props, PW_KEY_OBJECT_PATH);
+    if (!QByteArray(spa_dict_lookup(props, PW_KEY_OBJECT_PATH)).startsWith("libcamera")) {
+        return;
+    }
+
     auto proxy = static_cast<pw_proxy *>(pw_registry_bind(monitor->m_registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, sizeof(Node)));
     auto node = static_cast<Node *>(pw_proxy_get_user_data(proxy));
     node->monitor = monitor;
@@ -272,14 +283,14 @@ void MediaMonitor::readProps(const spa_dict *props, pw_proxy *proxy, bool emitSi
     auto node = static_cast<Node *>(pw_proxy_get_user_data(proxy));
     QList<int> changedRoles;
 
-    updateProp(props, PW_KEY_NODE_NICK, node->deviceName, Qt::DisplayRole, changedRoles);
-    if (node->deviceName.isEmpty()) {
-        changedRoles.clear();
-        updateProp(props, PW_KEY_NODE_NAME, node->deviceName, Qt::DisplayRole, changedRoles);
-    }
+    // updateProp(props, PW_KEY_NODE_NICK, node->deviceName, Qt::DisplayRole, changedRoles);
     if (node->deviceName.isEmpty()) {
         changedRoles.clear();
         updateProp(props, PW_KEY_NODE_DESCRIPTION, node->deviceName, Qt::DisplayRole, changedRoles);
+    }
+    if (node->deviceName.isEmpty()) {
+        changedRoles.clear();
+        // updateProp(props, PW_KEY_NODE_NAME, node->deviceName, Qt::DisplayRole, changedRoles);
     }
 
     updateProp(props, PW_KEY_OBJECT_SERIAL, node->objectSerial, ObjectSerialRole, changedRoles);

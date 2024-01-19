@@ -18,6 +18,7 @@ find_package(KF6 REQUIRED COMPONENTS I18n CoreAddons)
 
 find_package(PlasmaWaylandProtocols REQUIRED)
 find_package(EGL REQUIRED)
+find_package(libyuv REQUIRED)
 
 pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
 

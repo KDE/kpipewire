@@ -61,7 +61,7 @@ target_sources(KPipeWire PRIVATE
 target_compile_options(KPipeWire PUBLIC -Wno-gnu-statement-expression-from-macro-expansion -Wno-zero-as-null-pointer-constant -Wno-c99-extensions -Wno-cast-align)
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
-    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM Libdrm::Libdrm)
+    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM Libdrm::Libdrm yuv::yuv)
 
 target_link_libraries(KPipeWire PRIVATE EGL::EGL)
 
