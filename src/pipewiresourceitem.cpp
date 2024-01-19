@@ -39,8 +39,8 @@ public:
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
     std::function<QSGTexture *()> m_createNextTexture;
-    QScopedPointer<PipeWireSourceStream> m_stream;
-    QScopedPointer<QOpenGLTexture> m_texture;
+    std::unique_ptr<PipeWireSourceStream> m_stream;
+    std::unique_ptr<QOpenGLTexture> m_texture;
 
     EGLImage m_image = nullptr;
     bool m_needsRecreateTexture = false;
@@ -120,7 +120,7 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
 void PipeWireSourceItem::releaseResources()
 {
     if (window() && (d->m_image || d->m_texture)) {
-        window()->scheduleRenderJob(new DiscardEglPixmapRunnable(d->m_image, d->m_texture.take()), QQuickWindow::NoStage);
+        window()->scheduleRenderJob(new DiscardEglPixmapRunnable(d->m_image, d->m_texture.release()), QQuickWindow::NoStage);
         d->m_image = EGL_NO_IMAGE_KHR;
     }
 }
@@ -185,8 +185,8 @@ void PipeWireSourceItem::refresh()
         }
         d->m_stream->setActive(isVisible() && isComponentComplete());
 
-        connect(d->m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
-        connect(d->m_stream.data(), &PipeWireSourceStream::stateChanged, this, &PipeWireSourceItem::stateChanged);
+        connect(d->m_stream.get(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
+        connect(d->m_stream.get(), &PipeWireSourceStream::stateChanged, this, &PipeWireSourceItem::stateChanged);
     }
     Q_EMIT stateChanged();
 }
