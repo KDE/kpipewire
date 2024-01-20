@@ -568,10 +568,8 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
     if (spaBuffer->datas->chunk->size == 0 || spaBuffer->datas->chunk->flags == SPA_CHUNK_FLAG_CORRUPTED) {
         // do not get a frame
+        qCDebug(PIPEWIRE_LOGGING) << "skipping empty buffer" << spaBuffer->datas->chunk->size << spaBuffer->datas->chunk->flags;
     } else if (spaBuffer->datas->type == SPA_DATA_MemFd) {
-        if (spaBuffer->datas->chunk->size == 0)
-            return;
-
         const uint32_t mapEnd = spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset;
         uint8_t *map = static_cast<uint8_t *>(mmap(nullptr, mapEnd, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
 
