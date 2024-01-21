@@ -9,7 +9,6 @@
 #include "glhelpers.h"
 #include "logging.h"
 #include "pipewiresourcestream.h"
-#include "pwhelpers.h"
 
 #include <QGuiApplication>
 #include <QOpenGLContext>
@@ -338,8 +337,8 @@ void PipeWireSourceItem::processFrame(const PipeWireFrame &frame)
 
     if (frame.dmabuf) {
         updateTextureDmaBuf(*frame.dmabuf, frame.format);
-    } else if (frame.dataFrame) {
-        updateTextureImage(frame.dataFrame);
+    } else if (frame.image) {
+        updateTextureImage(*frame.image);
     }
 
     if (window() && window()->isVisible()) {
@@ -395,16 +394,16 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
     };
 }
 
-void PipeWireSourceItem::updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data)
+void PipeWireSourceItem::updateTextureImage(const QImage &image)
 {
     if (!window()) {
         qCWarning(PIPEWIRE_LOGGING) << "pass";
         return;
     }
 
-    d->m_createNextTexture = [this, data] {
+    d->m_createNextTexture = [this, image] {
         setEnabled(true);
-        return window()->createTextureFromImage(data->toImage(), QQuickWindow::TextureIsOpaque);
+        return window()->createTextureFromImage(image, QQuickWindow::TextureIsOpaque);
     };
 }
 
