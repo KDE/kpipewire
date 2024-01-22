@@ -60,7 +60,6 @@ struct PipeWireCursor {
         return position == other.position && hotspot == other.hotspot && texture == other.texture;
     }
 };
-Q_DECLARE_METATYPE(PipeWireCursor);
 
 class KPIPEWIRE_EXPORT PipeWireFrameData
 {
@@ -155,5 +154,3 @@ private:
     void coreFailed(const QString &errorMessage);
     QScopedPointer<PipeWireSourceStreamPrivate> d;
 };
-
-Q_DECLARE_METATYPE(QList<DmaBufPlane>);
