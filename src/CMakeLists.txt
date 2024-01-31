@@ -151,6 +151,7 @@ set_target_properties(KPipeWireRecord PROPERTIES
 
 install(FILES
   ${KPipeWireRecord_HEADERS}
+  ${CMAKE_CURRENT_BINARY_DIR}/kpipewire_version.h
   DESTINATION ${KDE_INSTALL_INCLUDEDIR}/KPipeWire COMPONENT Devel
 )
 
