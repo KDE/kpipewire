@@ -17,7 +17,6 @@ class KPIPEWIRE_EXPORT PipeWireRecord : public PipeWireBaseEncodedStream
 {
     Q_OBJECT
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
-    Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString extension READ extension NOTIFY encoderChanged)
 public:
     PipeWireRecord(QObject *parent = nullptr);
