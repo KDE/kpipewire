@@ -404,9 +404,6 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
     : QObject(parent)
     , d(new PipeWireSourceStreamPrivate)
 {
-    qRegisterMetaType<QList<DmaBufPlane>>();
-    qRegisterMetaType<PipeWireCursor>();
-
     pwStreamEvents.version = PW_VERSION_STREAM_EVENTS;
     pwStreamEvents.process = &onProcess;
     pwStreamEvents.state_changed = &PipeWireSourceStream::onStreamStateChanged;

@@ -78,7 +78,6 @@ public:
     }
 
     void stateChanged(pw_stream_state state);
-    friend class PipeWireProduceThread;
     void setupStream();
     virtual void processFrame(const PipeWireFrame &frame);
     void render(const QImage &image, const PipeWireFrame &frame);
