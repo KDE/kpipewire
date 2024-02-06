@@ -558,9 +558,17 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
             QImage cursorTexture;
             if (bitmap && bitmap->size.width > 0 && bitmap->size.height > 0) {
-                const uint8_t *bitmap_data = SPA_MEMBER(bitmap, bitmap->offset, uint8_t);
-                cursorTexture =
-                    PWHelpers::SpaBufferToQImage(bitmap_data, bitmap->size.width, bitmap->size.height, bitmap->stride, spa_video_format(bitmap->format), {});
+                const size_t bufferSize = bitmap->stride * bitmap->size.height * 4;
+                void *bufferData = malloc(bufferSize);
+                memcpy(bufferData, SPA_MEMBER(bitmap, bitmap->offset, uint8_t), bufferSize);
+                cursorTexture = PWHelpers::SpaBufferToQImage(static_cast<const uchar *>(bufferData),
+                                                             bitmap->size.width,
+                                                             bitmap->size.height,
+                                                             bitmap->stride,
+                                                             spa_video_format(bitmap->format),
+                                                             new PipeWireFrameCleanupFunction([bufferData] {
+                                                                 free(bufferData);
+                                                             }));
             }
             frame.cursor = {{cursor->position.x, cursor->position.y}, {cursor->hotspot.x, cursor->hotspot.y}, cursorTexture};
         }
