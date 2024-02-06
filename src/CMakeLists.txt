@@ -70,7 +70,7 @@ target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
                                      INTERFACE "$<INSTALL_INTERFACE:${KDE_INSTALL_INCLUDEDIR}/KPipeWire>")
 set_target_properties(KPipeWire PROPERTIES
                              VERSION ${PROJECT_VERSION}
-                             SOVERSION ${PROJECT_VERSION_MAJOR}
+                             SOVERSION 6
                       )
 
 ecm_generate_export_header(KPipeWire
@@ -99,7 +99,7 @@ target_link_libraries(KPipeWireDmaBuf PUBLIC KPipeWire
 
 set_target_properties(KPipeWireDmaBuf PROPERTIES
                              VERSION ${PROJECT_VERSION}
-                             SOVERSION ${PROJECT_VERSION_MAJOR}
+                             SOVERSION 6
                       )
 
 ecm_generate_export_header(KPipeWireDmaBuf
@@ -146,7 +146,7 @@ ecm_generate_headers(KPipeWireRecord_HEADERS
 )
 set_target_properties(KPipeWireRecord PROPERTIES
                              VERSION ${PROJECT_VERSION}
-                             SOVERSION ${PROJECT_VERSION_MAJOR}
+                             SOVERSION 6
                       )
 
 install(FILES
@@ -161,7 +161,7 @@ install(TARGETS KPipeWire KPipeWireRecord KPipeWireDmaBuf EXPORT KPipeWireTarget
 ecm_setup_version(PROJECT VARIABLE_PREFIX KPIPEWIRE
                         VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/kpipewire_version.h"
                         PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/KPipeWireConfigVersion.cmake"
-                        SOVERSION ${PROJECT_VERSION_MAJOR})
+                        SOVERSION 6)
 
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/KPipeWire")
 install(EXPORT KPipeWireTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE KPipeWireTargets.cmake NAMESPACE K::)
