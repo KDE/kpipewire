@@ -130,6 +130,10 @@ void PipeWireProduce::deactivate()
 {
     m_deactivated = true;
     m_stream->setActive(false);
+    if (!m_encoder) {
+        cleanup();
+        QThread::currentThread()->quit();
+    }
 }
 
 void PipeWireProduce::setQuality(const std::optional<quint8> &quality)

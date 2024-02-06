@@ -194,15 +194,19 @@ int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanosec
 
 void PipeWireRecordProduce::cleanup()
 {
-    // Clear the queue of encoded packets.
-    m_encoder->receivePacket();
-
-    if (auto result = av_write_trailer(m_avFormatContext); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not write trailer";
+    if (!m_encoder) {
+        // Clear the queue of encoded packets.
+        m_encoder->receivePacket();
     }
 
-    avio_closep(&m_avFormatContext->pb);
-    avformat_free_context(m_avFormatContext);
+    if (m_avFormatContext) {
+        if (auto result = av_write_trailer(m_avFormatContext); result < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Could not write trailer";
+        }
+
+        avio_closep(&m_avFormatContext->pb);
+        avformat_free_context(m_avFormatContext);
+    }
 }
 
 #include "moc_pipewirerecord.cpp"
