@@ -322,7 +322,7 @@ void PipeWireSourceStream::onStreamParamChanged(void *data, uint32_t id, const s
                                               SPA_TYPE_OBJECT_ParamBuffers,
                                               SPA_PARAM_Buffers,
                                               SPA_PARAM_BUFFERS_buffers,
-                                              SPA_POD_CHOICE_RANGE_Int(16, 2, 16),
+                                              SPA_POD_CHOICE_RANGE_Int(3, 2, 16),
                                               SPA_PARAM_BUFFERS_align,
                                               SPA_POD_Int(16),
                                               SPA_PARAM_BUFFERS_dataType,
