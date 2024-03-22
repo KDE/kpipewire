@@ -82,12 +82,6 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     , d(new PipeWireSourceItemPrivate)
 {
     setFlag(ItemHasContents, true);
-
-    connect(this, &QQuickItem::visibleChanged, this, [this]() {
-        setEnabled(isVisible());
-        if (d->m_stream)
-            d->m_stream->setActive(isVisible());
-    });
 }
 
 PipeWireSourceItem::~PipeWireSourceItem()
