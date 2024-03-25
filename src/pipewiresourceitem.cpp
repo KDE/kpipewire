@@ -261,18 +261,14 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         return nullptr;
     }
 
-    QSGImageNode *screenNode;
-    auto pwNode = dynamic_cast<PipeWireRenderNode *>(node);
+    auto pwNode = static_cast<PipeWireRenderNode *>(node);
     if (!pwNode) {
-        delete node;
         pwNode = new PipeWireRenderNode;
-        screenNode = window()->createImageNode();
-        screenNode->setOwnsTexture(true);
-        pwNode->appendChildNode(screenNode);
-    } else {
-        screenNode = static_cast<QSGImageNode *>(pwNode->childAtIndex(0));
     }
+
+    QSGImageNode *screenNode = pwNode->screenNode(window());
     screenNode->setTexture(texture);
+    screenNode->setOwnsTexture(true);
 
     const auto br = boundingRect().toRect();
     QRect rect({0, 0}, texture->textureSize().scaled(br.size(), Qt::KeepAspectRatio));
