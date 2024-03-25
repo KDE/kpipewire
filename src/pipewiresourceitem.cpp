@@ -281,6 +281,7 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         QSGImageNode *cursorNode = pwNode->cursorNode(window());
         if (d->m_cursor.dirty || !cursorNode->texture()) {
             cursorNode->setTexture(window()->createTextureFromImage(d->m_cursor.texture));
+            cursorNode->setOwnsTexture(true);
             d->m_cursor.dirty = false;
         }
         const qreal scale = qreal(rect.width()) / texture->textureSize().width();
@@ -300,6 +301,7 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
             p.drawRect(rect);
         }
         damageNode->setTexture(window()->createTextureFromImage(damageImage));
+        damageNode->setOwnsTexture(true);
         damageNode->setRect(rect);
         Q_ASSERT(damageNode->texture());
     }
