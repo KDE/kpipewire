@@ -96,8 +96,9 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
     switch (change) {
     case ItemVisibleHasChanged:
         setEnabled(isVisible());
-        if (d->m_stream)
-            d->m_stream->setActive(isVisible() && data.boolValue && isComponentComplete());
+        if (d->m_stream) {
+            d->m_stream->setActive(isVisible());
+        }
         break;
     case ItemSceneChange:
         d->m_needsRecreateTexture = true;
@@ -176,7 +177,7 @@ void PipeWireSourceItem::refresh()
             d->m_nodeId = 0;
             return;
         }
-        d->m_stream->setActive(isVisible() && isComponentComplete());
+        d->m_stream->setActive(isVisible());
 
         connect(d->m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireSourceItem::processFrame);
         connect(d->m_stream.data(), &PipeWireSourceStream::stateChanged, this, &PipeWireSourceItem::stateChanged);
