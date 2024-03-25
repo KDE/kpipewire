@@ -389,9 +389,10 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         int textureId = d->m_texture->textureId();
         QQuickWindow::CreateTextureOption textureOption =
             format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
-        setEnabled(true);
         return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
     };
+
+    setEnabled(true);
 }
 
 void PipeWireSourceItem::updateTextureImage(const QImage &image)
@@ -402,9 +403,10 @@ void PipeWireSourceItem::updateTextureImage(const QImage &image)
     }
 
     d->m_createNextTexture = [this, image] {
-        setEnabled(true);
         return window()->createTextureFromImage(image, QQuickWindow::TextureIsOpaque);
     };
+
+    setEnabled(true);
 }
 
 void PipeWireSourceItem::componentComplete()
