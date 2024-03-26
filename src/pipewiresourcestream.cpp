@@ -191,7 +191,7 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
         modifiers.push_back(DRM_FORMAT_MOD_INVALID);
         ret[format] = modifiers;
     }
-    qDebug() << "found..." << SPA_VIDEO_FORMAT_YUY2 << ret.keys() << formats;
+    qCDebug(PIPEWIRE_LOGGING) << "found..." << SPA_VIDEO_FORMAT_YUY2 << ret.keys() << formats;
     return ret;
 }
 
