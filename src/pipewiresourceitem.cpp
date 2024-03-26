@@ -82,6 +82,7 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     , d(new PipeWireSourceItemPrivate)
 {
     setFlag(ItemHasContents, true);
+    setEnabled(false);
 }
 
 PipeWireSourceItem::~PipeWireSourceItem()
@@ -95,7 +96,9 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
 {
     switch (change) {
     case ItemVisibleHasChanged:
-        setEnabled(isVisible());
+        if (!isVisible()) {
+            setEnabled(false);
+        }
         if (d->m_stream) {
             d->m_stream->setActive(isVisible());
         }
