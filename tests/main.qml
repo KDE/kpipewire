@@ -61,29 +61,38 @@ Kirigami.ApplicationWindow
             onClicked: app.requestSelection()
         }
 
-        Repeater {
+        ListView {
             id: rep
-            model: ListModel {}
 
-            delegate: Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                PipeWire.PipeWireSourceItem {
-                    id: sourceItem
-                    nodeId: model.nodeId
-                    fd: model.fd
-                    anchors.fill: parent
-                    allowDmaBuf: model.allowDmaBuf
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            clip: true
+            model: ListModel {}
+            delegate: RowLayout {
+                Kirigami.Icon {
+                    source: sourceItem.usingDmaBuf ? "speedometer" : "delete"
                 }
 
-                RowLayout {
-                    Kirigami.Icon {
-                        id: butt
-                        source: sourceItem.usingDmaBuf ? "speedometer" : "delete"
-                    }
-                    Label {
-                        text: model.display
-                    }
+                Button {
+                    text: sourceItem.visible ? "Pause" : "Resume"
+                    icon.name: sourceItem.visible ? "media-playback-pause" : "media-playback-start"
+                    onClicked: sourceItem.visible = !sourceItem.visible;
+                }
+
+                Label {
+                    text: model.display
+                }
+
+                PipeWire.PipeWireSourceItem {
+                    id: sourceItem
+
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 16
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 8
+
+                    nodeId: model.nodeId
+                    fd: model.fd
+                    allowDmaBuf: model.allowDmaBuf
                 }
             }
         }
