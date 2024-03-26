@@ -59,6 +59,11 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 
     Q_PROPERTY(bool usingDmaBuf READ usingDmaBuf NOTIFY usingDmaBufChanged)
 
+    /**
+     * Specifies whether the first frame has been received and there's something to display.
+     */
+    Q_PROPERTY(bool ready READ isReady NOTIFY readyChanged)
+
 public:
     enum class StreamState { Error, Unconnected, Connecting, Paused, Streaming };
     Q_ENUM(StreamState);
@@ -82,6 +87,8 @@ public:
     bool allowDmaBuf() const;
     void setAllowDmaBuf(bool allowed);
 
+    bool isReady() const;
+
     void componentComplete() override;
     void releaseResources() override;
 
@@ -93,6 +100,7 @@ Q_SIGNALS:
     void streamSizeChanged();
     void stateChanged();
     void usingDmaBufChanged();
+    void readyChanged();
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
@@ -100,6 +108,7 @@ private:
     void updateTextureDmaBuf(const DmaBufAttributes &attribs, spa_video_format format);
     void updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data);
     void refresh();
+    void setReady(bool ready);
 
     QScopedPointer<PipeWireSourceItemPrivate> d;
 };

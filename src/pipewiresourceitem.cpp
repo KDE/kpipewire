@@ -45,6 +45,7 @@ public:
     EGLImage m_image = nullptr;
     bool m_needsRecreateTexture = false;
     bool m_allowDmaBuf = true;
+    bool m_ready = false;
 
     struct {
         QImage texture;
@@ -83,7 +84,11 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     , d(new PipeWireSourceItemPrivate)
 {
     setFlag(ItemHasContents, true);
-    setEnabled(false);
+
+    setEnabled(isReady());
+    connect(this, &PipeWireSourceItem::readyChanged, this, [this]() {
+        setEnabled(isReady());
+    });
 }
 
 PipeWireSourceItem::~PipeWireSourceItem()
@@ -98,7 +103,7 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
     switch (change) {
     case ItemVisibleHasChanged:
         if (!isVisible()) {
-            setEnabled(false);
+            setReady(false);
         }
         if (d->m_stream) {
             d->m_stream->setActive(isVisible());
@@ -142,7 +147,7 @@ void PipeWireSourceItem::resetFd()
         return;
     }
 
-    setEnabled(false);
+    setReady(false);
     close(*d->m_fd);
     d->m_fd.reset();
     d->m_stream.reset(nullptr);
@@ -154,7 +159,7 @@ void PipeWireSourceItem::resetFd()
 
 void PipeWireSourceItem::refresh()
 {
-    setEnabled(false);
+    setReady(false);
 
     if (!isComponentComplete()) {
         return;
@@ -389,7 +394,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
     };
 
-    setEnabled(true);
+    setReady(true);
 }
 
 void PipeWireSourceItem::updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data)
@@ -403,7 +408,7 @@ void PipeWireSourceItem::updateTextureImage(const std::shared_ptr<PipeWireFrameD
         return window()->createTextureFromImage(data->toImage(), QQuickWindow::TextureIsOpaque);
     };
 
-    setEnabled(true);
+    setReady(true);
 }
 
 void PipeWireSourceItem::componentComplete()
@@ -469,6 +474,19 @@ void PipeWireSourceItem::setAllowDmaBuf(bool allowed)
     if (d->m_stream) {
         d->m_stream->setAllowDmaBuf(allowed);
     }
+}
+
+void PipeWireSourceItem::setReady(bool ready)
+{
+    if (d->m_ready != ready) {
+        d->m_ready = ready;
+        Q_EMIT readyChanged();
+    }
+}
+
+bool PipeWireSourceItem::isReady() const
+{
+    return d->m_ready;
 }
 
 #include "moc_pipewiresourceitem.cpp"
