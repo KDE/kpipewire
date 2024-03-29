@@ -534,9 +534,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         frame.presentationTimestamp = std::chrono::nanoseconds(header->pts);
         frame.sequential = header->seq;
     } else {
-        using namespace std::chrono;
-        auto now = system_clock::now();
-        d->m_currentPresentationTimestamp = time_point_cast<nanoseconds>(now).time_since_epoch();
+        d->m_currentPresentationTimestamp = std::chrono::steady_clock::now().time_since_epoch();
         frame.presentationTimestamp = d->m_currentPresentationTimestamp;
     }
 
