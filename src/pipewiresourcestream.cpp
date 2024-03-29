@@ -525,6 +525,11 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
     struct spa_meta_header *h = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*h));
     if (h) {
+        if (h->flags & SPA_META_HEADER_FLAG_CORRUPTED) {
+            qCDebug(PIPEWIRE_LOGGING) << "buffer is corrupt";
+            return;
+        }
+
         d->m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
         frame.presentationTimestamp = std::chrono::nanoseconds(h->pts);
         frame.sequential = h->seq;
