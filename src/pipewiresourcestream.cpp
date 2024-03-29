@@ -626,10 +626,11 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
                                                                   nullptr);
         }
     } else {
-        if (spaBuffer->datas->type == SPA_ID_INVALID)
-            qWarning() << "invalid buffer type";
-        else
-            qWarning() << "unsupported buffer type" << spaBuffer->datas->type;
+        if (spaBuffer->datas->type == SPA_ID_INVALID) {
+            qCWarning(PIPEWIRE_LOGGING) << "invalid buffer type";
+        } else {
+            qCWarning(PIPEWIRE_LOGGING) << "unsupported buffer type" << spaBuffer->datas->type;
+        }
         frame.dataFrame = {};
     }
 
