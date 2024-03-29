@@ -570,25 +570,29 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         }
     }
 
-    if (spaBuffer->datas->chunk->size == 0 || spaBuffer->datas->chunk->flags == SPA_CHUNK_FLAG_CORRUPTED) {
+    if (spaBuffer->datas->chunk->flags == SPA_CHUNK_FLAG_CORRUPTED) {
         // do not get a frame
         qCDebug(PIPEWIRE_LOGGING) << "skipping empty buffer" << spaBuffer->datas->chunk->size << spaBuffer->datas->chunk->flags;
     } else if (spaBuffer->datas->type == SPA_DATA_MemFd) {
-        const uint32_t mapEnd = spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset;
-        uint8_t *map = static_cast<uint8_t *>(mmap(nullptr, mapEnd, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
+        if (spaBuffer->datas->chunk->size == 0) {
+            qCDebug(PIPEWIRE_LOGGING) << "skipping empty memfd buffer";
+        } else {
+            const uint32_t mapEnd = spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset;
+            uint8_t *map = static_cast<uint8_t *>(mmap(nullptr, mapEnd, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
 
-        if (map == MAP_FAILED) {
-            qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
-            return;
+            if (map == MAP_FAILED) {
+                qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
+                return;
+            }
+            auto cleanup = [map, mapEnd]() {
+                munmap(map, mapEnd);
+            };
+            frame.dataFrame = std::make_shared<PipeWireFrameData>(d->videoFormat.format,
+                                                                  map,
+                                                                  QSize(d->videoFormat.size.width, d->videoFormat.size.height),
+                                                                  spaBuffer->datas->chunk->stride,
+                                                                  new PipeWireFrameCleanupFunction(cleanup));
         }
-        auto cleanup = [map, mapEnd]() {
-            munmap(map, mapEnd);
-        };
-        frame.dataFrame = std::make_shared<PipeWireFrameData>(d->videoFormat.format,
-                                                              map,
-                                                              QSize(d->videoFormat.size.width, d->videoFormat.size.height),
-                                                              spaBuffer->datas->chunk->stride,
-                                                              new PipeWireFrameCleanupFunction(cleanup));
     } else if (spaBuffer->datas->type == SPA_DATA_DmaBuf) {
         DmaBufAttributes attribs;
         attribs.planes.reserve(spaBuffer->n_datas);
@@ -609,11 +613,15 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         Q_ASSERT(!attribs.planes.isEmpty());
         frame.dmabuf = attribs;
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
-        frame.dataFrame = std::make_shared<PipeWireFrameData>(d->videoFormat.format,
-                                                              spaBuffer->datas->data,
-                                                              QSize(d->videoFormat.size.width, d->videoFormat.size.height),
-                                                              spaBuffer->datas->chunk->stride,
-                                                              nullptr);
+        if (spaBuffer->datas->chunk->size == 0) {
+            qCDebug(PIPEWIRE_LOGGING) << "skipping empty memptr buffer";
+        } else {
+            frame.dataFrame = std::make_shared<PipeWireFrameData>(d->videoFormat.format,
+                                                                  spaBuffer->datas->data,
+                                                                  QSize(d->videoFormat.size.width, d->videoFormat.size.height),
+                                                                  spaBuffer->datas->chunk->stride,
+                                                                  nullptr);
+        }
     } else {
         if (spaBuffer->datas->type == SPA_ID_INVALID)
             qWarning() << "invalid buffer type";
