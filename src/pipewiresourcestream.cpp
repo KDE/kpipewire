@@ -506,22 +506,29 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         }
     }
 
-    if (spaBuffer->datas->chunk->size == 0 || spaBuffer->datas->chunk->flags == SPA_CHUNK_FLAG_CORRUPTED) {
+    if (spaBuffer->datas->chunk->flags == SPA_CHUNK_FLAG_CORRUPTED) {
         // do not get a frame
         qCDebug(PIPEWIRE_LOGGING) << "skipping empty buffer" << spaBuffer->datas->chunk->size << spaBuffer->datas->chunk->flags;
     } else if (spaBuffer->datas->type == SPA_DATA_MemFd) {
-        uint8_t *map =
-            static_cast<uint8_t *>(mmap(nullptr, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
+        if (spaBuffer->datas->chunk->size == 0) {
+            qCDebug(PIPEWIRE_LOGGING) << "skipping empty memfd buffer";
+        } else {
+            uint8_t *map =
+                static_cast<uint8_t *>(mmap(nullptr, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset, PROT_READ, MAP_PRIVATE, spaBuffer->datas->fd, 0));
 
-        if (map == MAP_FAILED) {
-            qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
-            return;
+            if (map == MAP_FAILED) {
+                qCWarning(PIPEWIRE_LOGGING) << "Failed to mmap the memory: " << strerror(errno);
+                return;
+            }
+            QImage img = PWHelpers::SpaBufferToQImage(map,
+                                                      d->videoFormat.size.width,
+                                                      d->videoFormat.size.height,
+                                                      spaBuffer->datas->chunk->stride,
+                                                      d->videoFormat.format);
+            frame.image = img.copy();
+
+            munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);
         }
-        QImage img =
-            PWHelpers::SpaBufferToQImage(map, d->videoFormat.size.width, d->videoFormat.size.height, spaBuffer->datas->chunk->stride, d->videoFormat.format);
-        frame.image = img.copy();
-
-        munmap(map, spaBuffer->datas->maxsize + spaBuffer->datas->mapoffset);
     } else if (spaBuffer->datas->type == SPA_DATA_DmaBuf) {
         DmaBufAttributes attribs;
         attribs.planes.reserve(spaBuffer->n_datas);
@@ -542,11 +549,15 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         Q_ASSERT(!attribs.planes.isEmpty());
         frame.dmabuf = attribs;
     } else if (spaBuffer->datas->type == SPA_DATA_MemPtr) {
-        frame.image = PWHelpers::SpaBufferToQImage(static_cast<uint8_t *>(spaBuffer->datas->data),
-                                                   d->videoFormat.size.width,
-                                                   d->videoFormat.size.height,
-                                                   spaBuffer->datas->chunk->stride,
-                                                   d->videoFormat.format);
+        if (spaBuffer->datas->chunk->size == 0) {
+            qCDebug(PIPEWIRE_LOGGING) << "skipping empty memptr buffer";
+        } else {
+            frame.image = PWHelpers::SpaBufferToQImage(static_cast<uint8_t *>(spaBuffer->datas->data),
+                                                       d->videoFormat.size.width,
+                                                       d->videoFormat.size.height,
+                                                       spaBuffer->datas->chunk->stride,
+                                                       d->videoFormat.format);
+        }
     } else {
         if (spaBuffer->datas->type == SPA_ID_INVALID)
             qWarning() << "invalid buffer type";
