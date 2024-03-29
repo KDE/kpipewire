@@ -523,16 +523,16 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
     PipeWireFrame frame;
     frame.format = d->videoFormat.format;
 
-    struct spa_meta_header *h = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*h));
-    if (h) {
-        if (h->flags & SPA_META_HEADER_FLAG_CORRUPTED) {
+    struct spa_meta_header *header = (struct spa_meta_header *)spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(*header));
+    if (header) {
+        if (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) {
             qCDebug(PIPEWIRE_LOGGING) << "buffer is corrupt";
             return;
         }
 
-        d->m_currentPresentationTimestamp = std::chrono::nanoseconds(h->pts);
-        frame.presentationTimestamp = std::chrono::nanoseconds(h->pts);
-        frame.sequential = h->seq;
+        d->m_currentPresentationTimestamp = std::chrono::nanoseconds(header->pts);
+        frame.presentationTimestamp = std::chrono::nanoseconds(header->pts);
+        frame.sequential = header->seq;
     } else {
         using namespace std::chrono;
         auto now = system_clock::now();
