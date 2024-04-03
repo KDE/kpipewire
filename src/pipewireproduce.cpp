@@ -51,6 +51,7 @@ void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
+    m_stream->setUsageHint(PipeWireSourceStream::UsageHint::Encode);
     bool created = m_stream->createStream(m_nodeId, m_fd);
     if (!created || !m_stream->error().isEmpty()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "failed to set up stream for" << m_nodeId << m_stream->error();

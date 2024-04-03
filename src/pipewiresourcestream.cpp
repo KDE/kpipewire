@@ -66,6 +66,8 @@ struct PipeWireSourceStreamPrivate
 
     bool m_withDamage = false;
     Fraction maxFramerate;
+
+    PipeWireSourceStream::UsageHint usageHint = PipeWireSourceStream::UsageHint::Render;
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
@@ -441,6 +443,16 @@ void PipeWireSourceStream::setMaxFramerate(const Fraction &framerate)
 uint PipeWireSourceStream::nodeId()
 {
     return d->pwNodeId;
+}
+
+PipeWireSourceStream::UsageHint PipeWireSourceStream::usageHint() const
+{
+    return d->usageHint;
+}
+
+void PipeWireSourceStream::setUsageHint(UsageHint hint)
+{
+    d->usageHint = hint;
 }
 
 QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)

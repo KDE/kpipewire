@@ -111,6 +111,17 @@ class KPIPEWIRE_EXPORT PipeWireSourceStream : public QObject
 {
     Q_OBJECT
 public:
+    /**
+     * A hint to indicate how this stream will be used.
+     *
+     * By default this will be set to Render.
+     */
+    enum class UsageHint {
+        Render, ///< Stream is intended mainly for reading pixel data and rendering directly to screen.
+        EncodeSoftware, ///< Stream is intended mainly for encoding video using software encoding.
+        EncodeHardware, ///< Stream is intended mainly for encoding video using hardware encoding.
+    };
+
     explicit PipeWireSourceStream(QObject *parent = nullptr);
     ~PipeWireSourceStream();
 
@@ -124,6 +135,9 @@ public:
     bool createStream(uint nodeid, int fd);
     void setActive(bool active);
     void setDamageEnabled(bool withDamage);
+
+    UsageHint usageHint() const;
+    void setUsageHint(UsageHint hint);
 
     void handleFrame(struct pw_buffer *buffer);
     void process();
