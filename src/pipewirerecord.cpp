@@ -194,7 +194,7 @@ int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanosec
 
 void PipeWireRecordProduce::cleanup()
 {
-    if (!m_encoder) {
+    if (m_encoder) {
         // Clear the queue of encoded packets.
         m_encoder->receivePacket();
     }
