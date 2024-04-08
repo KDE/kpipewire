@@ -176,6 +176,11 @@ void Encoder::setQuality(std::optional<quint8> quality)
     }
 }
 
+bool Encoder::supportsHardwareEncoding()
+{
+    return !VaapiUtils::instance()->devicePath().isEmpty();
+}
+
 SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
     : Encoder(produce)
 {

@@ -95,6 +95,8 @@ public:
      */
     void setQuality(std::optional<quint8> quality);
 
+    static bool supportsHardwareEncoding();
+
 protected:
     virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
 

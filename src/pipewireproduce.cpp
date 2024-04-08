@@ -51,7 +51,17 @@ void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
-    m_stream->setUsageHint(PipeWireSourceStream::UsageHint::Encode);
+
+    // The check in supportsHardwareEncoding() is insufficient to fully
+    // determine if we actually support hardware encoding the current stream,
+    // but to determine that we need the stream size, which we don't get until
+    // after we've created the stream, but creating the stream sets important
+    // parameters that require the correct usage hint to be set. So use the
+    // insufficient check to set the hint, assuming that we still get a working
+    // stream when we use the wrong hint with software encoding.
+    m_stream->setUsageHint(Encoder::supportsHardwareEncoding() ? PipeWireSourceStream::UsageHint::EncodeHardware
+                                                               : PipeWireSourceStream::UsageHint::EncodeSoftware);
+
     bool created = m_stream->createStream(m_nodeId, m_fd);
     if (!created || !m_stream->error().isEmpty()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "failed to set up stream for" << m_nodeId << m_stream->error();
