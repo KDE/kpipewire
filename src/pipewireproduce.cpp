@@ -167,11 +167,13 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         return;
     }
 
+    aboutToEncode(f);
+    if (!m_encoder->filterFrame(f)) {
+        return;
+    }
+
     m_pendingFilterFrames++;
     m_previousPts = pts;
-
-    aboutToEncode(f);
-    m_encoder->filterFrame(f);
 
     m_frameReceivedCondition.notify_all();
 }
