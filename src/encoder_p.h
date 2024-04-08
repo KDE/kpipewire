@@ -167,7 +167,4 @@ protected:
 
     AVBufferRef *m_drmContext = nullptr;
     AVBufferRef *m_drmFramesContext = nullptr;
-
-private:
-    bool m_supportsHardwareModifiers;
 };

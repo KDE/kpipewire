@@ -31,7 +31,7 @@ public:
     QSize minimumSize() const;
     QSize maximumSize() const;
 
-    bool supportsHardwareModifiers() const;
+    bool supportsModifier(uint32_t format, uint64_t modifier);
 
     static std::shared_ptr<VaapiUtils> instance();
 
@@ -45,7 +45,6 @@ private:
 
     QByteArray m_devicePath;
 
-    mutable bool m_supportsHardwareModifiers = true;
     mutable QSize m_minSize;
     mutable QSize m_maxSize = QSize{std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
 };

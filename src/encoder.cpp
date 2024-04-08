@@ -322,11 +322,6 @@ bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
 
     auto attribs = frame.dmabuf.value();
 
-    if (!m_supportsHardwareModifiers && attribs.modifier != 0) {
-        m_produce->m_stream->renegotiateModifierFailed(frame.format, attribs.modifier);
-        return false;
-    }
-
     auto drmFrame = av_frame_alloc();
     if (!drmFrame) {
         qFatal("Failed to allocate memory");

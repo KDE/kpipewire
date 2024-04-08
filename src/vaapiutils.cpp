@@ -10,6 +10,7 @@
 #include <QDir>
 
 extern "C" {
+#include <drm_fourcc.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <va/va_drm.h>
@@ -93,23 +94,6 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
 
     querySizeConstraints(vaDpy);
 
-    /**
-     * If FFPEG fails to import a buffer with modifiers, it silently goes into
-     * of importing as linear, which looks to us like it works, but obviously results in
-     * a messed up image. At the time of writing the Intel iHD driver does not
-     *
-     * Manually blacklist drivers which are known to fail import
-     *
-     * 10/7/23 - FFmpeg 2.6 with intel-media-driver 23.2.3-1
-     */
-    const bool blackListed = QByteArray(vaQueryVendorString(vaDpy)).startsWith("Intel iHD driver");
-
-    const bool disabledByEnvVar = qEnvironmentVariableIntValue("KPIPEWIRE_NO_MODIFIERS_FOR_ENCODING") > 0;
-
-    if (blackListed || disabledByEnvVar) {
-        m_supportsHardwareModifiers = false;
-    }
-
     closeDevice(&drmFd, vaDpy);
 
     return ret;
@@ -130,9 +114,22 @@ QSize VaapiUtils::maximumSize() const
     return m_maxSize;
 }
 
-bool VaapiUtils::supportsHardwareModifiers() const
+bool VaapiUtils::supportsModifier(uint32_t /*format*/, uint64_t modifier)
 {
-    return m_supportsHardwareModifiers;
+    // For now, we have no way of querying VAAPI for what modifiers are
+    // actually supported for encoding. So assume we can only support linear
+    // buffers for now, even though some cards may actually also support
+    // other formats.
+    //
+    // As of 8/4/24, we know that on AMD chips using the RadeonSI driver, frames
+    // using "Delta Color Compression" modifier will be rejected by the driver.
+    // Also, Intel chips using the Interl iHD Media driver will accept any
+    // modifier but internally force using LINEAR so any modifier other than
+    // LINEAR should be rejected.
+    //
+    // See https://github.com/intel/libva/pull/589 for discussion surrounding
+    // API in LibVA for querying supported modifiers.
+    return modifier == DRM_FORMAT_MOD_LINEAR;
 }
 
 std::shared_ptr<VaapiUtils> VaapiUtils::instance()
