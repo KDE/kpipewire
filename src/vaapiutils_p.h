@@ -15,8 +15,13 @@ extern "C" {
 
 class VaapiUtils
 {
+    // Utility struct to tag constructor as private while still allowing it to
+    // be used by make_shared().
+    struct Private {
+    };
+
 public:
-    VaapiUtils();
+    VaapiUtils(Private);
     ~VaapiUtils();
 
     bool supportsProfile(VAProfile profile);
@@ -27,6 +32,8 @@ public:
     QSize maximumSize() const;
 
     bool supportsHardwareModifiers() const;
+
+    static std::shared_ptr<VaapiUtils> instance();
 
 private:
     static VADisplay openDevice(int *fd, const QByteArray &path);

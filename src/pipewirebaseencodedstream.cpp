@@ -177,7 +177,7 @@ PipeWireBaseEncodedStream::Encoder PipeWireBaseEncodedStream::encoder() const
 
 QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEncoders() const
 {
-    VaapiUtils vaapi;
+    auto vaapi = VaapiUtils::instance();
 
     QList<PipeWireBaseEncodedStream::Encoder> ret = {PipeWireBaseEncodedStream::VP8,
                                                      PipeWireBaseEncodedStream::VP9,
@@ -186,7 +186,7 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
     auto removeUnavailableEncoders = [&vaapi](const PipeWireBaseEncodedStream::Encoder &encoder) {
         switch (encoder) {
         case PipeWireBaseEncodedStream::VP8:
-            if (vaapi.supportsProfile(VAProfileVP8Version0_3) && avcodec_find_encoder_by_name("vp8_vaapi")) {
+            if (vaapi->supportsProfile(VAProfileVP8Version0_3) && avcodec_find_encoder_by_name("vp8_vaapi")) {
                 return false;
             } else {
                 return !avcodec_find_encoder_by_name("libvpx");
@@ -195,7 +195,7 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
             return !avcodec_find_encoder_by_name("libvpx-vp9");
         case PipeWireBaseEncodedStream::H264Main:
         case PipeWireBaseEncodedStream::H264Baseline:
-            if (vaapi.supportsProfile(encoder == PipeWireBaseEncodedStream::H264Main ? VAProfileH264Main : VAProfileH264ConstrainedBaseline)
+            if (vaapi->supportsProfile(encoder == PipeWireBaseEncodedStream::H264Main ? VAProfileH264Main : VAProfileH264ConstrainedBaseline)
                 && avcodec_find_encoder_by_name("h264_vaapi")) {
                 return false;
             } else {

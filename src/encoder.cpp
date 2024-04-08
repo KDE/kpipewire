@@ -371,26 +371,25 @@ bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
 
 QByteArray HardwareEncoder::checkVaapi(const QSize &size)
 {
-    VaapiUtils utils;
-    if (utils.devicePath().isEmpty()) {
+    auto utils = VaapiUtils::instance();
+    if (utils->devicePath().isEmpty()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Hardware encoding is not supported on this device.";
         return QByteArray{};
     }
 
-    auto minSize = utils.minimumSize();
+    auto minSize = utils->minimumSize();
     if (size.width() < minSize.width() || size.height() < minSize.height()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "less than minimum supported hardware size" << minSize;
         return QByteArray{};
     }
 
-    auto maxSize = utils.maximumSize();
+    auto maxSize = utils->maximumSize();
     if (size.width() > maxSize.width() || size.height() > maxSize.height()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Requested size" << size << "exceeds maximum supported hardware size" << maxSize;
         return QByteArray{};
     }
-    m_supportsHardwareModifiers = utils.supportsHardwareModifiers();
 
-    return utils.devicePath();
+    return utils->devicePath();
 }
 
 bool HardwareEncoder::createDrmContext(const QSize &size)

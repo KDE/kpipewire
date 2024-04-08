@@ -16,7 +16,7 @@ extern "C" {
 #include <xf86drm.h>
 }
 
-VaapiUtils::VaapiUtils()
+VaapiUtils::VaapiUtils(VaapiUtils::Private)
 {
     int max_devices = drmGetDevices2(0, nullptr, 0);
     if (max_devices <= 0) {
@@ -133,6 +133,12 @@ QSize VaapiUtils::maximumSize() const
 bool VaapiUtils::supportsHardwareModifiers() const
 {
     return m_supportsHardwareModifiers;
+}
+
+std::shared_ptr<VaapiUtils> VaapiUtils::instance()
+{
+    static std::shared_ptr<VaapiUtils> instance = std::make_shared<VaapiUtils>(VaapiUtils::Private{});
+    return instance;
 }
 
 VADisplay VaapiUtils::openDevice(int *fd, const QByteArray &path)
