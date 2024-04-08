@@ -487,6 +487,10 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     d->m_allowDmaBuf = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion));
     const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
 
+    if (!d->m_allowDmaBuf && d->usageHint == UsageHint::EncodeHardware) {
+        qCWarning(PIPEWIRE_LOGGING) << "DMABUF is unsupported but hardware encoding is requested, which requires DMABUF import. This will not work correctly.";
+    }
+
     if (d->m_availableModifiers.isEmpty()) {
         static const auto availableModifiers = queryDmaBufModifiers(display, formats, d->usageHint);
         d->m_availableModifiers = availableModifiers;
