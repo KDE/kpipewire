@@ -11,6 +11,7 @@
 #include "logging.h"
 #include "pipewirecore_p.h"
 #include "pwhelpers.h"
+#include "vaapiutils_p.h"
 
 #include <libdrm/drm_fourcc.h>
 #include <spa/utils/result.h>
@@ -138,7 +139,7 @@ spa_video_format drmFormatToSpaVideoFormat(uint32_t drm_format)
     }
 }
 
-static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QList<spa_video_format> &formats)
+static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QList<spa_video_format> &formats, PipeWireSourceStream::UsageHint usageHint)
 {
     QHash<spa_video_format, QList<uint64_t>> ret;
     ret.reserve(formats.size());
@@ -182,16 +183,26 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
             continue;
         }
 
-        QList<uint64_t> modifiers(count);
+        QList<uint64_t> queriedModifiers(count);
         if (count > 0) {
-            if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, modifiers.data(), nullptr, &count)) {
+            if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, queriedModifiers.data(), nullptr, &count)) {
                 qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifiers.";
             }
         }
 
+        QList<uint64_t> usableModifiers(count + 1);
+        if (usageHint == PipeWireSourceStream::UsageHint::EncodeHardware) {
+            auto vaapi = VaapiUtils::instance();
+            std::copy_if(queriedModifiers.begin(), queriedModifiers.end(), std::back_inserter(usableModifiers), [vaapi, drm_format](uint64_t modifier) {
+                return vaapi->supportsModifier(drm_format, modifier);
+            });
+        } else {
+            usableModifiers = queriedModifiers;
+        }
+
         // Support modifier-less buffers
-        modifiers.push_back(DRM_FORMAT_MOD_INVALID);
-        ret[format] = modifiers;
+        usableModifiers.push_back(DRM_FORMAT_MOD_INVALID);
+        ret[format] = usableModifiers;
     }
     return ret;
 }
@@ -477,7 +488,7 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
 
     if (d->m_availableModifiers.isEmpty()) {
-        static const auto availableModifiers = queryDmaBufModifiers(display, formats);
+        static const auto availableModifiers = queryDmaBufModifiers(display, formats, d->usageHint);
         d->m_availableModifiers = availableModifiers;
     }
 
