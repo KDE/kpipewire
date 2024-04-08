@@ -58,7 +58,7 @@ public:
      *
      * @note This method will be called on its own thread.
      */
-    virtual void filterFrame(const PipeWireFrame &frame) = 0;
+    virtual bool filterFrame(const PipeWireFrame &frame) = 0;
     /**
      * Get the next finished frames from the libav filter chain and queue them for encoding.
      *
@@ -118,7 +118,7 @@ class SoftwareEncoder : public Encoder
 public:
     SoftwareEncoder(PipeWireProduce *produce);
 
-    void filterFrame(const PipeWireFrame &frame) override;
+    bool filterFrame(const PipeWireFrame &frame) override;
 
 protected:
     /**
@@ -140,7 +140,7 @@ public:
     HardwareEncoder(PipeWireProduce *produce);
     ~HardwareEncoder() override;
 
-    void filterFrame(const PipeWireFrame &frame) override;
+    bool filterFrame(const PipeWireFrame &frame) override;
 
 protected:
     /**

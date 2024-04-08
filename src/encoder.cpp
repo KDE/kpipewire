@@ -181,7 +181,7 @@ SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
 {
 }
 
-void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
+bool SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
 {
     auto size = m_produce->m_stream->size();
 
@@ -190,12 +190,12 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
         image = QImage(m_produce->m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
         if (!m_dmaBufHandler.downloadFrame(image, frame)) {
             m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
-            return;
+            return false;
         }
     } else if (frame.image) {
         image = frame.image.value();
     } else {
-        return;
+        return false;
     }
 
     AVFrame *avFrame = av_frame_alloc();
@@ -223,6 +223,8 @@ void SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
     if (auto result = av_buffersrc_add_frame(m_inputFilter, avFrame); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to submit frame for filtering";
     }
+
+    return true;
 }
 
 bool SoftwareEncoder::createFilterGraph(const QSize &size)
@@ -312,17 +314,17 @@ HardwareEncoder::~HardwareEncoder()
     }
 }
 
-void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
+bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
 {
     if (!frame.dmabuf) {
-        return;
+        return false;
     }
 
     auto attribs = frame.dmabuf.value();
 
     if (!m_supportsHardwareModifiers && attribs.modifier != 0) {
         m_produce->m_stream->renegotiateModifierFailed(frame.format, attribs.modifier);
-        return;
+        return false;
     }
 
     auto drmFrame = av_frame_alloc();
@@ -360,10 +362,11 @@ void HardwareEncoder::filterFrame(const PipeWireFrame &frame)
     if (auto result = av_buffersrc_add_frame(m_inputFilter, drmFrame); result < 0) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "Failed sending frame for encoding" << av_err2str(result);
         av_frame_unref(drmFrame);
-        return;
+        return false;
     }
 
     av_frame_free(&drmFrame);
+    return true;
 }
 
 QByteArray HardwareEncoder::checkVaapi(const QSize &size)
