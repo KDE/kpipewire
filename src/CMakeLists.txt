@@ -14,6 +14,13 @@ ecm_qt_declare_logging_category(kpipewire_SRCS
                             DEFAULT_SEVERITY Warning
                             DESCRIPTION "PipeWire components for KDE"
                             EXPORT KPipeWire)
+ecm_qt_declare_logging_category(kpipewirerecord_SRCS
+                            HEADER logging_vaapi.h
+                            IDENTIFIER PIPEWIREVAAPI_LOGGING
+                            CATEGORY_NAME kpipewire_vaapi_logging
+                            DEFAULT_SEVERITY Warning
+                            DESCRIPTION "PipeWire components for KDE - VAAPI related messages"
+                            EXPORT KPipeWire)
 ecm_qt_declare_logging_category(kpipewiredmabuf_SRCS
                             HEADER logging_dmabuf.h
                             IDENTIFIER PIPEWIREDMABUF_LOGGING

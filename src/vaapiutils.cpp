@@ -5,7 +5,7 @@
 */
 
 #include "vaapiutils_p.h"
-#include <logging_record.h>
+#include <logging_vaapi.h>
 
 #include <QDir>
 
@@ -21,14 +21,14 @@ VaapiUtils::VaapiUtils(VaapiUtils::Private)
 {
     int max_devices = drmGetDevices2(0, nullptr, 0);
     if (max_devices <= 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
         return;
     }
 
     std::vector<drmDevicePtr> devices(max_devices);
     int ret = drmGetDevices2(0, devices.data(), max_devices);
     if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "drmGetDevices2() returned an error " << ret;
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "drmGetDevices2() returned an error " << ret;
         return;
     }
 
@@ -46,7 +46,7 @@ VaapiUtils::VaapiUtils(VaapiUtils::Private)
     drmFreeDevices(devices.data(), ret);
 
     if (m_devicePath.isEmpty()) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "DRM device not found";
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "DRM device not found";
     }
 }
 
@@ -88,6 +88,9 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
     if (!vaDpy) {
         return false;
     }
+
+    const char *driver = vaQueryVendorString(vaDpy);
+    qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI:" << driver << "in use for device" << path;
 
     ret = supportsProfile(VAProfileH264ConstrainedBaseline, vaDpy, path) || supportsProfile(VAProfileH264Main, vaDpy, path)
         || supportsProfile(VAProfileH264High, vaDpy, path);
@@ -148,18 +151,18 @@ VADisplay VaapiUtils::openDevice(int *fd, const QByteArray &path)
 
     *fd = open(path.data(), O_RDWR);
     if (*fd < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Failed to open device" << path;
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: Failed to open device" << path;
         return NULL;
     }
 
     vaDpy = vaGetDisplayDRM(*fd);
     if (!vaDpy) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Failed to initialize DRM display";
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: Failed to initialize DRM display";
         return NULL;
     }
 
     if (vaDisplayIsValid(vaDpy) == 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Invalid VA display";
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "Invalid VA display";
         vaTerminate(vaDpy);
         return NULL;
     }
@@ -168,17 +171,12 @@ VADisplay VaapiUtils::openDevice(int *fd, const QByteArray &path)
     VAStatus va_status = vaInitialize(vaDpy, &major, &minor);
 
     if (va_status != VA_STATUS_SUCCESS) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Failed to initialize display";
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: Failed to initialize display";
         return NULL;
     }
 
-    qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Display initialized";
-
-    qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: API version" << major << "." << minor;
-
-    const char *driver = vaQueryVendorString(vaDpy);
-
-    qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI:" << driver << "in use for device" << path;
+    qCInfo(PIPEWIREVAAPI_LOGGING) << "VAAPI: API version" << major << "." << minor;
+    qCInfo(PIPEWIREVAAPI_LOGGING) << "VAAPI: Display initialized";
 
     return vaDpy;
 }
@@ -223,13 +221,13 @@ uint32_t VaapiUtils::rateControlForProfile(VAProfile profile, VAEntrypoint entry
     case VA_STATUS_SUCCESS:
         return attrib->value;
     case VA_STATUS_ERROR_UNSUPPORTED_PROFILE:
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: profile" << profile << "is not supported by the device" << path;
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: profile" << profile << "is not supported by the device" << path;
         return 0;
     case VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT:
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: entrypoint" << entrypoint << "of profile" << profile << "is not supported by the device" << path;
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: entrypoint" << entrypoint << "of profile" << profile << "is not supported by the device" << path;
         return 0;
     default:
-        qCWarning(PIPEWIRERECORD_LOGGING) << "VAAPI: Fail to get RC attribute from the" << profile << entrypoint << "of the device" << path;
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: Fail to get RC attribute from the" << profile << entrypoint << "of the device" << path;
         return 0;
     }
 }
