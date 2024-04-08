@@ -14,7 +14,7 @@ ecm_qt_declare_logging_category(kpipewire_SRCS
                             DEFAULT_SEVERITY Warning
                             DESCRIPTION "PipeWire components for KDE"
                             EXPORT KPipeWire)
-ecm_qt_declare_logging_category(kpipewirerecord_SRCS
+ecm_qt_declare_logging_category(kpipewire_SRCS
                             HEADER logging_vaapi.h
                             IDENTIFIER PIPEWIREVAAPI_LOGGING
                             CATEGORY_NAME kpipewire_vaapi_logging
@@ -61,6 +61,7 @@ target_sources(KPipeWire PRIVATE
     pipewiresourcestream.cpp
     glhelpers.cpp
     pwhelpers.cpp
+    vaapiutils.cpp
     ${kpipewire_SRCS}
 )
 
@@ -68,7 +69,7 @@ target_sources(KPipeWire PRIVATE
 target_compile_options(KPipeWire PUBLIC -Wno-gnu-statement-expression-from-macro-expansion -Wno-zero-as-null-pointer-constant -Wno-c99-extensions -Wno-cast-align)
 
 target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
-    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM Libdrm::Libdrm)
+    KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM Libdrm::Libdrm PkgConfig::LIBVA PkgConfig::LIBVA-drm)
 
 target_link_libraries(KPipeWire PRIVATE EGL::EGL)
 
@@ -131,7 +132,6 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             pipewireencodedstream.cpp
                             pipewirerecord.cpp
                             pipewireproduce.cpp
-                            vaapiutils.cpp
                             encoder.cpp
                             h264vaapiencoder.cpp
                             libx264encoder.cpp
@@ -141,7 +141,7 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire
     PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::AVFilter PkgConfig::GBM PkgConfig::SWScale
-    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate PkgConfig::LIBVA PkgConfig::LIBVA-drm
+    epoxy::epoxy Libdrm::Libdrm Qt::GuiPrivate
 )
 
 ecm_generate_headers(KPipeWireRecord_HEADERS

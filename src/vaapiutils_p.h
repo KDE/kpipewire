@@ -13,7 +13,9 @@ extern "C" {
 #include <va/va.h>
 }
 
-class VaapiUtils
+#include "kpipewire_export.h"
+
+class KPIPEWIRE_EXPORT VaapiUtils
 {
     // Utility struct to tag constructor as private while still allowing it to
     // be used by make_shared().
