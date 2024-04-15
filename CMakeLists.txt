@@ -14,7 +14,6 @@ include(ECMQtDeclareLoggingCategory)
 find_package(Qt6 REQUIRED COMPONENTS DBus Quick)
 find_package(KF6 REQUIRED COMPONENTS I18n CoreAddons)
 
-find_package(PlasmaWaylandProtocols REQUIRED)
 find_package(EGL REQUIRED)
 
 pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
@@ -45,6 +44,7 @@ add_definitions(-DEGL_NO_X11)
 add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
 
 if (BUILD_TESTING)
+   find_package(PlasmaWaylandProtocols REQUIRED)
    include(ECMAddTests)
    find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
    add_subdirectory(tests)
