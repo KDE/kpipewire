@@ -39,7 +39,6 @@ VaapiUtils::VaapiUtils(VaapiUtils::Private)
                 m_devicePath = fullPath;
                 break;
             }
-            break;
         }
     }
 
