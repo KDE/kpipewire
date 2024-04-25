@@ -63,6 +63,9 @@ public:
     Fraction maxFramerate() const;
     void setMaxFramerate(const Fraction &framerate);
 
+    int maxPendingFrames() const;
+    void setMaxPendingFrames(int newMaxBufferSize);
+
     virtual int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(presentationTimestamp.value()).count();
@@ -126,6 +129,9 @@ public:
 
     std::atomic_int m_pendingFilterFrames = 0;
     std::atomic_int m_pendingEncodeFrames = 0;
+
+    // Controls how many frames we can push into ffmpeg's encoding stream
+    std::atomic_int m_maxPendingFrames = 50;
 
 Q_SIGNALS:
     void producedFrames();

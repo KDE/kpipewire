@@ -24,6 +24,7 @@ struct PipeWireEncodedStreamPrivate {
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
     Fraction m_maxFramerate;
+    int m_maxPendingFrames = 50;
     bool m_active = false;
     PipeWireBaseEncodedStream::Encoder m_encoder;
     std::optional<quint8> m_quality;
@@ -115,6 +116,23 @@ void PipeWireBaseEncodedStream::setMaxFramerate(quint32 numerator, quint32 denom
     setMaxFramerate({numerator, denominator});
 }
 
+void PipeWireBaseEncodedStream::setMaxPendingFrames(int maxPendingFrames)
+{
+    if (d->m_maxPendingFrames == maxPendingFrames) {
+        return;
+    }
+    if (d->m_produce) {
+        d->m_produce->setMaxPendingFrames(maxPendingFrames);
+    }
+    d->m_maxPendingFrames = maxPendingFrames;
+    Q_EMIT maxPendingFramesChanged();
+}
+
+int PipeWireBaseEncodedStream::maxBufferSize() const
+{
+    return d->m_maxPendingFrames;
+}
+
 void PipeWireBaseEncodedStream::setActive(bool active)
 {
     if (d->m_active == active)
@@ -153,6 +171,7 @@ void PipeWireBaseEncodedStream::refresh()
         d->m_produceThread->setObjectName("PipeWireProduce::input");
         d->m_produce = makeProduce();
         d->m_produce->setQuality(d->m_quality);
+        d->m_produce->setMaxPendingFrames(d->m_maxPendingFrames);
         d->m_produce->moveToThread(d->m_produceThread.get());
         d->m_produceThread->start();
         QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);

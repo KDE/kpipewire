@@ -24,11 +24,6 @@ extern "C" {
 #include <fcntl.h>
 }
 
-// The maximum number of frames to allow in either the filter or encode queue.
-// Note that this needs to be large enough for the encoder to be able to do
-// intra-frame analysis.
-static constexpr int MaxQueueSize = 50;
-
 Q_DECLARE_METATYPE(std::optional<int>);
 Q_DECLARE_METATYPE(std::optional<std::chrono::nanoseconds>);
 
@@ -82,6 +77,20 @@ void PipeWireProduce::setMaxFramerate(const Fraction &framerate)
     m_stream->setMaxFramerate(framerate);
 }
 
+int PipeWireProduce::maxPendingFrames() const
+{
+    return m_maxPendingFrames;
+}
+
+void PipeWireProduce::setMaxPendingFrames(int newMaxBufferSize)
+{
+    if (newMaxBufferSize < 3) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Maxmimum pending frame count of " << newMaxBufferSize << " requested. Value must be 3 or higher.";
+        newMaxBufferSize = 3;
+    }
+    m_maxPendingFrames = newMaxBufferSize;
+}
+
 void PipeWireProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
@@ -111,7 +120,7 @@ void PipeWireProduce::setupStream()
                 break;
             }
 
-            auto [filtered, queued] = m_encoder->encodeFrame(MaxQueueSize - m_pendingEncodeFrames);
+            auto [filtered, queued] = m_encoder->encodeFrame(m_maxPendingFrames - m_pendingEncodeFrames);
             m_pendingFilterFrames -= filtered;
             m_pendingEncodeFrames += queued;
 
@@ -173,7 +182,7 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         return;
     }
 
-    if (m_pendingFilterFrames + 1 > MaxQueueSize) {
+    if (m_pendingFilterFrames + 1 > m_maxPendingFrames) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Filter queue is full, dropping frame" << pts;
         return;
     }

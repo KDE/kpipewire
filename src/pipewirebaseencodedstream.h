@@ -52,6 +52,18 @@ public:
     void setMaxFramerate(const Fraction &framerate);
     void setMaxFramerate(quint32 numerator, quint32 denominator = 1);
 
+    /**
+     * Defines how many frames are kept in the encoding buffer.
+     * New frames after the buffer is full will be dropped.
+     *
+     * This needs to be high enough for intra-frame analysis.
+     * The default value is 50.
+     *
+     * There is a minimum value of 3.
+     */
+    void setMaxPendingFrames(int maxBufferSize);
+    int maxBufferSize() const;
+
     bool isActive() const;
     void setActive(bool active);
 
@@ -96,6 +108,7 @@ Q_SIGNALS:
     void fdChanged(uint fd);
     void errorFound(const QString &error);
     void maxFramerateChanged();
+    void maxPendingFramesChanged();
     void stateChanged();
     void encoderChanged();
 
