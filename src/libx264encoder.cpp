@@ -28,6 +28,7 @@ LibX264Encoder::LibX264Encoder(H264Profile profile, PipeWireProduce *produce)
 
 bool LibX264Encoder::initialize(const QSize &size)
 {
+    auto downScale = size.scaled(size.width() / 2, size.height() / 2, Qt::AspectRatioMode::KeepAspectRatio);
     createFilterGraph(size);
 
     auto codec = avcodec_find_encoder_by_name("libx264");
@@ -43,8 +44,8 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     Q_ASSERT(!size.isEmpty());
-    m_avCodecContext->width = size.width();
-    m_avCodecContext->height = size.height();
+    m_avCodecContext->width = downScale.width();
+    m_avCodecContext->height = downScale.height();
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
