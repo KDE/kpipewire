@@ -44,8 +44,8 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     Q_ASSERT(!size.isEmpty());
-    m_avCodecContext->width = downScale.width();
-    m_avCodecContext->height = downScale.height();
+    m_avCodecContext->width = 640;
+    m_avCodecContext->height = 480;
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
