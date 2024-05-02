@@ -28,8 +28,13 @@ LibX264Encoder::LibX264Encoder(H264Profile profile, PipeWireProduce *produce)
 
 bool LibX264Encoder::initialize(const QSize &size)
 {
-    auto downScale = size.scaled(size.width() / 2, size.height() / 2, Qt::AspectRatioMode::KeepAspectRatio);
-    createFilterGraph(size);
+    auto quality = 0;
+    if (m_quality) {
+        quality = percentageToAbsoluteQuality(m_quality);
+    } else {
+        quality = 35;
+    }
+    createFilterGraph(size, quality);
 
     auto codec = avcodec_find_encoder_by_name("libx264");
     if (!codec) {
@@ -44,18 +49,13 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     Q_ASSERT(!size.isEmpty());
-    m_avCodecContext->width = 640;
-    m_avCodecContext->height = 480;
+    m_avCodecContext->width = quality >= 22 ? int(size.width() / 2) : size.width();
+    m_avCodecContext->height = quality >= 22 ? int(size.height() / 2) : size.height();
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
-
-    if (m_quality) {
-        m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
-    } else {
-        m_avCodecContext->global_quality = 35;
-    }
+    m_avCodecContext->global_quality = quality;
 
     switch (m_profile) {
     case H264Profile::Baseline:
@@ -73,6 +73,7 @@ bool LibX264Encoder::initialize(const QSize &size)
     av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
+    av_dict_set(&options, "tune", "zerolatency", 0);
     av_dict_set(&options, "deadline", "realtime", 0);
     // In theory a lower number should be faster, but the opposite seems to be true
     // av_dict_set(&options, "quality", "40", 0);

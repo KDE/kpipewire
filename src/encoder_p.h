@@ -128,7 +128,7 @@ protected:
      *
      * @param size The size of the stream to encode.
      */
-    bool createFilterGraph(const QSize &size);
+    bool createFilterGraph(const QSize &size, const int &quality = 35); // temporary default quality for other encoders
 
     DmaBufHandler m_dmaBufHandler;
 };

@@ -232,7 +232,7 @@ bool SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
     return true;
 }
 
-bool SoftwareEncoder::createFilterGraph(const QSize &size)
+bool SoftwareEncoder::createFilterGraph(const QSize &size, const int &quality)
 {
     m_avFilterGraph = avfilter_graph_alloc();
     if (!m_avFilterGraph) {
@@ -288,7 +288,11 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
     outputs->pad_idx = 0;
     outputs->next = nullptr;
 
-    ret = avfilter_graph_parse(m_avFilterGraph, "scale=640:480,format=pix_fmts=yuv420p", outputs, inputs, NULL);
+    const char *filters("format=pix_fmts=yuv420p");
+    const std::string str = std::format("scale={}:{},{}", int(size.width() / 2), int(size.height() / 2), filters);
+    const char *scaledFilters(str.data());
+
+    ret = avfilter_graph_parse(m_avFilterGraph, quality >= 22 ? scaledFilters : filters, outputs, inputs, NULL);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
         return false;
