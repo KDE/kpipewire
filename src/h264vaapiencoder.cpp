@@ -86,7 +86,19 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     outputs->pad_idx = 0;
     outputs->next = nullptr;
 
-    ret = avfilter_graph_parse(m_avFilterGraph, "hwmap=mode=direct:derive_device=vaapi,scale_vaapi=w=640:h=480:format=nv12:mode=fast", outputs, inputs, NULL);
+    auto quality = 0;
+    if (m_quality) {
+        quality = percentageToAbsoluteQuality(m_quality);
+    } else {
+        quality = 35;
+    }
+
+    const char *filters("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast");
+    const std::string str =
+        std::format("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=w={}:h={}:format=nv12:mode=fast", int(size.width() / 2), int(size.height() / 2));
+    const char *scaledFilters(str.data());
+
+    ret = avfilter_graph_parse(m_avFilterGraph, quality >= 22 ? scaledFilters : filters, outputs, inputs, NULL);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
         return false;
@@ -115,18 +127,13 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     }
 
     Q_ASSERT(!size.isEmpty());
-    m_avCodecContext->width = 640;
-    m_avCodecContext->height = 480;
+    m_avCodecContext->width = quality >= 22 ? int(size.width() / 2) : size.width();
+    m_avCodecContext->height = quality >= 22 ? int(size.height() / 2) : size.height();
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_VAAPI;
     m_avCodecContext->time_base = AVRational{1, 1000};
-
-    if (m_quality) {
-        m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
-    } else {
-        m_avCodecContext->global_quality = 35;
-    }
+    m_avCodecContext->global_quality = quality;
 
     switch (m_profile) {
     case H264Profile::Baseline:
@@ -144,6 +151,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     // av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     av_dict_set(&options, "preset", "veryfast", 0);
     av_dict_set(&options, "tune-content", "screen", 0);
+    av_dict_set(&options, "tune", "zerolatency", 0);
     av_dict_set(&options, "deadline", "realtime", 0);
     // In theory a lower number should be faster, but the opposite seems to be true
     // av_dict_set(&options, "quality", "40", 0);
