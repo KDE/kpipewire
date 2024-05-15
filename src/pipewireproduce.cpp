@@ -69,11 +69,12 @@ void PipeWireProduce::initialize()
 
 Fraction PipeWireProduce::maxFramerate() const
 {
-    return m_stream->framerate();
+    return m_maxFramerate;
 }
 
 void PipeWireProduce::setMaxFramerate(const Fraction &framerate)
 {
+    m_maxFramerate = framerate;
     m_stream->setMaxFramerate(framerate);
 }
 

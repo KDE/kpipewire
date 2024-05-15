@@ -137,6 +137,8 @@ public:
     // Controls how many frames we can push into ffmpeg's encoding stream
     std::atomic_int m_maxPendingFrames = 50;
 
+    Fraction m_maxFramerate = {60, 1};
+
 Q_SIGNALS:
     void producedFrames();
 
