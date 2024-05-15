@@ -192,6 +192,11 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         return;
     }
 
+    auto frameTime = 1000.0 / (m_maxFramerate.numerator / m_maxFramerate.denominator);
+    if ((pts - m_previousPts) < frameTime) {
+        return;
+    }
+
     if (m_pendingFilterFrames + 1 > m_maxPendingFrames) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Filter queue is full, dropping frame" << pts;
         return;
