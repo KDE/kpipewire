@@ -109,6 +109,11 @@ void PipeWireBaseEncodedStream::setMaxFramerate(const Fraction &framerate)
         return;
     }
     d->m_maxFramerate = framerate;
+
+    if (d->m_produce) {
+        d->m_produce->setMaxFramerate(d->m_maxFramerate);
+    }
+
     Q_EMIT maxFramerateChanged();
 }
 
