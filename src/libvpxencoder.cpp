@@ -58,17 +58,7 @@ bool LibVpxEncoder::initialize(const QSize &size)
     }
 
     AVDictionary *options = nullptr;
-    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-    av_dict_set(&options, "preset", "veryfast", 0);
-    av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
-    // In theory a lower number should be faster, but the opposite seems to be true
-    // av_dict_set(&options, "quality", "40", 0);
-    // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
-    av_dict_set(&options, "flags", "+mv4", 0);
-    // Disable in-loop filtering
-    av_dict_set(&options, "-flags", "+loop", 0);
-    av_dict_set(&options, "crf", "45", 0);
+    applyEncodingPreference(options);
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
@@ -86,4 +76,19 @@ int LibVpxEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &qual
 
     constexpr int MinQuality = 63;
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
+}
+
+void LibVpxEncoder::applyEncodingPreference(AVDictionary *options)
+{
+    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
+    av_dict_set(&options, "preset", "veryfast", 0);
+    av_dict_set(&options, "tune-content", "screen", 0);
+    av_dict_set(&options, "deadline", "realtime", 0);
+    // In theory a lower number should be faster, but the opposite seems to be true
+    // av_dict_set(&options, "quality", "40", 0);
+    // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
+    av_dict_set(&options, "flags", "+mv4", 0);
+    // Disable in-loop filtering
+    av_dict_set(&options, "-flags", "+loop", 0);
+    av_dict_set(&options, "crf", "45", 0);
 }

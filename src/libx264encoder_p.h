@@ -20,6 +20,7 @@ public:
 
 protected:
     int percentageToAbsoluteQuality(const std::optional<quint8> &quality) override;
+    void applyEncodingPreference(AVDictionary *options) override;
 
 private:
     H264Profile m_profile = H264Profile::Main;

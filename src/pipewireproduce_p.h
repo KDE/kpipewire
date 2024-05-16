@@ -93,6 +93,8 @@ public:
 
     void setQuality(const std::optional<quint8> &quality);
 
+    void setEncodingPreference(const PipeWireBaseEncodedStream::EncodingPreference &encodingPreference);
+
     const uint m_nodeId;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
@@ -105,6 +107,8 @@ public:
     Fraction m_frameRate;
 
     std::optional<quint8> m_quality;
+
+    PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
 
     struct {
         QImage texture;

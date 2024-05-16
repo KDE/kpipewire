@@ -23,7 +23,6 @@ extern "C" {
 
 #include <libdrm/drm_fourcc.h>
 
-#include "pipewireproduce_p.h"
 #include "vaapiutils_p.h"
 
 #include "logging_record.h"
@@ -179,6 +178,33 @@ void Encoder::setQuality(std::optional<quint8> quality)
 bool Encoder::supportsHardwareEncoding()
 {
     return !VaapiUtils::instance()->devicePath().isEmpty();
+}
+
+void Encoder::setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreference preference)
+{
+    m_encodingPreference = preference;
+}
+
+void Encoder::applyEncodingPreference(AVDictionary *options)
+{
+    switch (m_encodingPreference) {
+    case PipeWireBaseEncodedStream::EncodingPreference::NoPreference:
+        av_dict_set(&options, "preset", "veryfast", 0);
+        break;
+    case PipeWireBaseEncodedStream::EncodingPreference::Quality:
+        av_dict_set(&options, "preset", "medium", 0);
+        break;
+    case PipeWireBaseEncodedStream::EncodingPreference::Speed:
+        av_dict_set(&options, "preset", "ultrafast", 0);
+        av_dict_set(&options, "tune", "zerolatency", 0);
+        break;
+    case PipeWireBaseEncodedStream::EncodingPreference::Size:
+        av_dict_set(&options, "preset", "slow", 0);
+        break;
+    default: //  Same as NoPreference
+        av_dict_set(&options, "preset", "veryfast", 0);
+        break;
+    }
 }
 
 SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)

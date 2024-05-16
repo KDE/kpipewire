@@ -28,6 +28,7 @@ struct PipeWireEncodedStreamPrivate {
     bool m_active = false;
     PipeWireBaseEncodedStream::Encoder m_encoder;
     std::optional<quint8> m_quality;
+    PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
 
     std::unique_ptr<QThread> m_produceThread;
     std::unique_ptr<PipeWireProduce> m_produce;
@@ -172,6 +173,7 @@ void PipeWireBaseEncodedStream::refresh()
         d->m_produce = makeProduce();
         d->m_produce->setQuality(d->m_quality);
         d->m_produce->setMaxPendingFrames(d->m_maxPendingFrames);
+        d->m_produce->setEncodingPreference(d->m_encodingPreference);
         d->m_produce->moveToThread(d->m_produceThread.get());
         d->m_produceThread->start();
         QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);
@@ -226,6 +228,19 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
     };
     ret.removeIf(removeUnavailableEncoders);
     return ret;
+}
+
+void PipeWireBaseEncodedStream::setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreference preference)
+{
+    d->m_encodingPreference = preference;
+    if (d->m_produce) {
+        d->m_produce->setEncodingPreference(d->m_encodingPreference);
+    }
+}
+
+PipeWireBaseEncodedStream::EncodingPreference PipeWireBaseEncodedStream::encodingPreference()
+{
+    return d->m_encodingPreference;
 }
 
 bool PipeWireBaseEncodedStream::isActive() const

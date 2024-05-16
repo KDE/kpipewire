@@ -102,6 +102,15 @@ public:
     /// Returns the encoders that are tested to work, sorted by preference
     QList<PipeWireBaseEncodedStream::Encoder> suggestedEncoders() const;
 
+    enum EncodingPreference {
+        NoPreference, ///< Default settings, good for most usecases
+        Quality, ///< A bit slower than default, but more consistent bitrate, use for high quality
+        Speed, ///< Encode as fast as possible and use zerolatency tune, good for streaming
+        Size, ///< Slowest encoding but reduces the size of the file
+    };
+    Q_ENUM(EncodingPreference);
+    void setEncodingPreference(EncodingPreference profile);
+
 Q_SIGNALS:
     void activeChanged(bool active);
     void nodeIdChanged(uint nodeId);
@@ -114,6 +123,7 @@ Q_SIGNALS:
 
 protected:
     virtual std::unique_ptr<PipeWireProduce> makeProduce() = 0;
+    EncodingPreference encodingPreference();
 
     void refresh();
     QScopedPointer<PipeWireEncodedStreamPrivate> d;

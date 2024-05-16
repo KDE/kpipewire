@@ -142,15 +142,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
 
     AVDictionary *options = nullptr;
     // av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-    av_dict_set(&options, "preset", "veryfast", 0);
-    av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
-    // In theory a lower number should be faster, but the opposite seems to be true
-    // av_dict_set(&options, "quality", "40", 0);
-    // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
-    av_dict_set(&options, "flags", "+mv4", 0);
-    // Disable in-loop filtering
-    av_dict_set(&options, "-flags", "+loop", 0);
+    applyEncodingPreference(options);
 
     m_avCodecContext->hw_frames_ctx = av_buffer_ref(m_outputFilter->inputs[0]->hw_frames_ctx);
 
@@ -170,4 +162,17 @@ int H264VAAPIEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &q
 
     constexpr int MinQuality = 51 + 6 * 6;
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
+}
+
+void H264VAAPIEncoder::applyEncodingPreference(AVDictionary *options)
+{
+    HardwareEncoder::applyEncodingPreference(options);
+    av_dict_set(&options, "tune-content", "screen", 0);
+    av_dict_set(&options, "deadline", "realtime", 0);
+    // In theory a lower number should be faster, but the opposite seems to be true
+    // av_dict_set(&options, "quality", "40", 0);
+    // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
+    av_dict_set(&options, "flags", "+mv4", 0);
+    // Disable in-loop filtering
+    av_dict_set(&options, "-flags", "+loop", 0);
 }

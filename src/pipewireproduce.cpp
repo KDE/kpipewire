@@ -164,6 +164,15 @@ void PipeWireProduce::setQuality(const std::optional<quint8> &quality)
     }
 }
 
+void PipeWireProduce::setEncodingPreference(const PipeWireBaseEncodedStream::EncodingPreference &encodingPreference)
+{
+    m_encodingPreference = encodingPreference;
+
+    if (m_encoder) {
+        m_encoder->setEncodingPreference(encodingPreference);
+    }
+}
+
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 {
     auto f = frame;
@@ -270,10 +279,10 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     case PipeWireBaseEncodedStream::H264Baseline:
     case PipeWireBaseEncodedStream::H264Main: {
         auto profile = m_encoderType == PipeWireBaseEncodedStream::H264Baseline ? Encoder::H264Profile::Baseline : Encoder::H264Profile::Main;
-
         if (!forceSoftware) {
             auto hardwareEncoder = std::make_unique<H264VAAPIEncoder>(profile, this);
             hardwareEncoder->setQuality(m_quality);
+            hardwareEncoder->setEncodingPreference(m_encodingPreference);
             if (hardwareEncoder->initialize(size)) {
                 return hardwareEncoder;
             }
@@ -282,6 +291,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
         if (!forceHardware) {
             auto softwareEncoder = std::make_unique<LibX264Encoder>(profile, this);
             softwareEncoder->setQuality(m_quality);
+            softwareEncoder->setEncodingPreference(m_encodingPreference);
             if (softwareEncoder->initialize(size)) {
                 return softwareEncoder;
             }

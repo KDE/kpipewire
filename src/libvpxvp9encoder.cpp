@@ -52,8 +52,7 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
 
     AVDictionary *options = nullptr;
 
-    // We're probably capturing a screen
-    av_dict_set(&options, "tune-content", "screen", 0);
+    applyEncodingPreference(options);
 
     const auto area = size.width() * size.height();
     // m_avCodecContext->framerate is not set, so we use m_produce->maxFramerate() instead.
@@ -70,32 +69,7 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
 
     m_avCodecContext->rc_buffer_size = m_avCodecContext->bit_rate;
 
-    // Lower crf is higher quality. Max 0, min 63. libvpx-vp9 doesn't use global_quality.
-    int crf = 31;
-    if (m_quality) {
-        crf = percentageToAbsoluteQuality(m_quality);
-    }
-    av_dict_set_int(&options, "crf", crf, 0);
-    m_avCodecContext->qmin = std::clamp(crf / 2, 0, crf);
-    m_avCodecContext->qmax = std::clamp(qRound(crf * 1.5), crf, 63);
-
-    // 0-4 are for Video-On-Demand with the good or best deadline.
-    // Don't use best, it's not worth it.
-    // 5-8 are for streaming with the realtime deadline.
-    // Lower is higher quality.
-    int cpuUsed = 5 + std::max(1, int(3 - std::round(m_quality.value_or(50) / 100.0 * 3)));
-    av_dict_set_int(&options, "cpu-used", cpuUsed, 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
-
     m_avCodecContext->thread_count = QThread::idealThreadCount();
-
-    // The value is interpreted as being equivalent to log2(realNumberOfColumns),
-    // so 3 is 8 columns. 6 is the max amount of columns. 2 is the max amount of rows.
-    av_dict_set(&options, "tile-columns", "6", 0);
-    av_dict_set(&options, "tile-rows", "2", 0);
-    // This should make things faster, but it only seems to consume 100MB more RAM.
-    // av_dict_set(&options, "row-mt", "1", 0);
-    av_dict_set(&options, "frame-parallel", "1", 0);
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
@@ -113,4 +87,36 @@ int LibVpxVp9Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &q
 
     constexpr int MinQuality = 63;
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
+}
+
+void LibVpxVp9Encoder::applyEncodingPreference(AVDictionary *options)
+{
+    // We're probably capturing a screen
+    av_dict_set(&options, "tune-content", "screen", 0);
+
+    // Lower crf is higher quality. Max 0, min 63. libvpx-vp9 doesn't use global_quality.
+    int crf = 31;
+    if (m_quality) {
+        crf = percentageToAbsoluteQuality(m_quality);
+    }
+    m_avCodecContext->qmin = std::clamp(crf / 2, 0, crf);
+    m_avCodecContext->qmax = std::clamp(qRound(crf * 1.5), crf, 63);
+    av_dict_set_int(&options, "crf", crf, 0);
+
+    // 0-4 are for Video-On-Demand with the good or best deadline.
+    // Don't use best, it's not worth it.
+    // 5-8 are for streaming with the realtime deadline.
+    // Lower is higher quality.
+    int cpuUsed = 5 + std::max(1, int(3 - std::round(m_quality.value_or(50) / 100.0 * 3)));
+    av_dict_set_int(&options, "cpu-used", cpuUsed, 0);
+    av_dict_set(&options, "deadline", "realtime", 0);
+
+    // The value is interpreted as being equivalent to log2(realNumberOfColumns),
+    // so 3 is 8 columns. 6 is the max amount of columns. 2 is the max amount of rows.
+    av_dict_set(&options, "tile-columns", "6", 0);
+    av_dict_set(&options, "tile-rows", "2", 0);
+
+    // This should make things faster, but it only seems to consume 100MB more RAM.
+    // av_dict_set(&options, "row-mt", "1", 0);
+    av_dict_set(&options, "frame-parallel", "1", 0);
 }

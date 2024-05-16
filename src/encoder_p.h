@@ -13,6 +13,7 @@
 #include <QObject>
 
 #include "dmabufhandler.h"
+#include "pipewireproduce_p.h"
 
 extern "C" {
 #include "libavcodec/avcodec.h"
@@ -97,6 +98,8 @@ public:
 
     static bool supportsHardwareEncoding();
 
+    void setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreference preference);
+
 protected:
     virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
 
@@ -110,6 +113,8 @@ protected:
     AVFilterContext *m_outputFilter = nullptr;
 
     std::optional<quint8> m_quality;
+    PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
+    virtual void applyEncodingPreference(AVDictionary *options);
 };
 
 /**
