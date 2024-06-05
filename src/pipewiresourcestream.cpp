@@ -184,8 +184,9 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
         }
 
         QList<uint64_t> queriedModifiers(count);
+        QList<EGLBoolean> externalOnly(count);
         if (count > 0) {
-            if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, queriedModifiers.data(), nullptr, &count)) {
+            if (!eglQueryDmaBufModifiersEXT(display, drm_format, count, queriedModifiers.data(), externalOnly.data(), &count)) {
                 qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF modifiers.";
             }
         }
@@ -194,15 +195,28 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
         usableModifiers.reserve(count + 1);
         if (usageHint == PipeWireSourceStream::UsageHint::EncodeHardware) {
             auto vaapi = VaapiUtils::instance();
-            std::copy_if(queriedModifiers.begin(), queriedModifiers.end(), std::back_inserter(usableModifiers), [vaapi, drm_format](uint64_t modifier) {
-                return vaapi->supportsModifier(drm_format, modifier);
-            });
+            for (int i = 0; i < queriedModifiers.size(); ++i) {
+                if (externalOnly[i]) {
+                    continue;
+                }
+                const uint64_t modifier = queriedModifiers[i];
+                if (vaapi->supportsModifier(drm_format, modifier)) {
+                    usableModifiers.append(modifier);
+                }
+            }
         } else {
-            usableModifiers = queriedModifiers;
+            for (int i = 0; i < queriedModifiers.size(); ++i) {
+                if (!externalOnly[i]) {
+                    usableModifiers.append(queriedModifiers[i]);
+                }
+            }
         }
 
-        // Support modifier-less buffers
-        usableModifiers.push_back(DRM_FORMAT_MOD_INVALID);
+        if (!usableModifiers.isEmpty()) {
+            // Support modifier-less buffers
+            usableModifiers.push_back(DRM_FORMAT_MOD_INVALID);
+        }
+
         ret[format] = usableModifiers;
     }
     return ret;
