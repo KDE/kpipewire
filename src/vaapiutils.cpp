@@ -17,8 +17,37 @@ extern "C" {
 #include <xf86drm.h>
 }
 
+#include "glhelpers.h"
+#include <QGuiApplication>
+#include <qpa/qplatformnativeinterface.h>
+
+#ifndef EGL_DRM_RENDER_NODE_FILE_EXT
+#define EGL_DRM_RENDER_NODE_FILE_EXT 0x3377
+#endif
+
 VaapiUtils::VaapiUtils(VaapiUtils::Private)
 {
+    const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+    const bool hasEglDeviceQuery = epoxy_has_egl_extension(EGL_NO_DISPLAY, "EGL_EXT_device_query");
+    static auto eglQueryDisplayAttribEXT = (PFNEGLQUERYDISPLAYATTRIBEXTPROC)eglGetProcAddress("eglQueryDisplayAttribEXT");
+    static auto eglQueryDeviceStringEXT = (PFNEGLQUERYDEVICESTRINGEXTPROC)eglGetProcAddress("eglQueryDeviceStringEXT");
+
+    if (hasEglDeviceQuery) {
+        EGLAttrib eglDeviceAttrib;
+        if (eglQueryDisplayAttribEXT(display, EGL_DEVICE_EXT, &eglDeviceAttrib)) {
+            auto eglDevice = reinterpret_cast<EGLDeviceEXT>(eglDeviceAttrib);
+            const char *deviceExtensions = eglQueryDeviceStringEXT(eglDevice, EGL_EXTENSIONS);
+            if (QByteArray(deviceExtensions).split(' ').contains("EGL_EXT_device_drm_render_node")) {
+                if (const char *node = eglQueryDeviceStringEXT(eglDevice, EGL_DRM_RENDER_NODE_FILE_EXT)) {
+                    if (supportsH264(node)) {
+                        m_devicePath = node;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     int max_devices = drmGetDevices2(0, nullptr, 0);
     if (max_devices <= 0) {
         qCWarning(PIPEWIREVAAPI_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";

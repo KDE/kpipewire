@@ -13,6 +13,7 @@
 #include "pwhelpers.h"
 #include "vaapiutils_p.h"
 
+#include <epoxy/egl_generated.h>
 #include <libdrm/drm_fourcc.h>
 #include <spa/utils/result.h>
 #include <sys/ioctl.h>
@@ -153,7 +154,7 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
     QList<uint32_t> drmFormats(count);
     successFormats &= eglQueryDmaBufFormatsEXT(display, count, reinterpret_cast<EGLint *>(drmFormats.data()), &count);
     if (!successFormats)
-        qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats.";
+        qCWarning(PIPEWIRE_LOGGING) << "Failed to query DMA-BUF formats." << GLHelpers::formatEGLError(eglGetError());
 
     const QList<uint64_t> mods = hasEglImageDmaBufImportExt ? QList<uint64_t>{DRM_FORMAT_MOD_INVALID} : QList<uint64_t>{};
     if (!eglQueryDmaBufFormatsEXT || !eglQueryDmaBufModifiersEXT || !hasEglImageDmaBufImportExt || !successFormats) {
@@ -466,6 +467,41 @@ void PipeWireSourceStream::setUsageHint(UsageHint hint)
     d->usageHint = hint;
 }
 
+#ifndef EGL_DRM_RENDER_NODE_FILE_EXT
+#define EGL_DRM_RENDER_NODE_FILE_EXT 0x3377
+#endif
+
+EGLDisplay displayForDevice(QByteArrayView deviceName)
+{
+    const bool hasDeviceEnumeration = epoxy_has_egl_extension(EGL_NO_DISPLAY, "EGL_EXT_device_enumeration");
+    const bool hasDevicePlatform = epoxy_has_egl_extension(EGL_NO_DISPLAY, "EGL_EXT_platform_device");
+    const bool hasEglDeviceQuery = epoxy_has_egl_extension(EGL_NO_DISPLAY, "EGL_EXT_device_query");
+    static auto eglQueryDevicesEXT = (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
+    static auto eglQueryDeviceStringEXT = (PFNEGLQUERYDEVICESTRINGEXTPROC)eglGetProcAddress("eglQueryDeviceStringEXT");
+    if (!hasDevicePlatform || !hasDeviceEnumeration || !hasEglDeviceQuery) {
+        return EGL_NO_DISPLAY;
+    }
+    int numDevices;
+    eglQueryDevicesEXT(0, nullptr, &numDevices);
+    QList<EGLDeviceEXT> devices(numDevices);
+    if (!eglQueryDevicesEXT(numDevices, devices.data(), &numDevices)) {
+        return EGL_NO_DISPLAY;
+    }
+    for (const auto device : devices) {
+        const char *deviceExtensions = eglQueryDeviceStringEXT(device, EGL_EXTENSIONS);
+        if (QByteArray(deviceExtensions).split(' ').contains("EGL_EXT_device_drm_render_node")) {
+            if (eglQueryDeviceStringEXT(device, EGL_DRM_RENDER_NODE_FILE_EXT) == deviceName) {
+                auto display = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, device, nullptr);
+                int major, minor;
+                if (display != EGL_NO_DISPLAY && eglInitialize(display, &major, &minor) && eglBindAPI(EGL_OPENGL_API)) {
+                    return display;
+                }
+            }
+        }
+    }
+    return EGL_NO_DISPLAY;
+}
+
 QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
@@ -482,13 +518,20 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     };
     QList<const spa_pod *> params;
     params.reserve(formats.size() * 2);
-    const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
 
     d->m_allowDmaBuf = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion));
     const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
 
     if (!d->m_allowDmaBuf && d->usageHint == UsageHint::EncodeHardware) {
         qCWarning(PIPEWIRE_LOGGING) << "DMABUF is unsupported but hardware encoding is requested, which requires DMABUF import. This will not work correctly.";
+    }
+
+    EGLDisplay display = EGL_NO_DISPLAY;
+    if (d->usageHint == PipeWireSourceStream::UsageHint::EncodeHardware) {
+        display = displayForDevice(VaapiUtils::instance()->devicePath());
+    }
+    if (display == EGL_NO_DISPLAY) {
+        display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
     }
 
     if (d->m_availableModifiers.isEmpty()) {
