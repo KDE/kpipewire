@@ -282,11 +282,7 @@ buildFormat(spa_pod_builder *builder, spa_video_format format, const QList<uint6
         spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_framerate, SPA_POD_CHOICE_RANGE_Fraction(&defFramerate, &defFramerate, &maxFramerate), 0);
     }
 
-    if (modifiers.size() == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
-        // we only support implicit modifiers, use shortpath to skip fixation phase
-        spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY);
-        spa_pod_builder_long(builder, modifiers[0]);
-    } else if (!modifiers.isEmpty()) {
+    if (!modifiers.isEmpty()) {
         // SPA_POD_PROP_FLAG_DONT_FIXATE can be used with PipeWire >= 0.3.33
         if (withDontFixate) {
             spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY | SPA_POD_PROP_FLAG_DONT_FIXATE);
