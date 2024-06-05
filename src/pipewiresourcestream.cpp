@@ -190,7 +190,8 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
             }
         }
 
-        QList<uint64_t> usableModifiers(count + 1);
+        QList<uint64_t> usableModifiers;
+        usableModifiers.reserve(count + 1);
         if (usageHint == PipeWireSourceStream::UsageHint::EncodeHardware) {
             auto vaapi = VaapiUtils::instance();
             std::copy_if(queriedModifiers.begin(), queriedModifiers.end(), std::back_inserter(usableModifiers), [vaapi, drm_format](uint64_t modifier) {
