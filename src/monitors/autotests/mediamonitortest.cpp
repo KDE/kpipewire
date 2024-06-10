@@ -66,27 +66,59 @@ private Q_SLOTS:
 
 void MediaMonitorTest::test_MediaMonitor()
 {
-    QProcess pidof;
-    pidof.setProgram(QStringLiteral("pidof"));
-    pidof.setArguments({QStringLiteral("pipewire")});
-    pidof.start();
-    pidof.waitForFinished();
-
     QProcess pipewire;
+    QProcess pipewire_pulse;
+    QProcess wireplumber;
+    QProcess pactl;
+    QScopeGuard guard([&pipewire, &pipewire_pulse, &wireplumber, &pactl] {
+        if (qEnvironmentVariableIsSet("KDECI_BUILD")) {
+            pactl.setArguments({QStringLiteral("unload-module"), QStringLiteral("module-null-sink")});
+            pactl.start();
+            QVERIFY2(pactl.waitForFinished(), pactl.readAllStandardError().constData());
+        }
+        if (wireplumber.state() == QProcess::Running) {
+            wireplumber.terminate();
+        }
+        if (pipewire_pulse.state() == QProcess::Running) {
+            pipewire_pulse.terminate();
+        }
+        if (pipewire.state() == QProcess::Running) {
+            pipewire.terminate();
+        }
+    });
+
+    QProcess pidof;
+    pidof.start(QStringLiteral("pidof"), {QStringLiteral("pipewire")});
+    pidof.waitForFinished();
     if (QString::fromUtf8(pidof.readAllStandardOutput()).toInt() == 0) {
-        pipewire.setProgram(QStringLiteral("pipewire"));
-        pipewire.start();
+        pipewire.start(QStringLiteral("pipewire"));
         QVERIFY2(pipewire.waitForStarted(), pipewire.readAllStandardError().constData());
+        wireplumber.start(QStringLiteral("wireplumber"));
+#ifdef Q_OS_LINUX
+        QVERIFY2(wireplumber.waitForStarted(), wireplumber.readAllStandardError().constData());
+#endif
+        QTest::qWait(1000);
+        pipewire_pulse.start(QStringLiteral("pipewire-pulse"));
+        QVERIFY2(pipewire_pulse.waitForStarted(), pipewire_pulse.readAllStandardError().constData());
     }
 
-    auto view = std::make_unique<QQuickView>();
-    QByteArray errorMessage;
-    QVERIFY(initView(view.get(), QFINDTESTDATA(QStringLiteral("mediamonitortest.qml"))));
+    // Dummy output
+    if (qEnvironmentVariableIsSet("KDECI_BUILD")) {
+        pactl.setProgram(QStringLiteral("pactl"));
+        pactl.setArguments({QStringLiteral("load-module"),
+                            QStringLiteral("module-null-sink"),
+                            QStringLiteral("sink_name=DummyOutput"),
+                            QStringLiteral("sink_properties=node.nick=DummyOutput")});
+        pactl.start();
+        QVERIFY2(pactl.waitForFinished(), pipewire.readAllStandardError().constData());
+    }
 
-    QQuickItem *rootObject = view->rootObject();
+    QQuickView view;
+    QByteArray errorMessage;
+    QVERIFY(initView(&view, QFINDTESTDATA(QStringLiteral("mediamonitortest.qml"))));
+
+    QQuickItem *rootObject = view.rootObject();
     QSignalSpy countSpy(rootObject, SIGNAL(countChanged()));
-    // To make sure modelData is not null after count changes
-    QSignalSpy modelDataChangedSpy(rootObject, SIGNAL(modelDataChanged()));
 
     QProcess player;
     player.setProgram(QStringLiteral("pw-play"));
@@ -97,20 +129,12 @@ void MediaMonitorTest::test_MediaMonitor()
     if (evaluate<int>(rootObject, QStringLiteral("root.count")) == 0) {
         countSpy.wait();
     }
-    if (evaluate<QObject *>(rootObject, QStringLiteral("root.modelData")) == nullptr) {
-        modelDataChangedSpy.wait();
-    }
 
     QVERIFY(evaluate<bool>(rootObject, QStringLiteral("monitor.detectionAvailable")));
     QCOMPARE(evaluate<int>(rootObject, QStringLiteral("root.count")), 1);
-    if (qEnvironmentVariableIsSet("KDECI_BUILD")) {
-        // There is no output in CI
-        const int suspendedInt = evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Suspended"));
-        QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.modelData.state")), suspendedInt);
-    } else {
-        const int runningInt = evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Running"));
-        QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.modelData.state")), runningInt);
-    }
+    const int runningInt = evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Running"));
+    const int suspendedInt = evaluate<int>(rootObject, QStringLiteral("Monitor.NodeState.Suspended"));
+    QTRY_COMPARE(evaluate<int>(rootObject, QStringLiteral("root.state")), wireplumber.state() == QProcess::Running ? runningInt : suspendedInt);
 
     // Changing role will trigger reconnecting
     QObject *monitor = evaluate<QObject *>(rootObject, QStringLiteral("monitor"));
@@ -146,10 +170,8 @@ void MediaMonitorTest::test_MediaMonitor()
     }
     QCOMPARE(evaluate<int>(rootObject, QStringLiteral("root.count")), 0);
 
-    if (pipewire.state() == QProcess::Running) {
-        pipewire.terminate();
-        QTRY_VERIFY(!evaluate<bool>(rootObject, QStringLiteral("monitor.detectionAvailable")));
-    }
+    pipewire.terminate();
+    QTRY_VERIFY(!evaluate<bool>(rootObject, QStringLiteral("monitor.detectionAvailable")));
 }
 
 QTEST_MAIN(MediaMonitorTest)
