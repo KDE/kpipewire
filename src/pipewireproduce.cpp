@@ -16,6 +16,7 @@
 #include <qstringliteral.h>
 
 #include "h264vaapiencoder_p.h"
+#include "libopenh264encoder_p.h"
 #include "libvpxencoder_p.h"
 #include "libvpxvp9encoder_p.h"
 #include "libx264encoder_p.h"
@@ -289,6 +290,16 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
 
         if (forcedEncoder.isNull() || forcedEncoder == u"libx264") {
             auto softwareEncoder = std::make_unique<LibX264Encoder>(profile, this);
+            softwareEncoder->setQuality(m_quality);
+            softwareEncoder->setEncodingPreference(m_encodingPreference);
+            if (softwareEncoder->initialize(size)) {
+                return softwareEncoder;
+            }
+        }
+
+        // Try libopenh264 last, it's slower and has less features.
+        if (forcedEncoder.isNull() || forcedEncoder == u"libopenh264") {
+            auto softwareEncoder = std::make_unique<LibOpenH264Encoder>(profile, this);
             softwareEncoder->setQuality(m_quality);
             softwareEncoder->setEncodingPreference(m_encodingPreference);
             if (softwareEncoder->initialize(size)) {
