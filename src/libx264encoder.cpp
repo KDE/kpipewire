@@ -32,7 +32,7 @@ bool LibX264Encoder::initialize(const QSize &size)
 
     auto codec = avcodec_find_encoder_by_name("libx264");
     if (!codec) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "h264_vaapi codec not found";
+        qCWarning(PIPEWIRERECORD_LOGGING) << "libx264 codec not found";
         return false;
     }
 
@@ -93,10 +93,6 @@ int LibX264Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &qua
 void LibX264Encoder::applyEncodingPreference(AVDictionary *options)
 {
     SoftwareEncoder::applyEncodingPreference(options);
-    av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
-    // In theory a lower number should be faster, but the opposite seems to be true
-    // av_dict_set(&options, "quality", "40", 0);
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
