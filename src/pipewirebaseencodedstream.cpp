@@ -225,7 +225,7 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
                 && avcodec_find_encoder_by_name("h264_vaapi")) {
                 return false;
             } else {
-                return !avcodec_find_encoder_by_name("libx264");
+                return !(avcodec_find_encoder_by_name("libx264") || avcodec_find_encoder_by_name("libopenh264"));
             }
         default:
             return true;
