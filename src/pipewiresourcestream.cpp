@@ -225,7 +225,7 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
 void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message)
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
-    qCDebug(PIPEWIRE_LOGGING) << "state changed" << pw_stream_state_as_string(old) << "->" << pw_stream_state_as_string(state) << error_message;
+    qDebug() << "state changed" << pw_stream_state_as_string(old) << "->" << pw_stream_state_as_string(state) << error_message;
     pw->d->m_state = state;
     Q_EMIT pw->stateChanged(state, old);
 
@@ -435,11 +435,14 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
 
 PipeWireSourceStream::~PipeWireSourceStream()
 {
+    qDebug() << "goodbye stream";
     d->m_stopped = true;
     if (d->m_renegotiateEvent) {
         pw_loop_destroy_source(d->pwCore->loop(), d->m_renegotiateEvent);
     }
     if (d->pwStream) {
+        pw_stream_disconnect(d->pwStream);
+        qDebug() << "destroy stream";
         pw_stream_destroy(d->pwStream);
     }
 }

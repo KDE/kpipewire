@@ -215,17 +215,26 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 
 void PipeWireProduce::stateChanged(pw_stream_state state)
 {
+    qDebug() << "state changed" << state << m_deactivated;
     if (state != PW_STREAM_STATE_PAUSED || !m_deactivated) {
         return;
     }
+
+    if (state == 0)
+        return;
+
     if (!m_stream) {
         qCDebug(PIPEWIRERECORD_LOGGING) << "finished without a stream";
         return;
     }
 
+    qDebug() << "DAVE";
+
     disconnect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
-    m_encoder->finish();
+    if (m_encoder) {
+        m_encoder->finish();
+    }
 
     if (m_passthroughThread.joinable()) {
         m_passthroughRunning = false;
@@ -240,6 +249,7 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     }
 
     qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
+    m_stream.reset();
     cleanup();
     QThread::currentThread()->quit();
 }
