@@ -91,6 +91,8 @@ public:
 
     void deactivate();
 
+    void destroy();
+
     void setQuality(const std::optional<quint8> &quality);
 
     void setEncodingPreference(const PipeWireBaseEncodedStream::EncodingPreference &encodingPreference);
