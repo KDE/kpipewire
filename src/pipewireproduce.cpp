@@ -150,12 +150,15 @@ void PipeWireProduce::setupStream()
 void PipeWireProduce::deactivate()
 {
     m_deactivated = true;
+
+    auto streamState = m_stream->state();
+
     m_stream->setActive(false);
 
     // If we have not been initialized properly before, ensure we still run any
     // cleanup code and exit the thread, otherwise we risk applications not closing
     // properly.
-    if (!m_encoder) {
+    if (!m_encoder || streamState != PW_STREAM_STATE_STREAMING) {
         QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
     }
 }
@@ -165,6 +168,18 @@ void PipeWireProduce::destroy()
     // Ensure we cleanup the PipeWireSourceStream while in the same thread we
     // created it in.
     Q_ASSERT_X(QThread::currentThread() == thread(), "PipeWireProduce", "destroy() called from a different thread than PipeWireProduce's thread");
+
+    if (m_passthroughThread.joinable()) {
+        m_passthroughRunning = false;
+        m_frameReceivedCondition.notify_all();
+        m_passthroughThread.join();
+    }
+
+    if (m_outputThread.joinable()) {
+        m_outputRunning = false;
+        m_frameReceivedCondition.notify_all();
+        m_outputThread.join();
+    }
 
     m_stream.reset();
 
@@ -242,18 +257,6 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
     disconnect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
     m_encoder->finish();
-
-    if (m_passthroughThread.joinable()) {
-        m_passthroughRunning = false;
-        m_frameReceivedCondition.notify_all();
-        m_passthroughThread.join();
-    }
-
-    if (m_outputThread.joinable()) {
-        m_outputRunning = false;
-        m_frameReceivedCondition.notify_all();
-        m_outputThread.join();
-    }
 
     // We want to clean up the source stream while in the input thread, but we
     // need to do so while not handling any PipeWire callback as that risks
