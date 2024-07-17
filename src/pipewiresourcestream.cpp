@@ -252,6 +252,10 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
 void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
+    if (pw->videoFormat.info.raw.format == 0) {
+        return ;
+    }
+    
     uint8_t buffer[4096];
     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     auto params = pw->createFormatsParams(podBuilder);
