@@ -252,7 +252,7 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
 void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
-    if (pw->videoFormat.info.raw.format == 0) {
+    if (pw->videoFormat.format == 0) {
         return ;
     }
     
