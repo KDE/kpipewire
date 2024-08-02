@@ -163,6 +163,7 @@ private:
     static void onStreamParamChanged(void *data, uint32_t id, const struct spa_pod *format);
     static void onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message);
     static void onRenegotiate(void *data, uint64_t);
+    static void onDestroy(void *data);
     QList<const spa_pod *> createFormatsParams(spa_pod_builder podBuilder);
 
     void coreFailed(const QString &errorMessage);

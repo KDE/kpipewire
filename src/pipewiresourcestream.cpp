@@ -431,6 +431,7 @@ PipeWireSourceStream::PipeWireSourceStream(QObject *parent)
     pwStreamEvents.process = &onProcess;
     pwStreamEvents.state_changed = &PipeWireSourceStream::onStreamStateChanged;
     pwStreamEvents.param_changed = &PipeWireSourceStream::onStreamParamChanged;
+    pwStreamEvents.destroy = &PipeWireSourceStream::onDestroy;
 }
 
 PipeWireSourceStream::~PipeWireSourceStream()
@@ -719,6 +720,13 @@ bool PipeWireSourceStream::allowDmaBuf() const
 void PipeWireSourceStream::setAllowDmaBuf(bool allowed)
 {
     d->m_allowDmaBuf = allowed;
+}
+
+void PipeWireSourceStream::onDestroy(void *data)
+{
+    // When PipeWire restarts the stream will auto-delete. Make sure we don't have dangling pointers!
+    auto pw = static_cast<PipeWireSourceStream *>(data);
+    pw->d->pwStream = nullptr;
 }
 
 #include "moc_pipewiresourcestream.cpp"
