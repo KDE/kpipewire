@@ -152,15 +152,17 @@ void PipeWireProduce::deactivate()
 {
     m_deactivated = true;
 
-    auto streamState = m_stream->state();
+    if (m_stream) {
+        auto streamState = m_stream->state();
 
-    m_stream->setActive(false);
+        m_stream->setActive(false);
 
-    // If we have not been initialized properly before, ensure we still run any
-    // cleanup code and exit the thread, otherwise we risk applications not closing
-    // properly.
-    if (!m_encoder || streamState != PW_STREAM_STATE_STREAMING) {
-        QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
+        // If we have not been initialized properly before, ensure we still run any
+        // cleanup code and exit the thread, otherwise we risk applications not closing
+        // properly.
+        if (!m_encoder || streamState != PW_STREAM_STATE_STREAMING) {
+            QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
+        }
     }
 }
 
