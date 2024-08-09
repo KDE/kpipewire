@@ -163,6 +163,10 @@ void PipeWireProduce::deactivate()
         if (!m_encoder || streamState != PW_STREAM_STATE_STREAMING) {
             QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
         }
+    } else {
+        if (!m_encoder) {
+            QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
+        }
     }
 }
 
