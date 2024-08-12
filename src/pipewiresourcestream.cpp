@@ -685,6 +685,14 @@ void PipeWireSourceStream::coreFailed(const QString &errorMessage)
 
 void PipeWireSourceStream::process()
 {
+#if !PW_CHECK_VERSION(0, 3, 73)
+    if (Q_UNLIKELY(!d->pwStream)) {
+        // Assuming it's caused by https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/3314
+        qCDebug(PIPEWIRE_LOGGING) << "stream was terminated before processing buffer";
+        return;
+    }
+#endif
+
     pw_buffer *buf = pw_stream_dequeue_buffer(d->pwStream);
     if (!buf) {
         qCDebug(PIPEWIRE_LOGGING) << "out of buffers";
