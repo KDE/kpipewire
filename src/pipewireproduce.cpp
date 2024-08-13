@@ -117,8 +117,8 @@ void PipeWireProduce::setupStream()
     m_passthroughThread = std::thread([this]() {
         m_passthroughRunning = true;
         while (m_passthroughRunning) {
-            std::unique_lock<std::mutex> lock(m_frameReceivedMutex);
-            m_frameReceivedCondition.wait(lock);
+            std::unique_lock<std::mutex> lock(m_passthroughMutex);
+            m_passthroughCondition.wait(lock);
 
             if (!m_passthroughRunning) {
                 break;
@@ -128,7 +128,7 @@ void PipeWireProduce::setupStream()
             m_pendingFilterFrames -= filtered;
             m_pendingEncodeFrames += queued;
 
-            m_frameReceivedCondition.notify_all();
+            m_outputCondition.notify_all();
         }
     });
     pthread_setname_np(m_passthroughThread.native_handle(), "PipeWireProduce::passthrough");
@@ -136,8 +136,8 @@ void PipeWireProduce::setupStream()
     m_outputThread = std::thread([this]() {
         m_outputRunning = true;
         while (m_outputRunning) {
-            std::unique_lock<std::mutex> lock(m_frameReceivedMutex);
-            m_frameReceivedCondition.wait(lock);
+            std::unique_lock<std::mutex> lock(m_outputMutex);
+            m_outputCondition.wait(lock);
 
             if (!m_outputRunning) {
                 break;
@@ -176,13 +176,13 @@ void PipeWireProduce::destroy()
 
     if (m_passthroughThread.joinable()) {
         m_passthroughRunning = false;
-        m_frameReceivedCondition.notify_all();
+        m_passthroughCondition.notify_all();
         m_passthroughThread.join();
     }
 
     if (m_outputThread.joinable()) {
         m_outputRunning = false;
-        m_frameReceivedCondition.notify_all();
+        m_outputCondition.notify_all();
         m_outputThread.join();
     }
 
@@ -246,7 +246,7 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     m_pendingFilterFrames++;
     m_previousPts = pts;
 
-    m_frameReceivedCondition.notify_all();
+    m_passthroughCondition.notify_all();
 }
 
 void PipeWireProduce::stateChanged(pw_stream_state state)

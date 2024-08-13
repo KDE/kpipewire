@@ -126,8 +126,10 @@ public:
     std::atomic_bool m_passthroughRunning = false;
     std::atomic_bool m_outputRunning = false;
 
-    std::condition_variable m_frameReceivedCondition;
-    std::mutex m_frameReceivedMutex;
+    std::condition_variable m_passthroughCondition;
+    std::mutex m_passthroughMutex;
+    std::condition_variable m_outputCondition;
+    std::mutex m_outputMutex;
 
     std::atomic_bool m_deactivated = false;
 
