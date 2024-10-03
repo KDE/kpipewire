@@ -144,7 +144,11 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     // av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
     applyEncodingPreference(options);
 
-    m_avCodecContext->hw_frames_ctx = av_buffer_ref(m_outputFilter->inputs[0]->hw_frames_ctx);
+    // Assign the right hardware context for encoding frames.
+    // We rely on FFmpeg for creating the VAAPI hardware context as part of
+    // `avfilter_graph_parse()`. The codec context needs the VAAPI context to be
+    // able to encode properly, so get that from the output filter.
+    m_avCodecContext->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(m_outputFilter));
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
