@@ -16,6 +16,8 @@
 
 #include "logging.h"
 
+using namespace Qt::StringLiterals;
+
 pw_core_events PipeWireCore::s_pwCoreEvents = {
     .version = PW_VERSION_CORE_EVENTS,
     .info = &PipeWireCore::onCoreInfo,
@@ -83,6 +85,13 @@ PipeWireCore::~PipeWireCore()
 bool PipeWireCore::init(int fd)
 {
     m_pwMainLoop = pw_loop_new(nullptr);
+    if (!m_pwMainLoop) {
+        const KLocalizedString error =
+            ki18n("Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/3296 for more details.");
+        qCWarning(PIPEWIRE_LOGGING) << error.untranslatedText();
+        m_error = error.toString();
+        return false;
+    }
     pw_loop_enter(m_pwMainLoop);
 
     QSocketNotifier *notifier = new QSocketNotifier(pw_loop_get_fd(m_pwMainLoop), QSocketNotifier::Read, this);
