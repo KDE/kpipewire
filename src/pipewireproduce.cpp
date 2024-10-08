@@ -153,6 +153,8 @@ void PipeWireProduce::setupStream()
         }
     });
     pthread_setname_np(m_outputThread.native_handle(), "PipeWireProduce::output");
+
+    Q_EMIT started();
 }
 
 void PipeWireProduce::deactivate()
@@ -199,6 +201,7 @@ void PipeWireProduce::destroy()
 
     qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
     cleanup();
+    Q_EMIT finished();
     QThread::currentThread()->quit();
 }
 
