@@ -25,7 +25,7 @@ class KPIPEWIRE_EXPORT PipeWireBaseEncodedStream : public QObject
      * Transfers the ownership of the fd, will close it when it's done with it.
      */
     Q_PROPERTY(uint fd READ fd WRITE setFd NOTIFY fdChanged)
-    Q_PROPERTY(bool active READ isActive WRITE setActive NOTIFY activeChanged)
+    Q_PROPERTY(bool active READ isActive NOTIFY activeChanged)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(Encoder encoder READ encoder WRITE setEncoder NOTIFY encoderChanged)
 
@@ -67,7 +67,42 @@ public:
     int maxBufferSize() const;
 
     bool isActive() const;
-    void setActive(bool active);
+    /**
+     * Set the active state of recording.
+     *
+     * @deprecated Since 6.4, use the separate `start()`/`stop()`calls instead.
+     * This function now just calls `start()`/`stop()`.
+     *
+     * @note When calling `setActive(false)`, unlike `stop()`, this function will
+     * block until the internal encoding threads are finished.
+     */
+    KPIPEWIRE_DEPRECATED void setActive(bool active);
+
+    /**
+     * Request to start recording.
+     *
+     * This will create everything required to perform recording, like a PipeWire
+     * stream and an encoder, then start receiving frames from the stream and
+     * encoding those.
+     *
+     * This requires a valid node ID to be set and that the current state is Idle.
+     *
+     * Note that recording all happens on separate threads, this method only
+     * starts the process, only when state() returns Recording is recording
+     * actually happening.
+     */
+    Q_INVOKABLE void start();
+    /**
+     * Request to stop recording.
+     *
+     * This will terminate receiving frames from PipeWire and do any cleanup
+     * necessary to fully terminate recording after that.
+     *
+     * Note that after this request, there may still be some processing required
+     * due to internal queues. As long as state() does not return Idle processing
+     * is still happening and teardown has not been completed.
+     */
+    Q_INVOKABLE void stop();
 
     /**
      * The quality used for encoding.
@@ -127,6 +162,5 @@ protected:
     virtual std::unique_ptr<PipeWireProduce> makeProduce() = 0;
     EncodingPreference encodingPreference();
 
-    void refresh();
     QScopedPointer<PipeWireEncodedStreamPrivate> d;
 };

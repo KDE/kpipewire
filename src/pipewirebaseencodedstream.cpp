@@ -17,6 +17,8 @@ extern "C" {
 }
 #include <unistd.h>
 
+#include <QThread>
+
 #include "pipewireproduce_p.h"
 #include "vaapiutils_p.h"
 
@@ -29,6 +31,7 @@ struct PipeWireEncodedStreamPrivate {
     PipeWireBaseEncodedStream::Encoder m_encoder;
     std::optional<quint8> m_quality;
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
+    PipeWireBaseEncodedStream::State m_state = PipeWireBaseEncodedStream::Idle;
 
     std::unique_ptr<QThread> m_produceThread;
     std::unique_ptr<PipeWireProduce> m_produce;
@@ -36,13 +39,7 @@ struct PipeWireEncodedStreamPrivate {
 
 PipeWireBaseEncodedStream::State PipeWireBaseEncodedStream::state() const
 {
-    if (isActive()) {
-        return Recording;
-    } else if (d->m_produceThread && d->m_produce->m_deactivated && d->m_produceThread->isRunning()) {
-        return Rendering;
-    }
-
-    return Idle;
+    return d->m_state;
 }
 
 PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
@@ -65,10 +62,10 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
 
 PipeWireBaseEncodedStream::~PipeWireBaseEncodedStream()
 {
-    setActive(false);
+    stop();
 
-    if (d->m_fd) {
-        close(*d->m_fd);
+    if (d->m_produceThread) {
+        d->m_produceThread->wait();
     }
 }
 
@@ -78,7 +75,6 @@ void PipeWireBaseEncodedStream::setNodeId(uint nodeId)
         return;
 
     d->m_nodeId = nodeId;
-    refresh();
     Q_EMIT nodeIdChanged(nodeId);
 }
 
@@ -91,7 +87,6 @@ void PipeWireBaseEncodedStream::setFd(uint fd)
         close(*d->m_fd);
     }
     d->m_fd = fd;
-    refresh();
     Q_EMIT fdChanged(fd);
 }
 
@@ -141,12 +136,71 @@ int PipeWireBaseEncodedStream::maxBufferSize() const
 
 void PipeWireBaseEncodedStream::setActive(bool active)
 {
-    if (d->m_active == active)
-        return;
+    if (active) {
+        start();
+    } else {
+        stop();
 
-    d->m_active = active;
-    refresh();
-    Q_EMIT activeChanged(active);
+        if (d->m_produceThread) {
+            d->m_produceThread->wait();
+        }
+    }
+}
+
+void PipeWireBaseEncodedStream::start()
+{
+    if (d->m_nodeId == 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Cannot start recording on a stream without a node ID";
+        return;
+    }
+
+    if (d->m_produceThread || d->m_state != Idle) {
+        return;
+    }
+
+    d->m_produceThread = std::make_unique<QThread>();
+    d->m_produceThread->setObjectName("PipeWireProduce::input");
+    d->m_produce = makeProduce();
+    d->m_produce->setQuality(d->m_quality);
+    d->m_produce->setMaxPendingFrames(d->m_maxPendingFrames);
+    d->m_produce->setEncodingPreference(d->m_encodingPreference);
+    d->m_produce->moveToThread(d->m_produceThread.get());
+    d->m_produceThread->start();
+    QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);
+
+    connect(d->m_produce.get(), &PipeWireProduce::started, this, [this]() {
+        d->m_active = true;
+        Q_EMIT activeChanged(true);
+        d->m_state = Recording;
+        Q_EMIT stateChanged();
+    });
+
+    connect(d->m_produce.get(), &PipeWireProduce::finished, this, [this]() {
+        d->m_active = false;
+        Q_EMIT activeChanged(false);
+        d->m_state = Idle;
+        Q_EMIT stateChanged();
+    });
+
+    connect(d->m_produceThread.get(), &QThread::finished, this, [this]() {
+        d->m_produce.reset();
+        d->m_produceThread.reset();
+        d->m_nodeId = 0;
+
+        if (d->m_fd) {
+            close(d->m_fd.value());
+        }
+    });
+}
+
+void PipeWireBaseEncodedStream::stop()
+{
+    if (d->m_produceThread) {
+        QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::deactivate, Qt::QueuedConnection);
+    }
+
+    d->m_state = PipeWireBaseEncodedStream::Rendering;
+    Q_EMIT stateChanged();
 }
 
 std::optional<quint8> PipeWireBaseEncodedStream::quality() const
@@ -160,31 +214,6 @@ void PipeWireBaseEncodedStream::setQuality(quint8 quality)
     if (d->m_produce) {
         d->m_produce->setQuality(d->m_quality);
     }
-}
-
-void PipeWireBaseEncodedStream::refresh()
-{
-    if (d->m_produceThread) {
-        QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::deactivate, Qt::QueuedConnection);
-        d->m_produceThread->wait();
-
-        d->m_produce.reset();
-        d->m_produceThread.reset();
-    }
-
-    if (d->m_active && d->m_nodeId > 0) {
-        d->m_produceThread = std::make_unique<QThread>();
-        d->m_produceThread->setObjectName("PipeWireProduce::input");
-        d->m_produce = makeProduce();
-        d->m_produce->setQuality(d->m_quality);
-        d->m_produce->setMaxPendingFrames(d->m_maxPendingFrames);
-        d->m_produce->setEncodingPreference(d->m_encodingPreference);
-        d->m_produce->moveToThread(d->m_produceThread.get());
-        d->m_produceThread->start();
-        QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);
-    }
-
-    Q_EMIT stateChanged();
 }
 
 void PipeWireBaseEncodedStream::setEncoder(Encoder encoder)
