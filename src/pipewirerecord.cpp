@@ -69,7 +69,6 @@ void PipeWireRecord::setOutput(const QString &_output)
         return;
 
     d->m_output = output;
-    refresh();
     Q_EMIT outputChanged(output);
 }
 

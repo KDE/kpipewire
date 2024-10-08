@@ -201,6 +201,7 @@ void PipeWireProduce::setupStream()
     if (m_frameStatisticsTimer) {
         m_frameStatisticsTimer->start();
     }
+    Q_EMIT started();
 }
 
 void PipeWireProduce::deactivate()
@@ -251,6 +252,7 @@ void PipeWireProduce::destroy()
 
     qCDebug(PIPEWIRERECORD_LOGGING) << "finished";
     cleanup();
+    Q_EMIT finished();
     QThread::currentThread()->quit();
 }
 
