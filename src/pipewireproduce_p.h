@@ -147,6 +147,8 @@ public:
 
 Q_SIGNALS:
     void producedFrames();
+    void started();
+    void finished();
 
 private:
     void initFiltersVaapi();

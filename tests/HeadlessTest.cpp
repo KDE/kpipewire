@@ -55,16 +55,29 @@ void createStream(int nodeId, std::optional<int> fd = {})
             }
             encoded->setEncoder(enc);
         }
-        encoded->setActive(true);
+        encoded->start();
         QObject::connect(encoded, &PipeWireEncodedStream::newPacket, qGuiApp, [](const PipeWireEncodedStream::Packet &packet) {
             qDebug() << "packet received" << packet.data().size() << "key:" << packet.isKeyFrame();
         });
         QObject::connect(encoded, &PipeWireEncodedStream::cursorChanged, qGuiApp, [](const PipeWireCursor &cursor) {
             qDebug() << "cursor received. position:" << cursor.position << "hotspot:" << cursor.hotspot << "image:" << cursor.texture;
         });
+        QObject::connect(encoded, &PipeWireEncodedStream::stateChanged, qGuiApp, [encoded]() {
+            switch (encoded->state()) {
+            case PipeWireEncodedStream::Recording:
+                qDebug() << "Started recording";
+                break;
+            case PipeWireEncodedStream::Rendering:
+                qDebug() << "Stopped recording, flushing remaining frames";
+                break;
+            case PipeWireEncodedStream::Idle:
+                qDebug() << "Recording finished, quitting";
+                exit(0);
+                break;
+            }
+        });
         QObject::connect(KSignalHandler::self(), &KSignalHandler::signalReceived, encoded, [encoded] {
-            encoded->setActive(false);
-            exit(0);
+            encoded->stop();
         });
         return;
     }
@@ -96,7 +109,6 @@ void createStream(int nodeId, std::optional<int> fd = {})
     });
     QObject::connect(KSignalHandler::self(), &KSignalHandler::signalReceived, pwStream, [pwStream] {
         pwStream->setActive(false);
-        exit(0);
     });
 }
 
