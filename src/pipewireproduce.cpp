@@ -145,6 +145,11 @@ void PipeWireProduce::setupStream()
 
             auto received = m_encoder->receivePacket();
             m_pendingEncodeFrames -= received;
+
+            // Notify the produce thread that the count of processed frames has
+            // changed and it can do cleanup if needed, making sure that that
+            // handling is done on the right thread.
+            QMetaObject::invokeMethod(this, &PipeWireProduce::handleEncodedFramesChanged, Qt::QueuedConnection);
         }
     });
     pthread_setname_np(m_outputThread.native_handle(), "PipeWireProduce::output");
@@ -173,6 +178,10 @@ void PipeWireProduce::destroy()
     // Ensure we cleanup the PipeWireSourceStream while in the same thread we
     // created it in.
     Q_ASSERT_X(QThread::currentThread() == thread(), "PipeWireProduce", "destroy() called from a different thread than PipeWireProduce's thread");
+
+    if (!m_stream) {
+        return;
+    }
 
     if (m_passthroughThread.joinable()) {
         m_passthroughRunning = false;
@@ -261,12 +270,42 @@ void PipeWireProduce::stateChanged(pw_stream_state state)
 
     disconnect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
-    m_encoder->finish();
+    if (m_pendingFilterFrames <= 0 && m_pendingEncodeFrames <= 0) {
+        // If we have nothing pending, cleanup immediately.
+        m_encoder->finish();
 
-    // We want to clean up the source stream while in the input thread, but we
-    // need to do so while not handling any PipeWire callback as that risks
-    // crashing because we're stil executing PipeWire handling code.
-    QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
+        // We want to clean up the source stream while in the input thread, but we
+        // need to do so while not handling any PipeWire callback as that risks
+        // crashing because we're stil executing PipeWire handling code.
+        QMetaObject::invokeMethod(this, &PipeWireProduce::destroy, Qt::QueuedConnection);
+    } else {
+        // If we have pending frames, wait with cleanup until all frames have been processed.
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Waiting for frame queues to empty, still pending filter" << m_pendingFilterFrames << "encode"
+                                        << m_pendingEncodeFrames;
+        m_passthroughCondition.notify_all();
+    }
+}
+
+void PipeWireProduce::handleEncodedFramesChanged()
+{
+    if (!m_deactivated) {
+        return;
+    }
+
+    // If we're deactivating but still have frames in the queue, we want to
+    // flush everything. Since at that point we are not receiving new frames, we
+    // need a different trigger to make the filtering thread process frames.
+    // Triggering here means the filter thread runs as fast as the encode thread
+    // can process the frames.
+    m_passthroughCondition.notify_all();
+
+    if (m_pendingFilterFrames <= 0) {
+        m_encoder->finish();
+
+        if (m_pendingEncodeFrames <= 0) {
+            destroy();
+        }
+    }
 }
 
 std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
