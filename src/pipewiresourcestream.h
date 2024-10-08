@@ -17,10 +17,15 @@
 #include <QSize>
 #include <optional>
 
+extern "C" {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 #include <pipewire/pipewire.h>
 #include <spa/param/format-utils.h>
 #include <spa/param/props.h>
 #include <spa/param/video/format-utils.h>
+#pragma GCC diagnostic pop
+}
 
 #include <kpipewire_export.h>
 
