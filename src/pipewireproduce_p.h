@@ -97,6 +97,8 @@ public:
 
     void setEncodingPreference(const PipeWireBaseEncodedStream::EncodingPreference &encodingPreference);
 
+    void handleEncodedFramesChanged();
+
     const uint m_nodeId;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
