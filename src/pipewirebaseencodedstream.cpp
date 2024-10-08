@@ -28,7 +28,7 @@ struct PipeWireEncodedStreamPrivate {
     Fraction m_maxFramerate;
     int m_maxPendingFrames = 50;
     bool m_active = false;
-    PipeWireBaseEncodedStream::Encoder m_encoder;
+    PipeWireBaseEncodedStream::Encoder m_encoder = PipeWireBaseEncodedStream::NoEncoder;
     std::optional<quint8> m_quality;
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
     PipeWireBaseEncodedStream::State m_state = PipeWireBaseEncodedStream::Idle;
@@ -46,8 +46,6 @@ PipeWireBaseEncodedStream::PipeWireBaseEncodedStream(QObject *parent)
     : QObject(parent)
     , d(new PipeWireEncodedStreamPrivate)
 {
-    d->m_encoder = suggestedEncoders().value(0, NoEncoder);
-
     const auto &category = PIPEWIRELIBAV_LOGGING();
     if (category.isDebugEnabled()) {
         av_log_set_level(AV_LOG_DEBUG);
@@ -156,6 +154,10 @@ void PipeWireBaseEncodedStream::start()
 
     if (d->m_produceThread || d->m_state != Idle) {
         return;
+    }
+
+    if (d->m_encoder == PipeWireBaseEncodedStream::NoEncoder) {
+        d->m_encoder = suggestedEncoders().value(0, NoEncoder);
     }
 
     d->m_produceThread = std::make_unique<QThread>();
