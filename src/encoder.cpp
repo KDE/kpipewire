@@ -314,7 +314,7 @@ bool SoftwareEncoder::createFilterGraph(const QSize &size)
     outputs->pad_idx = 0;
     outputs->next = nullptr;
 
-    ret = avfilter_graph_parse(m_avFilterGraph, "format=pix_fmts=yuv420p", outputs, inputs, NULL);
+    ret = avfilter_graph_parse(m_avFilterGraph, m_filterGraphToParse.toUtf8().data(), outputs, inputs, NULL);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
         return false;
