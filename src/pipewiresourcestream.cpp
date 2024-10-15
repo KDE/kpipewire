@@ -515,6 +515,9 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
 
         params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate);
     }
+
+    // BUG 492400: Workaround for pipewire < 0.3.49 https://github.com/PipeWire/pipewire/commit/8646117374df6fa3b73f63f9b35cda78a6aaa2f4
+    params.removeAll(nullptr);
     return params;
 }
 
