@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2023-09-25 01:41+0000\n"
+"POT-Creation-Date: 2024-10-18 00:41+0000\n"
 "PO-Revision-Date: 2022-06-03 18:06+0100\n"
 "Last-Translator: José Nuno Coelho Pires <zepires@gmail.com>\n"
 "Language-Team: Portuguese <kde-i18n-pt@kde.org>\n"
@@ -13,17 +13,24 @@ msgstr ""
 "X-POFile-SpellExtra: PipeWire\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-#: pipewirecore.cpp:98
+#: pipewirecore.cpp:90
+#, kde-format
+msgid ""
+"Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
+"pipewire/-/issues/3296 for more details."
+msgstr ""
+
+#: pipewirecore.cpp:107
 #, kde-format
 msgid "Failed to create PipeWire context"
 msgstr "Não foi possível criar um contexto do PipeWire"
 
-#: pipewirecore.cpp:115
+#: pipewirecore.cpp:124
 #, kde-format
 msgid "Failed to connect to PipeWire"
 msgstr "Não foi possível contactar o PipeWire"
 
-#: pipewirecore.cpp:122
+#: pipewirecore.cpp:131
 #, kde-format
 msgid "Failed to start main PipeWire loop"
 msgstr "Não foi possível iniciar o ciclo principal do PipeWire"

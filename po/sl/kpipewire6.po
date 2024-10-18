@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
-"POT-Creation-Date: 2023-09-25 01:41+0000\n"
+"POT-Creation-Date: 2024-10-18 00:41+0000\n"
 "PO-Revision-Date: 2022-06-01 07:51+0200\n"
 "Last-Translator: Matjaž Jeran <matjaz.jeran@amis.net>\n"
 "Language-Team: Slovenian <lugos-slo@lugos.si>\n"
@@ -18,17 +18,24 @@ msgstr ""
 "%100==4 ? 3 : 0);\n"
 "X-Generator: Lokalize 21.12.2\n"
 
-#: pipewirecore.cpp:98
+#: pipewirecore.cpp:90
+#, kde-format
+msgid ""
+"Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
+"pipewire/-/issues/3296 for more details."
+msgstr ""
+
+#: pipewirecore.cpp:107
 #, kde-format
 msgid "Failed to create PipeWire context"
 msgstr "Kreiranje konteksta PipeWire ni uspelo"
 
-#: pipewirecore.cpp:115
+#: pipewirecore.cpp:124
 #, kde-format
 msgid "Failed to connect to PipeWire"
 msgstr "Priklop na PipeWire ni uspel"
 
-#: pipewirecore.cpp:122
+#: pipewirecore.cpp:131
 #, kde-format
 msgid "Failed to start main PipeWire loop"
 msgstr "Zagon glavne zanke PipeWire ni uspel"
