@@ -1,13 +1,13 @@
-# Copyright (C) YEAR This file is copyright:
+# Copyright (C) 2024 This file is copyright:
 # This file is distributed under the same license as the kpipewire package.
+# SPDX-FileCopyrightText: 2022, 2024 Łukasz Wojniłowicz <lukasz.wojnilowicz@gmail.com>
 #
-# Łukasz Wojniłowicz <lukasz.wojnilowicz@gmail.com>, 2022.
 msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
 "POT-Creation-Date: 2024-10-18 00:41+0000\n"
-"PO-Revision-Date: 2022-06-05 11:21+0200\n"
+"PO-Revision-Date: 2024-10-19 12:38+0200\n"
 "Last-Translator: Łukasz Wojniłowicz <lukasz.wojnilowicz@gmail.com>\n"
 "Language-Team: Polish <kde-i18n-doc@kde.org>\n"
 "Language: pl\n"
@@ -16,6 +16,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
+"X-Generator: Lokalize 23.08.5\n"
 
 #: pipewirecore.cpp:90
 #, kde-format
@@ -23,6 +24,8 @@ msgid ""
 "Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
 "pipewire/-/issues/3296 for more details."
 msgstr ""
+"Wgrano nieprawidłowe PipeWire. Zajrzyj na https://gitlab.freedesktop.org/"
+"pipewire/pipewire/-/issues/3296 po więcej szczegółów."
 
 #: pipewirecore.cpp:107
 #, kde-format

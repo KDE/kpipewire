@@ -23,6 +23,8 @@ msgid ""
 "Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
 "pipewire/-/issues/3296 for more details."
 msgstr ""
+"本机安装的 PipeWire 无效。更多详情请见 https://gitlab.freedesktop.org/"
+"pipewire/pipewire/-/issues/3296 。"
 
 #: pipewirecore.cpp:107
 #, kde-format
