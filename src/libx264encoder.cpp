@@ -20,10 +20,16 @@ extern "C" {
 
 #include "logging_record.h"
 
+using namespace Qt::StringLiterals;
+
 LibX264Encoder::LibX264Encoder(H264Profile profile, PipeWireProduce *produce)
     : SoftwareEncoder(produce)
     , m_profile(profile)
 {
+    // Adjust the filter graph to ensure we are using an even frame size using a
+    // pad filter. Otherwise the size adjustment below will insert a row/column
+    // of garbage instead of black.
+    m_filterGraphToParse = u"pad=ceil(iw/2)*2:ceil(ih/2)*2,format=pix_fmts=yuv420p"_s;
 }
 
 bool LibX264Encoder::initialize(const QSize &size)
@@ -43,8 +49,12 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     Q_ASSERT(!size.isEmpty());
-    m_avCodecContext->width = size.width();
-    m_avCodecContext->height = size.height();
+    // Important: libx264 rejects streams with sizes that are not even. So to
+    // ensure we don't get errors, we need to ensure the size we set here is
+    // even. We also insert a pad filter into the filter chain above to ensure
+    // we don't end up padding with garbage.
+    m_avCodecContext->width = std::ceil(size.width() / 2) * 2;
+    m_avCodecContext->height = std::ceil(size.height() / 2) * 2;
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
