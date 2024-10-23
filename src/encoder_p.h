@@ -135,6 +135,15 @@ protected:
      */
     bool createFilterGraph(const QSize &size);
 
+    /**
+     * The filter graph to be passed to FFmpeg to parse.
+     *
+     * Adjust this if you need to insert any extra filters in between input and
+     * output filters.
+     *
+     * Make sure that the output format of the filter graph is yuv420p.
+     */
+    QString m_filterGraphToParse = QStringLiteral("format=pix_fmts=yuv420p");
     DmaBufHandler m_dmaBufHandler;
 };
 
