@@ -1,12 +1,11 @@
 # Translation of kpipewire6 to Norwegian Nynorsk
 #
-# Karl Ove Hufthammer <karl@huftis.org>, 2022.
 msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
 "POT-Creation-Date: 2024-10-18 00:41+0000\n"
-"PO-Revision-Date: 2022-06-19 13:56+0200\n"
+"PO-Revision-Date: 2024-10-27 14:47+0100\n"
 "Last-Translator: Karl Ove Hufthammer <karl@huftis.org>\n"
 "Language-Team: Norwegian Nynorsk <l10n-no@lister.huftis.org>\n"
 "Language: nn\n"
@@ -14,7 +13,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Lokalize 22.04.2\n"
+"X-Generator: Lokalize 24.11.70\n"
 "X-Environment: kde\n"
 "X-Accelerator-Marker: &\n"
 "X-Text-Markup: kde4\n"
@@ -25,6 +24,8 @@ msgid ""
 "Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
 "pipewire/-/issues/3296 for more details."
 msgstr ""
+"Ugyldig PipeWire-installasjon. Sjå https://gitlab.freedesktop.org/pipewire/"
+"pipewire/-/issues/3296 for meir informasjon."
 
 #: pipewirecore.cpp:107
 #, kde-format
