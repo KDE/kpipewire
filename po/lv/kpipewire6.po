@@ -7,8 +7,8 @@ msgstr ""
 "Project-Id-Version: kpipewire\n"
 "Report-Msgid-Bugs-To: https://bugs.kde.org\n"
 "POT-Creation-Date: 2024-10-18 00:41+0000\n"
-"PO-Revision-Date: 2024-02-15 08:41+0200\n"
-"Last-Translator: Toms Trasūns <toms.trasuns@posteo.net>\n"
+"PO-Revision-Date: 2024-10-28 17:10+0200\n"
+"Last-Translator: Toms Trasuns <toms.trasuns@posteo.net>\n"
 "Language-Team: Latvian <kde-i18n-doc@kde.org>\n"
 "Language: lv\n"
 "MIME-Version: 1.0\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : "
 "2);\n"
-"X-Generator: Lokalize 23.08.4\n"
+"X-Generator: Lokalize 24.08.2\n"
 
 #: pipewirecore.cpp:90
 #, kde-format
@@ -24,6 +24,8 @@ msgid ""
 "Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
 "pipewire/-/issues/3296 for more details."
 msgstr ""
+"Nederīga „PipeWire“ instalācija. Vairāk informācijas atradīsit „https://"
+"gitlab.freedesktop.org/pipewire/pipewire/-/issues/3296“."
 
 #: pipewirecore.cpp:107
 #, kde-format
