@@ -1,0 +1,14 @@
+description: Convenient classes to use PipeWire
+platforms:
+    - name: Linux
+    - name: FreeBSD
+portingAid: false
+deprecated: false
+release: true
+libraries:
+ - cmake: K::KPipeWire
+ - cmake: K::KPipeWireRecord
+cmakename: KPipeWire
+
+public_lib: true
+group: Plasma
