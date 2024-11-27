@@ -86,6 +86,7 @@ QString PipeWireRecord::extension() const
         {PipeWireBaseEncodedStream::H264Baseline, QStringLiteral("mp4")},
         {PipeWireBaseEncodedStream::VP8, QStringLiteral("webm")},
         {PipeWireBaseEncodedStream::VP9, QStringLiteral("webm")},
+        {PipeWireBaseEncodedStream::WebP, QStringLiteral("webp")},
     };
     return s_extensions.value(encoder());
 }
@@ -130,7 +131,12 @@ bool PipeWireRecordProduce::setupFormat()
         return false;
     }
 
-    ret = avformat_write_header(m_avFormatContext, nullptr);
+    AVDictionary *options = nullptr;
+    const auto codecId = m_avFormatContext->oformat->video_codec;
+    if (codecId == AV_CODEC_ID_WEBP) {
+        av_dict_set_int(&options, "loop", 0, 0);
+    }
+    ret = avformat_write_header(m_avFormatContext, &options);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Error occurred when writing header:" << av_err2str(ret);
         return false;

@@ -19,6 +19,7 @@
 #include "libopenh264encoder_p.h"
 #include "libvpxencoder_p.h"
 #include "libvpxvp9encoder_p.h"
+#include "libwebpencoder_p.h"
 #include "libx264encoder_p.h"
 
 extern "C" {
@@ -364,6 +365,16 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     case PipeWireBaseEncodedStream::VP9: {
         if (forcedEncoder.isNull() || forcedEncoder == u"libvpx-vp9") {
             auto encoder = std::make_unique<LibVpxVp9Encoder>(this);
+            encoder->setQuality(m_quality);
+            if (encoder->initialize(size)) {
+                return encoder;
+            }
+        }
+        break;
+    }
+    case PipeWireBaseEncodedStream::WebP: {
+        if (forcedEncoder.isNull() || forcedEncoder == u"libwebp") {
+            auto encoder = std::make_unique<LibWebPEncoder>(this);
             encoder->setQuality(m_quality);
             if (encoder->initialize(size)) {
                 return encoder;

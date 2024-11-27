@@ -36,6 +36,7 @@ public:
         VP9,
         H264Main,
         H264Baseline,
+        WebP,
     };
     Q_ENUM(Encoder)
 

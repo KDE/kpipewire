@@ -208,7 +208,9 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
     QList<PipeWireBaseEncodedStream::Encoder> ret = {PipeWireBaseEncodedStream::VP8,
                                                      PipeWireBaseEncodedStream::VP9,
                                                      PipeWireBaseEncodedStream::H264Main,
-                                                     PipeWireBaseEncodedStream::H264Baseline};
+                                                     PipeWireBaseEncodedStream::H264Baseline,
+                                                     PipeWireBaseEncodedStream::WebP,
+                                                    };
     auto removeUnavailableEncoders = [&vaapi](const PipeWireBaseEncodedStream::Encoder &encoder) {
         switch (encoder) {
         case PipeWireBaseEncodedStream::VP8:
@@ -227,6 +229,8 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
             } else {
                 return !(avcodec_find_encoder_by_name("libx264") || avcodec_find_encoder_by_name("libopenh264"));
             }
+        case PipeWireBaseEncodedStream::WebP:
+            return !avcodec_find_encoder_by_name("libwebp");
         default:
             return true;
         }
