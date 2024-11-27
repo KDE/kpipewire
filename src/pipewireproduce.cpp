@@ -15,6 +15,7 @@
 #include <memory>
 #include <qstringliteral.h>
 
+#include "gifencoder_p.h"
 #include "h264vaapiencoder_p.h"
 #include "libopenh264encoder_p.h"
 #include "libvpxencoder_p.h"
@@ -366,6 +367,15 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
         if (forcedEncoder.isNull() || forcedEncoder == u"libvpx-vp9") {
             auto encoder = std::make_unique<LibVpxVp9Encoder>(this);
             encoder->setQuality(m_quality);
+            if (encoder->initialize(size)) {
+                return encoder;
+            }
+        }
+        break;
+    }
+    case PipeWireBaseEncodedStream::Gif: {
+        if (forcedEncoder.isNull() || forcedEncoder == u"gif") {
+            auto encoder = std::make_unique<GifEncoder>(this);
             if (encoder->initialize(size)) {
                 return encoder;
             }

@@ -37,6 +37,7 @@ public:
         H264Main,
         H264Baseline,
         WebP,
+        Gif,
     };
     Q_ENUM(Encoder)
 

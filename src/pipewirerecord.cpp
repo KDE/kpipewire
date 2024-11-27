@@ -87,6 +87,7 @@ QString PipeWireRecord::extension() const
         {PipeWireBaseEncodedStream::VP8, QStringLiteral("webm")},
         {PipeWireBaseEncodedStream::VP9, QStringLiteral("webm")},
         {PipeWireBaseEncodedStream::WebP, QStringLiteral("webp")},
+        {PipeWireBaseEncodedStream::Gif, QStringLiteral("gif")},
     };
     return s_extensions.value(encoder());
 }
@@ -133,7 +134,7 @@ bool PipeWireRecordProduce::setupFormat()
 
     AVDictionary *options = nullptr;
     const auto codecId = m_avFormatContext->oformat->video_codec;
-    if (codecId == AV_CODEC_ID_WEBP) {
+    if (codecId == AV_CODEC_ID_GIF || codecId == AV_CODEC_ID_WEBP) {
         av_dict_set_int(&options, "loop", 0, 0);
     }
     ret = avformat_write_header(m_avFormatContext, &options);
