@@ -364,7 +364,9 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         const auto size = d->m_stream->size();
         d->m_image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
         if (d->m_image == EGL_NO_IMAGE_KHR) {
-            d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
+            QMetaObject::invokeMethod(this, [this, format, attribs]() {
+                d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
+            }, Qt::QueuedConnection);
             return nullptr;
         }
         if (!d->m_texture) {
