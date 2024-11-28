@@ -18,6 +18,7 @@
 #include <QQuickWindow>
 #include <QRunnable>
 #include <QSGImageNode>
+#include <QSGSimpleTextureNode>
 #include <QSocketNotifier>
 #include <QThread>
 #include <qpa/qplatformnativeinterface.h>
@@ -40,9 +41,7 @@ public:
     std::optional<uint> m_fd;
     std::function<QSGTexture *()> m_createNextTexture;
     std::unique_ptr<PipeWireSourceStream> m_stream;
-    std::unique_ptr<QOpenGLTexture> m_texture;
 
-    EGLImage m_image = nullptr;
     bool m_needsRecreateTexture = false;
     bool m_allowDmaBuf = true;
     bool m_ready = false;
@@ -54,29 +53,6 @@ public:
         bool dirty = false;
     } m_cursor;
     std::optional<QRegion> m_damage;
-};
-
-class DiscardEglPixmapRunnable : public QRunnable
-{
-public:
-    DiscardEglPixmapRunnable(EGLImageKHR image, QOpenGLTexture *texture)
-        : m_image(image)
-        , m_texture(texture)
-    {
-    }
-
-    void run() override
-    {
-        if (m_image != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(eglGetCurrentDisplay(), m_image);
-        }
-
-        delete m_texture;
-    }
-
-private:
-    const EGLImageKHR m_image;
-    QOpenGLTexture *m_texture;
 };
 
 PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
@@ -117,10 +93,6 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
 
 void PipeWireSourceItem::releaseResources()
 {
-    if (window() && (d->m_image || d->m_texture)) {
-        window()->scheduleRenderJob(new DiscardEglPixmapRunnable(d->m_image, d->m_texture.release()), QQuickWindow::NoStage);
-        d->m_image = EGL_NO_IMAGE_KHR;
-    }
 }
 
 void PipeWireSourceItem::setFd(uint fd)
@@ -202,14 +174,8 @@ void PipeWireSourceItem::setNodeId(uint nodeId)
 class PipeWireRenderNode : public QSGNode
 {
 public:
-    QSGImageNode *screenNode(QQuickWindow *window)
-    {
-        if (!m_screenNode) {
-            m_screenNode = window->createImageNode();
-            appendChildNode(m_screenNode);
-        }
-        return m_screenNode;
-    }
+    virtual QSGImageNode *screenNode(QQuickWindow *window) = 0;
+
     QSGImageNode *cursorNode(QQuickWindow *window)
     {
         if (!m_cursorNode) {
@@ -247,10 +213,41 @@ public:
     }
 
 private:
-    QSGImageNode *m_screenNode = nullptr;
     QSGImageNode *m_cursorNode = nullptr;
     QSGImageNode *m_damageNode = nullptr;
 };
+
+class EGLPipewireRenderNode : public PipeWireRenderNode
+{
+public:
+    EGLPipewireRenderNode()
+    {
+    }
+
+    ~EGLPipewireRenderNode()
+    {
+        if (m_image != EGL_NO_IMAGE_KHR) {
+            eglDestroyImageKHR(eglGetCurrentDisplay(), m_image);
+        }
+    };
+
+    void update();
+
+    QSGImageNode *screenNode(QQuickWindow *window) override
+    {
+        if (!m_screenNode) {
+            m_screenNode = window->createImageNode();
+            appendChildNode(m_screenNode);
+        }
+        return m_screenNode;
+    }
+private:
+    EGLImage m_image = nullptr;
+    std::unique_ptr<QOpenGLTexture> m_texture;
+    QSGImageNode *m_screenNode = nullptr;
+};
+
+
 
 QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePaintNodeData *)
 {
@@ -264,9 +261,9 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
         return nullptr;
     }
 
-    auto pwNode = static_cast<PipeWireRenderNode *>(node);
+    auto pwNode = static_cast<EGLPipewireRenderNode *>(node);
     if (!pwNode) {
-        pwNode = new PipeWireRenderNode;
+        pwNode = new EGLPipewireRenderNode;
     }
 
     QSGImageNode *screenNode = pwNode->screenNode(window());
@@ -356,38 +353,38 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         return;
     }
 
-    d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
-        const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-        if (d->m_image) {
-            eglDestroyImageKHR(display, d->m_image);
-        }
-        const auto size = d->m_stream->size();
-        d->m_image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
-        if (d->m_image == EGL_NO_IMAGE_KHR) {
-            d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
-            return nullptr;
-        }
-        if (!d->m_texture) {
-            d->m_texture.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
-            bool created = d->m_texture->create();
-            Q_ASSERT(created);
-        }
+    // d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
+        // const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+        // if (d->m_image) {
+        //     eglDestroyImageKHR(display, d->m_image);
+        // }
+        // const auto size = d->m_stream->size();
+        // d->m_image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
+        // if (d->m_image == EGL_NO_IMAGE_KHR) {
+        //     d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
+        //     return nullptr;
+        // }
+        // if (!d->m_texture) {
+        //     d->m_texture.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
+        //     bool created = d->m_texture->create();
+        //     Q_ASSERT(created);
+        // }
 
-        GLHelpers::initDebugOutput();
-        d->m_texture->bind();
+        // GLHelpers::initDebugOutput();
+        // d->m_texture->bind();
 
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)d->m_image);
+        // glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)d->m_image);
 
-        d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
-        d->m_texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-        d->m_texture->release();
-        d->m_texture->setSize(size.width(), size.height());
+        // d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+        // d->m_texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+        // d->m_texture->release();
+        // d->m_texture->setSize(size.width(), size.height());
 
-        int textureId = d->m_texture->textureId();
-        QQuickWindow::CreateTextureOption textureOption =
-            format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
-        return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
-    };
+        // int textureId = d->m_texture->textureId();
+        // QQuickWindow::CreateTextureOption textureOption =
+        //     format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
+        // return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
+    // };
 
     setReady(true);
 }
