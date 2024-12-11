@@ -23,6 +23,7 @@ extern "C" {
 #include <QQueue>
 #include <QRunnable>
 #include <QThread>
+#include <QTimer>
 #include <QWaitCondition>
 
 #include <condition_variable>
@@ -120,6 +121,9 @@ public:
         QPoint hotspot;
         bool dirty = false;
     } m_cursor;
+
+    QScopedPointer<QTimer> m_frameRepeatTimer;
+    PipeWireFrame m_lastFrame;
 
     std::thread m_passthroughThread;
     std::thread m_outputThread;
