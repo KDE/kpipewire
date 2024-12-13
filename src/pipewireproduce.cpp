@@ -66,6 +66,29 @@ void PipeWireProduce::initialize()
         return;
     }
     connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
+
+    /**
+     * Kwin only sends a new frame when there's damage on screen
+     * The encoder does not flush all frames whilst a stream is active
+     * it will keep one frame in the queue waiting for more input until the stream is closed
+     *
+     * If there's no update this timer bumps the last frame through the stack again
+     * to flush the last frame.
+     */
+    m_frameRepeatTimer.reset(new QTimer);
+    m_frameRepeatTimer->setSingleShot(true);
+    m_frameRepeatTimer->setInterval(100);
+    connect(m_frameRepeatTimer.data(), &QTimer::timeout, this, [this]() {
+        auto f = m_lastFrame;
+        m_lastFrame = {};
+        aboutToEncode(f);
+        if (!m_encoder->filterFrame(f)) {
+            return;
+        }
+
+        m_pendingFilterFrames++;
+        m_passthroughCondition.notify_all();
+    });
 }
 
 Fraction PipeWireProduce::maxFramerate() const
@@ -76,6 +99,11 @@ Fraction PipeWireProduce::maxFramerate() const
 void PipeWireProduce::setMaxFramerate(const Fraction &framerate)
 {
     m_maxFramerate = framerate;
+
+    const double framesPerSecond = static_cast<double>(framerate.numerator) / framerate.denominator;
+    if (m_frameRepeatTimer) {
+        m_frameRepeatTimer->setInterval((1000 / framesPerSecond) * 2);
+    }
     if (m_stream) {
         m_stream->setMaxFramerate(framerate);
     }
@@ -183,6 +211,8 @@ void PipeWireProduce::destroy()
         return;
     }
 
+    m_frameRepeatTimer->stop();
+
     if (m_passthroughThread.joinable()) {
         m_passthroughRunning = false;
         m_passthroughCondition.notify_all();
@@ -222,6 +252,9 @@ void PipeWireProduce::setEncodingPreference(const PipeWireBaseEncodedStream::Enc
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 {
     auto f = frame;
+
+    m_lastFrame = frame;
+    m_frameRepeatTimer->start();
 
     if (frame.cursor) {
         m_cursor.position = frame.cursor->position;
