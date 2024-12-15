@@ -25,6 +25,8 @@ msgid ""
 "Invalid PipeWire installation. See https://gitlab.freedesktop.org/pipewire/"
 "pipewire/-/issues/3296 for more details."
 msgstr ""
+"अमान्य PipeWire संस्थापनम्। अधिकविवरणार्थं https://gitlab.freedesktop.org/pipewire/"
+"pipewire/-/issues/3296 पश्यन्तु ।"
 
 #: pipewirecore.cpp:107
 #, kde-format
