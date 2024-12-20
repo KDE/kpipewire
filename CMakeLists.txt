@@ -10,6 +10,7 @@ include(KDECMakeSettings)
 include(KDEClangFormat)
 include(KDEGitCommitHooks)
 include(ECMQtDeclareLoggingCategory)
+include(ECMDeprecationSettings)
 
 find_package(Qt6 REQUIRED COMPONENTS DBus Quick)
 find_package(KF6 REQUIRED COMPONENTS I18n CoreAddons)
@@ -42,6 +43,10 @@ kde_configure_git_pre_commit_hook(CHECKS CLANG_FORMAT)
 add_definitions(-DMESA_EGL_NO_X11_HEADERS)
 add_definitions(-DEGL_NO_X11)
 add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
+
+ecm_set_disabled_deprecation_versions(QT 6.8.1
+   KF 6.9.0
+)
 
 if (BUILD_TESTING)
    find_package(PlasmaWaylandProtocols REQUIRED)
