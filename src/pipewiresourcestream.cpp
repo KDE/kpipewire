@@ -709,7 +709,10 @@ void PipeWireSourceStream::process()
 
 void PipeWireSourceStream::setActive(bool active)
 {
-    Q_ASSERT(d->pwStream);
+    if (d->pwStream) {
+        qCWarning(PIPEWIRE_LOGGING) << "Tried to make uncreated stream active";
+        return;
+    }
     pw_stream_set_active(d->pwStream, active);
 }
 
