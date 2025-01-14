@@ -175,8 +175,8 @@ void PipeWireSourceItem::refresh()
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::streamSizeChanged);
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::usingDmaBufChanged);
 
-        d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
-        if (!d->m_stream->error().isEmpty()) {
+        const bool created = d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
+        if (!created || !d->m_stream->error().isEmpty()) {
             d->m_stream.reset(nullptr);
             d->m_nodeId = 0;
             return;
