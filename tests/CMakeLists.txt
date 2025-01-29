@@ -40,7 +40,7 @@ qt_add_dbus_interface(
 )
 
 add_executable(xdp-recordme xdp-main.cpp recordme.qrc ${XDP_SRCS} RecordMe.cpp)
-target_link_libraries(xdp-recordme Qt::DBus Qt::Quick KPipeWire Qt::GuiPrivate Wayland::Client Qt::WaylandClient )
+target_link_libraries(xdp-recordme Qt::DBus Qt::Quick KPipeWire Wayland::Client Qt::WaylandClient )
 
 option(INSTALL_TESTS "The recordme test needs installing, disabled by default for convenience" OFF)
 if(INSTALL_TESTS)
