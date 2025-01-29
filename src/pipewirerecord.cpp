@@ -13,7 +13,6 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QPainter>
-#include <qpa/qplatformnativeinterface.h>
 
 #include <KShell>
 
