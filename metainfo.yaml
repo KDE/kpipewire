@@ -6,8 +6,8 @@ portingAid: false
 deprecated: false
 release: true
 libraries:
- - cmake: K::KPipeWire
- - cmake: K::KPipeWireRecord
+    - cmake: K::KPipeWire
+    - cmake: K::KPipeWireRecord
 cmakename: KPipeWire
 
 public_lib: true
