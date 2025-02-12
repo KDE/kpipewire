@@ -364,7 +364,7 @@ bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
         drmFrame->quality = percentageToFrameQuality(m_quality.value());
     }
 
-    auto frameDesc = new AVDRMFrameDescriptor;
+    AVDRMFrameDescriptor *frameDesc = (AVDRMFrameDescriptor *)av_mallocz(sizeof(AVDRMFrameDescriptor));
     frameDesc->nb_layers = 1;
     frameDesc->layers[0].nb_planes = attribs.planes.count();
     frameDesc->layers[0].format = attribs.format;
