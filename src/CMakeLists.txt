@@ -36,6 +36,13 @@ ecm_qt_declare_logging_category(kpipewirerecord_SRCS
                             DESCRIPTION "PipeWire and FFmpeg components for KDE"
                             EXPORT KPipeWireRecord)
 ecm_qt_declare_logging_category(kpipewirerecord_SRCS
+                            HEADER logging_frame_statistics.h
+                            IDENTIFIER PIPEWIRERECORDFRAMESTATS_LOGGING
+                            CATEGORY_NAME kpipewire_record_framestatistics
+                            DEFAULT_SEVERITY Warning
+                            DESCRIPTION "PipeWire and FFmpeg components for KDE - Frame processing statistics"
+                            EXPORT KPipeWireRecord)
+ecm_qt_declare_logging_category(kpipewirerecord_SRCS
                             HEADER logging_libav.h
                             IDENTIFIER PIPEWIRELIBAV_LOGGING
                             CATEGORY_NAME kpipewire_libav_logging

@@ -23,6 +23,8 @@
 #include "libwebpencoder_p.h"
 #include "libx264encoder_p.h"
 
+#include "logging_frame_statistics.h"
+
 extern "C" {
 #include <fcntl.h>
 }
@@ -68,6 +70,17 @@ void PipeWireProduce::initialize()
         return;
     }
     connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
+
+    if (PIPEWIRERECORDFRAMESTATS_LOGGING().isDebugEnabled()) {
+        m_frameStatisticsTimer = std::make_unique<QTimer>();
+        m_frameStatisticsTimer->setInterval(std::chrono::seconds(1));
+        connect(m_frameStatisticsTimer.get(), &QTimer::timeout, this, [this]() {
+            qCDebug(PIPEWIRERECORDFRAMESTATS_LOGGING) << "Processed" << m_processedFrames << "frames in the last second.";
+            qCDebug(PIPEWIRERECORDFRAMESTATS_LOGGING) << m_pendingFilterFrames << "frames pending for filter.";
+            qCDebug(PIPEWIRERECORDFRAMESTATS_LOGGING) << m_pendingEncodeFrames << "frames pending for encode.";
+            m_processedFrames = 0;
+        });
+    }
 
     /**
      * Kwin only sends a new frame when there's damage on screen
@@ -175,6 +188,7 @@ void PipeWireProduce::setupStream()
 
             auto received = m_encoder->receivePacket();
             m_pendingEncodeFrames -= received;
+            m_processedFrames += received;
 
             // Notify the produce thread that the count of processed frames has
             // changed and it can do cleanup if needed, making sure that that
@@ -183,6 +197,10 @@ void PipeWireProduce::setupStream()
         }
     });
     pthread_setname_np(m_outputThread.native_handle(), "PipeWireProduce::output");
+
+    if (m_frameStatisticsTimer) {
+        m_frameStatisticsTimer->start();
+    }
 }
 
 void PipeWireProduce::deactivate()
@@ -214,6 +232,8 @@ void PipeWireProduce::destroy()
     }
 
     m_frameRepeatTimer->stop();
+
+    m_frameStatisticsTimer = nullptr;
 
     if (m_passthroughThread.joinable()) {
         m_passthroughRunning = false;

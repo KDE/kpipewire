@@ -143,11 +143,14 @@ public:
 
     std::atomic_int m_pendingFilterFrames = 0;
     std::atomic_int m_pendingEncodeFrames = 0;
+    std::atomic_int m_processedFrames = 0;
 
     // Controls how many frames we can push into ffmpeg's encoding stream
     std::atomic_int m_maxPendingFrames = 50;
 
     Fraction m_maxFramerate = {60, 1};
+
+    std::unique_ptr<QTimer> m_frameStatisticsTimer;
 
 Q_SIGNALS:
     void producedFrames();
