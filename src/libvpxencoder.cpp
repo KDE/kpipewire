@@ -58,6 +58,7 @@ bool LibVpxEncoder::initialize(const QSize &size)
     }
 
     AVDictionary *options = buildEncodingOptions();
+    maybeLogOptions(options);
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);

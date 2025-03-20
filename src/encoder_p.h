@@ -103,6 +103,7 @@ public:
 protected:
     virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
     virtual AVDictionary *buildEncodingOptions();
+    void maybeLogOptions(AVDictionary *options);
 
     PipeWireProduce *m_produce;
 

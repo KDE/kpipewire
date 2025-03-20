@@ -141,6 +141,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     }
 
     AVDictionary *options = buildEncodingOptions();
+    maybeLogOptions(options);
 
     // Assign the right hardware context for encoding frames.
     // We rely on FFmpeg for creating the VAAPI hardware context as part of
