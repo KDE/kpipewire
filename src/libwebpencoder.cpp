@@ -51,9 +51,6 @@ bool LibWebPEncoder::initialize(const QSize &size)
     m_avCodecContext->time_base = AVRational{1, 1000};
 
     AVDictionary *options = nullptr;
-
-    applyEncodingPreference(options);
-
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
@@ -65,8 +62,4 @@ bool LibWebPEncoder::initialize(const QSize &size)
 int LibWebPEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
 {
     return quality.value_or(-1); // Already 0-100. -1 resets to default.
-}
-
-void LibWebPEncoder::applyEncodingPreference([[maybe_unused]] AVDictionary *options)
-{
 }
