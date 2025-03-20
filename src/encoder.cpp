@@ -189,6 +189,8 @@ AVDictionary *Encoder::buildEncodingOptions()
 {
     AVDictionary *options = NULL;
 
+    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
+
     switch (m_encodingPreference) {
     case PipeWireBaseEncodedStream::EncodingPreference::NoPreference:
         av_dict_set(&options, "preset", "veryfast", 0);
