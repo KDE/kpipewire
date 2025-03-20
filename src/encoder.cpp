@@ -73,8 +73,7 @@ Encoder::~Encoder()
     }
 
     if (m_avCodecContext) {
-        avcodec_close(m_avCodecContext);
-        av_free(m_avCodecContext);
+        avcodec_free_context(&m_avCodecContext);
     }
 }
 
