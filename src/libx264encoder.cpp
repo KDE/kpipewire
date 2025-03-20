@@ -78,9 +78,7 @@ bool LibX264Encoder::initialize(const QSize &size)
         break;
     }
 
-    AVDictionary *options = nullptr;
-    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-    applyEncodingPreference(options);
+    AVDictionary *options = buildEncodingOptions();
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
@@ -100,11 +98,14 @@ int LibX264Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &qua
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
 }
 
-void LibX264Encoder::applyEncodingPreference(AVDictionary *options)
+AVDictionary *LibX264Encoder::buildEncodingOptions()
 {
-    SoftwareEncoder::applyEncodingPreference(options);
+    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
+
+    return options;
 }

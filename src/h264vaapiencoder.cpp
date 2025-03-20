@@ -140,9 +140,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
         break;
     }
 
-    AVDictionary *options = nullptr;
-    // av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-    applyEncodingPreference(options);
+    AVDictionary *options = buildEncodingOptions();
 
     // Assign the right hardware context for encoding frames.
     // We rely on FFmpeg for creating the VAAPI hardware context as part of
@@ -168,11 +166,13 @@ int H264VAAPIEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &q
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
 }
 
-void H264VAAPIEncoder::applyEncodingPreference(AVDictionary *options)
+AVDictionary *H264VAAPIEncoder::buildEncodingOptions()
 {
-    HardwareEncoder::applyEncodingPreference(options);
+    AVDictionary *options = HardwareEncoder::buildEncodingOptions();
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
     av_dict_set(&options, "-flags", "+loop", 0);
+
+    return options;
 }

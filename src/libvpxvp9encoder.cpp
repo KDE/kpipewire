@@ -50,9 +50,7 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    AVDictionary *options = nullptr;
-
-    applyEncodingPreference(options);
+    AVDictionary *options = buildEncodingOptions();
 
     const auto area = size.width() * size.height();
     // m_avCodecContext->framerate is not set, so we use m_produce->maxFramerate() instead.
@@ -89,8 +87,10 @@ int LibVpxVp9Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &q
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
 }
 
-void LibVpxVp9Encoder::applyEncodingPreference(AVDictionary *options)
+AVDictionary *LibVpxVp9Encoder::buildEncodingOptions()
 {
+    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+
     // We're probably capturing a screen
     av_dict_set(&options, "tune-content", "screen", 0);
 
@@ -119,4 +119,6 @@ void LibVpxVp9Encoder::applyEncodingPreference(AVDictionary *options)
     // This should make things faster, but it only seems to consume 100MB more RAM.
     // av_dict_set(&options, "row-mt", "1", 0);
     av_dict_set(&options, "frame-parallel", "1", 0);
+
+    return options;
 }

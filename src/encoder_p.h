@@ -102,6 +102,7 @@ public:
 
 protected:
     virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
+    virtual AVDictionary *buildEncodingOptions();
 
     PipeWireProduce *m_produce;
 
@@ -114,7 +115,6 @@ protected:
 
     std::optional<quint8> m_quality;
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
-    virtual void applyEncodingPreference(AVDictionary *options);
 };
 
 /**

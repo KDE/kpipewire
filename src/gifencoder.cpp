@@ -54,9 +54,6 @@ bool GifEncoder::initialize(const QSize &size)
     m_avCodecContext->time_base = AVRational{1, 1000};
 
     AVDictionary *options = nullptr;
-
-    applyEncodingPreference(options);
-
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
@@ -78,8 +75,4 @@ std::pair<int, int> GifEncoder::encodeFrame(int maximumFrames)
 int GifEncoder::percentageToAbsoluteQuality([[maybe_unused]] const std::optional<quint8> &quality)
 {
     return -1; // Not possible to set quality
-}
-
-void GifEncoder::applyEncodingPreference([[maybe_unused]] AVDictionary *options)
-{
 }
