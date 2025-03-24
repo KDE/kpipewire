@@ -185,8 +185,10 @@ void Encoder::setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreferenc
     m_encodingPreference = preference;
 }
 
-void Encoder::applyEncodingPreference(AVDictionary *options)
+AVDictionary *Encoder::buildEncodingOptions()
 {
+    AVDictionary *options = NULL;
+
     switch (m_encodingPreference) {
     case PipeWireBaseEncodedStream::EncodingPreference::NoPreference:
         av_dict_set(&options, "preset", "veryfast", 0);
@@ -205,6 +207,8 @@ void Encoder::applyEncodingPreference(AVDictionary *options)
         av_dict_set(&options, "preset", "veryfast", 0);
         break;
     }
+
+    return options;
 }
 
 SoftwareEncoder::SoftwareEncoder(PipeWireProduce *produce)
