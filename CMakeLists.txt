@@ -50,7 +50,7 @@ add_definitions(-DEGL_NO_X11)
 add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
 
 ecm_set_disabled_deprecation_versions(QT 6.8.1
-   KF 6.9.0
+   KF 6.12.0
 )
 
 if (BUILD_TESTING)
