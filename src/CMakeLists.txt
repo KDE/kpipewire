@@ -196,14 +196,10 @@ install(FILES  "${CMAKE_CURRENT_BINARY_DIR}/KPipeWireConfig.cmake"
 #################
 # Declarative
 
-ecm_add_qml_module(KPipeWireDeclarative URI "org.kde.pipewire" VERSION 1.0)
-target_sources(KPipeWireDeclarative PRIVATE kpipewiredeclarativeplugin.cpp)
-target_link_libraries(KPipeWireDeclarative PRIVATE KPipeWire Qt::Quick)
-ecm_finalize_qml_module(KPipeWireDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
+ecm_add_qml_module(KPipeWire URI "org.kde.pipewire" VERSION 1.0 GENERATE_PLUGIN_SOURCE DEPENDENCIES QtQuick)
+ecm_finalize_qml_module(KPipeWire DESTINATION ${KDE_INSTALL_QMLDIR})
 
-ecm_add_qml_module(KPipeWireRecordDeclarative URI "org.kde.pipewire.record" VERSION 1.0)
-target_sources(KPipeWireRecordDeclarative PRIVATE kpipewirerecorddeclarativeplugin.cpp)
-target_link_libraries(KPipeWireRecordDeclarative PRIVATE KPipeWire KPipeWireRecord Qt::Quick)
-ecm_finalize_qml_module(KPipeWireRecordDeclarative DESTINATION ${KDE_INSTALL_QMLDIR})
+ecm_add_qml_module(KPipeWireRecord URI "org.kde.pipewire.record" VERSION 1.0 GENERATE_PLUGIN_SOURCE)
+ecm_finalize_qml_module(KPipeWireRecord DESTINATION ${KDE_INSTALL_QMLDIR})
 
 add_subdirectory(monitors)

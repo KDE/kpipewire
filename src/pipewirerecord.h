@@ -7,6 +7,7 @@
 #pragma once
 
 #include <QObject>
+#include <qqmlregistration.h>
 
 #include "pipewirebaseencodedstream.h"
 #include <kpipewire_export.h>
@@ -16,6 +17,7 @@ struct PipeWireRecordPrivate;
 class KPIPEWIRE_EXPORT PipeWireRecord : public PipeWireBaseEncodedStream
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged)
     Q_PROPERTY(QString extension READ extension NOTIFY encoderChanged)
 public:

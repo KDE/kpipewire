@@ -32,6 +32,7 @@ class PipeWireSourceItemPrivate;
 class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 {
     Q_OBJECT
+    QML_ELEMENT
 
     /// Returns where the streams current state
     Q_PROPERTY(StreamState state READ state NOTIFY stateChanged)
