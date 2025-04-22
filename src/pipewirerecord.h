@@ -7,7 +7,7 @@
 #pragma once
 
 #include <QObject>
-#include <qqmlregistration.h>
+#include <qqmlintegration.h>
 
 #include "pipewirebaseencodedstream.h"
 #include <kpipewire_export.h>
