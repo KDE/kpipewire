@@ -4,13 +4,13 @@
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
 */
 
-import QtQuick 2.1
-import QtQuick.Layouts 1.1
-import QtQuick.Controls 2.1
-import org.kde.kirigami 2.15 as Kirigami
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import org.kde.kirigami as Kirigami
 import org.kde.taskmanager
 
-import org.kde.pipewire 0.1 as PipeWire
+import org.kde.pipewire as PipeWire
 
 Kirigami.ApplicationWindow
 {
