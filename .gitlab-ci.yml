@@ -3,6 +3,8 @@
 
 include:
   - project: sysadmin/ci-utilities
-    file:
+    file: # note: this project is used by selenium, it must cover all linux variants!
+      - /gitlab-templates/linux.yml
       - /gitlab-templates/linux-qt6.yml
+      - /gitlab-templates/linux-qt6-next.yml
       - /gitlab-templates/freebsd-qt6.yml
