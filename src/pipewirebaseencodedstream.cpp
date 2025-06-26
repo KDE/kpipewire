@@ -103,9 +103,13 @@ void PipeWireBaseEncodedStream::setMaxFramerate(const Fraction &framerate)
     }
     d->m_maxFramerate = framerate;
 
-    if (d->m_produce) {
-        d->m_produce->setMaxFramerate(d->m_maxFramerate);
-    }
+    // produce runs in another thread
+    QMetaObject::invokeMethod(
+        d->m_produce.get(),
+        [produce = d->m_produce.get(), framerate]() {
+            produce->setMaxFramerate(framerate);
+        },
+        Qt::QueuedConnection);
 
     Q_EMIT maxFramerateChanged();
 }
