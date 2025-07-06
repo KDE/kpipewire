@@ -75,7 +75,7 @@ target_sources(KPipeWire PRIVATE
 # these are features pipewire use extensively and make it hard to look at compile logs
 target_compile_options(KPipeWire PUBLIC -Wno-zero-as-null-pointer-constant -Wno-missing-field-initializers -Wno-cast-align -Wno-pedantic)
 
-target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate KF6::I18n
+target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate Qt::OpenGL KF6::I18n
     KF6::CoreAddons PkgConfig::PipeWire epoxy::epoxy PkgConfig::GBM Libdrm::Libdrm PkgConfig::LIBVA PkgConfig::LIBVA-drm)
 
 target_link_libraries(KPipeWire PRIVATE EGL::EGL)
