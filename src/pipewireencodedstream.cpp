@@ -64,6 +64,7 @@ void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
 {
     if (m_size != m_stream->size()) {
         m_size = m_stream->size();
+        qDebug() << "encoded stream size change";
         Q_EMIT m_encodedStream->sizeChanged(m_size);
     }
 

@@ -67,7 +67,7 @@ struct PipeWireSourceStreamPrivate
 
     bool m_withDamage = false;
     Fraction maxFramerate;
-    QSize requestedSize = QSize(800,600);
+    QSize requestedSize;
 
     PipeWireSourceStream::UsageHint usageHint = PipeWireSourceStream::UsageHint::Render;
 };
@@ -277,10 +277,11 @@ static spa_pod *
 buildFormat(spa_pod_builder *builder, spa_video_format format, const QList<uint64_t> &modifiers, bool withDontFixate, const Fraction &requestedMaxFramerate, const QSize &size)
 {
     spa_pod_frame f[2];
-    const spa_rectangle pw_stream_size{static_cast<uint32_t>(size.width()), static_cast<uint32_t>(size.height())};
+    QSize defaultSize = size.isValid() ? size : QSize(1024, 768);
 
     const spa_rectangle pw_min_screen_bounds{1, 1};
     const spa_rectangle pw_max_screen_bounds{UINT32_MAX, UINT32_MAX};
+    const spa_rectangle pw_stream_size{static_cast<uint32_t>(defaultSize.width()), static_cast<uint32_t>(defaultSize.height())};
 
     spa_pod_builder_push_object(builder, &f[0], SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat);
     spa_pod_builder_add(builder, SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video), 0);
