@@ -26,6 +26,7 @@ struct PipeWireEncodedStreamPrivate {
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
     Fraction m_maxFramerate;
+    QSize m_requestedSize;
     int m_maxPendingFrames = 50;
     bool m_active = false;
     PipeWireBaseEncodedStream::Encoder m_encoder = PipeWireBaseEncodedStream::NoEncoder;
@@ -117,6 +118,27 @@ void PipeWireBaseEncodedStream::setMaxFramerate(const Fraction &framerate)
 void PipeWireBaseEncodedStream::setMaxFramerate(quint32 numerator, quint32 denominator)
 {
     setMaxFramerate({numerator, denominator});
+}
+
+QSize PipeWireBaseEncodedStream::requestedSize() const
+{
+    return d->m_requestedSize;
+}
+
+void PipeWireBaseEncodedStream::setRequestedSize(const QSize &size)
+{
+    if (d->m_requestedSize == size) {
+        return;
+    }
+    d->m_requestedSize = size;
+
+    // produce runs in another thread
+    QMetaObject::invokeMethod(
+        d->m_produce.get(),
+        [produce = d->m_produce.get(), size]() {
+            produce->setRequestedSize(size);
+        },
+        Qt::QueuedConnection);
 }
 
 void PipeWireBaseEncodedStream::setMaxPendingFrames(int maxPendingFrames)

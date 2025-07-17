@@ -51,6 +51,7 @@ void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
+    m_stream->setRequestedSize(m_requestedSize);
 
     // The check in supportsHardwareEncoding() is insufficient to fully
     // determine if we actually support hardware encoding the current stream,
@@ -136,6 +137,23 @@ void PipeWireProduce::setMaxPendingFrames(int newMaxBufferSize)
         newMaxBufferSize = 3;
     }
     m_maxPendingFrames = newMaxBufferSize;
+}
+
+QSize PipeWireProduce::requestedSize() const
+{
+    return m_requestedSize;
+}
+
+void PipeWireProduce::setRequestedSize(const QSize &size)
+{
+    if (m_requestedSize == size) {
+        return;
+    }
+    m_requestedSize = size;
+
+    if (m_stream) {
+        m_stream->setRequestedSize(size);
+    }
 }
 
 void PipeWireProduce::setupStream()
