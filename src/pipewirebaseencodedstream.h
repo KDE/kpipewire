@@ -54,6 +54,9 @@ public:
     void setMaxFramerate(const Fraction &framerate);
     void setMaxFramerate(quint32 numerator, quint32 denominator = 1);
 
+    QSize requestedSize() const;
+    void setRequestedSize(const QSize &size);
+
     /**
      * Defines how many frames are kept in the encoding buffer.
      * New frames after the buffer is full will be dropped.

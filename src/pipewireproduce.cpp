@@ -51,6 +51,7 @@ void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
+    m_stream->setRequestedSize(m_requestedSize);
 
     // The check in supportsHardwareEncoding() is insufficient to fully
     // determine if we actually support hardware encoding the current stream,
@@ -70,6 +71,10 @@ void PipeWireProduce::initialize()
         return;
     }
     connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
+    connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::started, Qt::SingleShotConnection);
+
+    connect(m_stream.get(), &PipeWireSourceStream::stateChanged, this, &PipeWireProduce::stateChanged);
+    connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
     if (PIPEWIRERECORDFRAMESTATS_LOGGING().isDebugEnabled()) {
         m_frameStatisticsTimer = std::make_unique<QTimer>();
@@ -138,10 +143,27 @@ void PipeWireProduce::setMaxPendingFrames(int newMaxBufferSize)
     m_maxPendingFrames = newMaxBufferSize;
 }
 
+QSize PipeWireProduce::requestedSize() const
+{
+    return m_requestedSize;
+}
+
+void PipeWireProduce::setRequestedSize(const QSize &size)
+{
+    if (m_requestedSize == size) {
+        return;
+    }
+    m_requestedSize = size;
+
+    if (m_stream) {
+        m_stream->setRequestedSize(size);
+    }
+}
+
 void PipeWireProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
-    disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
+    cleanupEncoder();
 
     m_encoder = makeEncoder();
     if (!m_encoder) {
@@ -149,13 +171,10 @@ void PipeWireProduce::setupStream()
         return;
     }
 
-    connect(m_stream.get(), &PipeWireSourceStream::stateChanged, this, &PipeWireProduce::stateChanged);
     if (!setupFormat()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not set up the producing thread";
         return;
     }
-
-    connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
     m_passthroughThread = std::thread([this]() {
         m_passthroughRunning = true;
@@ -201,7 +220,6 @@ void PipeWireProduce::setupStream()
     if (m_frameStatisticsTimer) {
         m_frameStatisticsTimer->start();
     }
-    Q_EMIT started();
 }
 
 void PipeWireProduce::deactivate()
@@ -236,17 +254,7 @@ void PipeWireProduce::destroy()
 
     m_frameStatisticsTimer = nullptr;
 
-    if (m_passthroughThread.joinable()) {
-        m_passthroughRunning = false;
-        m_passthroughCondition.notify_all();
-        m_passthroughThread.join();
-    }
-
-    if (m_outputThread.joinable()) {
-        m_outputRunning = false;
-        m_outputCondition.notify_all();
-        m_outputThread.join();
-    }
+    cleanupEncoder();
 
     m_stream.reset();
 
@@ -362,6 +370,21 @@ void PipeWireProduce::handleEncodedFramesChanged()
         if (m_pendingEncodeFrames <= 0) {
             destroy();
         }
+    }
+}
+
+void PipeWireProduce::cleanupEncoder()
+{
+    if (m_passthroughThread.joinable()) {
+        m_passthroughRunning = false;
+        m_passthroughCondition.notify_all();
+        m_passthroughThread.join();
+    }
+
+    if (m_outputThread.joinable()) {
+        m_outputRunning = false;
+        m_outputCondition.notify_all();
+        m_outputThread.join();
     }
 }
 

@@ -67,6 +67,7 @@ struct PipeWireSourceStreamPrivate
 
     bool m_withDamage = false;
     Fraction maxFramerate;
+    QSize requestedSize;
 
     PipeWireSourceStream::UsageHint usageHint = PipeWireSourceStream::UsageHint::Render;
 };
@@ -272,18 +273,26 @@ void PipeWireSourceStream::renegotiateModifierFailed(spa_video_format format, qu
     pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
 }
 
-static spa_pod *
-buildFormat(spa_pod_builder *builder, spa_video_format format, const QList<uint64_t> &modifiers, bool withDontFixate, const Fraction &requestedMaxFramerate)
+static spa_pod *buildFormat(spa_pod_builder *builder,
+                            spa_video_format format,
+                            const QList<uint64_t> &modifiers,
+                            bool withDontFixate,
+                            const Fraction &requestedMaxFramerate,
+                            const QSize &defaultSize)
 {
     spa_pod_frame f[2];
     const spa_rectangle pw_min_screen_bounds{1, 1};
     const spa_rectangle pw_max_screen_bounds{UINT32_MAX, UINT32_MAX};
+    const spa_rectangle pw_stream_size{static_cast<uint32_t>(defaultSize.width()), static_cast<uint32_t>(defaultSize.height())};
 
     spa_pod_builder_push_object(builder, &f[0], SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat);
     spa_pod_builder_add(builder, SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video), 0);
     spa_pod_builder_add(builder, SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw), 0);
     spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_format, SPA_POD_Id(format), 0);
-    spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_size, SPA_POD_CHOICE_RANGE_Rectangle(&pw_min_screen_bounds, &pw_min_screen_bounds, &pw_max_screen_bounds), 0);
+    if (defaultSize.isValid()) {
+        spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_size, SPA_POD_CHOICE_RANGE_Rectangle(&pw_stream_size, &pw_min_screen_bounds, &pw_max_screen_bounds), 0);
+    } // else let the server be in complete control and choose a default
+
     if (requestedMaxFramerate) {
         auto defFramerate = SPA_FRACTION(0, 1);
         auto minFramerate = SPA_FRACTION(1, 1);
@@ -463,6 +472,14 @@ void PipeWireSourceStream::setMaxFramerate(const Fraction &framerate)
     }
 }
 
+void PipeWireSourceStream::setRequestedSize(const QSize &size)
+{
+    d->requestedSize = size;
+    if (d->pwStream) {
+        pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
+    }
+}
+
 uint PipeWireSourceStream::nodeId()
 {
     return d->pwNodeId;
@@ -510,10 +527,10 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
 
     for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
         if (d->m_allowDmaBuf && !it->isEmpty()) {
-            params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate, d->maxFramerate);
+            params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate, d->maxFramerate, d->requestedSize);
         }
 
-        params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate);
+        params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate, d->requestedSize);
     }
 
     // BUG 492400: Workaround for pipewire < 0.3.49 https://github.com/PipeWire/pipewire/commit/8646117374df6fa3b73f63f9b35cda78a6aaa2f4
