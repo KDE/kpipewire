@@ -127,6 +127,8 @@ public:
 
     Fraction framerate() const;
     void setMaxFramerate(const Fraction &framerate);
+    void setRequestedSize(const QSize &size);
+
     uint nodeId();
     QString error() const;
 
