@@ -26,6 +26,7 @@ public:
     void cleanup() override;
 
 private:
+    bool m_setupDone = false;
     const QString m_output;
     AVFormatContext *m_avFormatContext = nullptr;
     PipeWireFrame m_frameWithoutMetadataCursor;
