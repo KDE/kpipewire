@@ -98,6 +98,10 @@ PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder 
 
 bool PipeWireRecordProduce::setupFormat()
 {
+    if (m_setupDone)
+        return true;
+    m_setupDone = true;
+
     avformat_alloc_output_context2(&m_avFormatContext, nullptr, nullptr, m_output.toUtf8().constData());
     if (!m_avFormatContext) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not deduce output format from file: using WebM." << m_output;

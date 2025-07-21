@@ -386,6 +386,10 @@ void PipeWireProduce::cleanupEncoder()
         m_outputCondition.notify_all();
         m_outputThread.join();
     }
+
+    // in theory I should be able to flush the encoder, but it didn't seem to work out..
+    m_pendingFilterFrames = 0;
+    m_pendingEncodeFrames = 0;
 }
 
 std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
