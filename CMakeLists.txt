@@ -54,8 +54,8 @@ add_definitions(-DMESA_EGL_NO_X11_HEADERS)
 add_definitions(-DEGL_NO_X11)
 add_definitions(-DEGL_NO_PLATFORM_SPECIFIC_TYPES)
 
-ecm_set_disabled_deprecation_versions(QT 6.8.1
-   KF 6.12.0
+ecm_set_disabled_deprecation_versions(QT 6.9.0
+   KF 6.16.0
 )
 
 if (BUILD_TESTING)
