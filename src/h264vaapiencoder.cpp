@@ -18,6 +18,12 @@ extern "C" {
 
 #include "logging_record.h"
 
+#ifndef AV_PROFILE_H264_BASELINE // ffmpeg before 8.0
+#define AV_PROFILE_H264_BASELINE FF_PROFILE_H264_BASELINE
+#define AV_PROFILE_H264_MAIN FF_PROFILE_H264_MAIN
+#define AV_PROFILE_H264_HIGH FF_PROFILE_H264_HIGH
+#endif
+
 H264VAAPIEncoder::H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce)
     : HardwareEncoder(produce)
     , m_profile(profile)
@@ -130,13 +136,13 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
 
     switch (m_profile) {
     case H264Profile::Baseline:
-        m_avCodecContext->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+        m_avCodecContext->profile = AV_PROFILE_H264_CONSTRAINED_BASELINE;
         break;
     case H264Profile::Main:
-        m_avCodecContext->profile = FF_PROFILE_H264_MAIN;
+        m_avCodecContext->profile = AV_PROFILE_H264_MAIN;
         break;
     case H264Profile::High:
-        m_avCodecContext->profile = FF_PROFILE_H264_HIGH;
+        m_avCodecContext->profile = AV_PROFILE_H264_HIGH;
         break;
     }
 
