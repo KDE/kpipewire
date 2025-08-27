@@ -21,6 +21,12 @@ extern "C" {
 
 #include "logging_record.h"
 
+#ifndef AV_PROFILE_H264_BASELINE // ffmpeg before 8.0
+#define AV_PROFILE_H264_CONSTRAINED_BASELINE FF_PROFILE_H264_CONSTRAINED_BASELINE
+#define AV_PROFILE_H264_MAIN FF_PROFILE_H264_MAIN
+#define AV_PROFILE_H264_HIGH FF_PROFILE_H264_HIGH
+#endif
+
 LibOpenH264Encoder::LibOpenH264Encoder(H264Profile profile, PipeWireProduce *produce)
     : SoftwareEncoder(produce)
     , m_profile(profile)
@@ -64,13 +70,13 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
         // passes that through, but libopenh264 only allows BASELINE.
         // Until that bug is fixed there'll always be a warning that the
         // profile is not supported (https://github.com/cisco/openh264/issues/3613)
-        m_avCodecContext->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+        m_avCodecContext->profile = AV_PROFILE_H264_CONSTRAINED_BASELINE;
         break;
     case H264Profile::Main:
-        m_avCodecContext->profile = FF_PROFILE_H264_MAIN;
+        m_avCodecContext->profile = AV_PROFILE_H264_MAIN;
         break;
     case H264Profile::High:
-        m_avCodecContext->profile = FF_PROFILE_H264_HIGH;
+        m_avCodecContext->profile = AV_PROFILE_H264_HIGH;
         break;
     }
 
