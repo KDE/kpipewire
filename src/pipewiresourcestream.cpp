@@ -205,10 +205,8 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
             }
         }
 
-        if (!usableModifiers.isEmpty()) {
-            // Support modifier-less buffers
-            usableModifiers.push_back(DRM_FORMAT_MOD_INVALID);
-        }
+        // Support modifier-less buffers
+        usableModifiers.push_back(DRM_FORMAT_MOD_INVALID);
 
         ret[format] = usableModifiers;
     }
