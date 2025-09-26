@@ -203,9 +203,11 @@ void PipeWireBaseEncodedStream::stop()
 {
     if (d->m_produceThread) {
         QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::deactivate, Qt::QueuedConnection);
+        d->m_state = PipeWireBaseEncodedStream::Rendering;
+    } else {
+        d->m_state = PipeWireBaseEncodedStream::Idle;
     }
 
-    d->m_state = PipeWireBaseEncodedStream::Rendering;
     Q_EMIT stateChanged();
 }
 
