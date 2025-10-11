@@ -1,10 +1,8 @@
 # German translations for kpipewire package.
 # Copyright (C) 2022 This file is copyright:
 # This file is distributed under the same license as the kpipewire package.
-# Frederik Schwarzer <schwarzer@kde.org>, 2022.
+# SPDX-FileCopyrightText: 2022 Frederik Schwarzer <schwarzer@kde.org>
 # SPDX-FileCopyrightText: 2023, 2024 Johannes Obermayr <johannesobermayr@gmx.de>
-#
-# Automatically generated, 2022.
 msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire6\n"
