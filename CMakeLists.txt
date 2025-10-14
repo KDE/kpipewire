@@ -29,8 +29,8 @@ find_package(EGL REQUIRED)
 
 pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
 
-# ffmpeg, for recording
-pkg_check_modules(AVCodec IMPORTED_TARGET libavcodec REQUIRED)
+# ffmpeg, for recording. We only require a version on avcodec and hope the rest follows correctly
+pkg_check_modules(AVCodec IMPORTED_TARGET libavcodec>=62.11.100 REQUIRED)
 pkg_check_modules(AVUtil IMPORTED_TARGET libavutil REQUIRED)
 pkg_check_modules(AVFormat IMPORTED_TARGET libavformat REQUIRED)
 pkg_check_modules(AVFilter IMPORTED_TARGET libavfilter REQUIRED)

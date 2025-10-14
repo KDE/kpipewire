@@ -21,12 +21,6 @@ extern "C" {
 
 #include "logging_record.h"
 
-#ifndef AV_PROFILE_H264_BASELINE // ffmpeg before 8.0
-#define AV_PROFILE_H264_CONSTRAINED_BASELINE FF_PROFILE_H264_CONSTRAINED_BASELINE
-#define AV_PROFILE_H264_MAIN FF_PROFILE_H264_MAIN
-#define AV_PROFILE_H264_HIGH FF_PROFILE_H264_HIGH
-#endif
-
 LibOpenH264Encoder::LibOpenH264Encoder(H264Profile profile, PipeWireProduce *produce)
     : SoftwareEncoder(produce)
     , m_profile(profile)
