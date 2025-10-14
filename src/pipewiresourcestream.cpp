@@ -33,13 +33,6 @@
 
 #undef Status
 
-#if !PW_CHECK_VERSION(0, 3, 29)
-#define SPA_POD_PROP_FLAG_MANDATORY (1u << 3)
-#endif
-#if !PW_CHECK_VERSION(0, 3, 33)
-#define SPA_POD_PROP_FLAG_DONT_FIXATE (1u << 4)
-#endif
-
 #define CURSOR_BPP 4
 #define CURSOR_META_SIZE(w, h) (sizeof(struct spa_meta_cursor) + sizeof(struct spa_meta_bitmap) + w * h * CURSOR_BPP)
 

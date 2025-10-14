@@ -27,7 +27,7 @@ find_package(KF6 REQUIRED COMPONENTS I18n CoreAddons)
 
 find_package(EGL REQUIRED)
 
-pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
+pkg_check_modules(PipeWire IMPORTED_TARGET libpipewire-0.3>=0.3.33 REQUIRED)
 
 # ffmpeg, for recording
 pkg_check_modules(AVCodec IMPORTED_TARGET libavcodec REQUIRED)
