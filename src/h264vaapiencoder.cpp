@@ -42,13 +42,8 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
         return false;
     }
 
-    int ret = avfilter_graph_create_filter(&m_inputFilter,
-                                           avfilter_get_by_name("buffer"),
-                                           "in",
-                                           "width=1:height=1:pix_fmt=drm_prime:time_base=1/1",
-                                           nullptr,
-                                           m_avFilterGraph);
-    if (ret < 0) {
+    m_inputFilter = avfilter_graph_alloc_filter(m_avFilterGraph, avfilter_get_by_name("buffer"), "in");
+    if (!m_inputFilter) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create the buffer filter";
         return false;
     }
@@ -67,6 +62,12 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     av_buffersrc_parameters_set(m_inputFilter, parameters);
     av_free(parameters);
     parameters = nullptr;
+
+    int ret = avfilter_init_str(m_inputFilter, nullptr);
+    if (ret < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create the buffer filter";
+        return false;
+    }
 
     ret = avfilter_graph_create_filter(&m_outputFilter, avfilter_get_by_name("buffersink"), "out", nullptr, nullptr, m_avFilterGraph);
     if (ret < 0) {
