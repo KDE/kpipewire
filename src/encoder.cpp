@@ -184,6 +184,11 @@ void Encoder::setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreferenc
     m_encodingPreference = preference;
 }
 
+void Encoder::setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange)
+{
+    m_colorRange = colorRange;
+}
+
 AVDictionary *Encoder::buildEncodingOptions()
 {
     AVDictionary *options = NULL;

@@ -32,6 +32,7 @@ struct PipeWireEncodedStreamPrivate {
     std::optional<quint8> m_quality;
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
     PipeWireBaseEncodedStream::State m_state = PipeWireBaseEncodedStream::Idle;
+    PipeWireBaseEncodedStream::ColorRange m_colorRange = PipeWireBaseEncodedStream::ColorRange::Limited;
 
     std::unique_ptr<QThread> m_produceThread;
     std::unique_ptr<PipeWireProduce> m_produce;
@@ -170,6 +171,7 @@ void PipeWireBaseEncodedStream::start()
     d->m_produce->setQuality(d->m_quality);
     d->m_produce->setMaxPendingFrames(d->m_maxPendingFrames);
     d->m_produce->setEncodingPreference(d->m_encodingPreference);
+    d->m_produce->setColorRange(d->m_colorRange);
     d->m_produce->moveToThread(d->m_produceThread.get());
     d->m_produceThread->start();
     QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);
@@ -284,6 +286,14 @@ void PipeWireBaseEncodedStream::setEncodingPreference(PipeWireBaseEncodedStream:
     d->m_encodingPreference = preference;
     if (d->m_produce) {
         d->m_produce->setEncodingPreference(d->m_encodingPreference);
+    }
+}
+
+void PipeWireBaseEncodedStream::setColorRange(ColorRange colorRange)
+{
+    d->m_colorRange = colorRange;
+    if (d->m_produce) {
+        d->m_produce->setColorRange(d->m_colorRange);
     }
 }
 

@@ -8,6 +8,8 @@
 
 #include "h264vaapiencoder_p.h"
 
+#include <format>
+
 #include <QSize>
 
 extern "C" {
@@ -23,6 +25,8 @@ extern "C" {
 #define AV_PROFILE_H264_MAIN FF_PROFILE_H264_MAIN
 #define AV_PROFILE_H264_HIGH FF_PROFILE_H264_HIGH
 #endif
+
+using namespace std::string_literals;
 
 H264VAAPIEncoder::H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce)
     : HardwareEncoder(produce)
@@ -93,7 +97,10 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     outputs->pad_idx = 0;
     outputs->next = nullptr;
 
-    ret = avfilter_graph_parse(m_avFilterGraph, "hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast", outputs, inputs, NULL);
+    const auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? "full"s : "limited"s;
+    const auto filterGraph = std::format("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast:out_range={}", colorRange);
+
+    ret = avfilter_graph_parse(m_avFilterGraph, filterGraph.data(), outputs, inputs, NULL);
     if (ret < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
         return false;

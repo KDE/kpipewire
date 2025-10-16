@@ -27,10 +27,14 @@ extern "C" {
 #define AV_PROFILE_H264_HIGH FF_PROFILE_H264_HIGH
 #endif
 
+using namespace Qt::StringLiterals;
+
 LibOpenH264Encoder::LibOpenH264Encoder(H264Profile profile, PipeWireProduce *produce)
     : SoftwareEncoder(produce)
     , m_profile(profile)
 {
+    auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? u"full"_s : u"limited"_s;
+    m_filterGraphToParse = u"scale=format=yuv420p,out_range=%1"_s.arg(colorRange);
 }
 
 bool LibOpenH264Encoder::initialize(const QSize &size)

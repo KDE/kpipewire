@@ -100,6 +100,8 @@ public:
 
     void setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreference preference);
 
+    void setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange);
+
 protected:
     virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
     virtual AVDictionary *buildEncodingOptions();
@@ -116,6 +118,7 @@ protected:
 
     std::optional<quint8> m_quality;
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
+    PipeWireBaseEncodedStream::ColorRange m_colorRange = PipeWireBaseEncodedStream::ColorRange::Limited;
 };
 
 /**
