@@ -160,5 +160,7 @@ Q_SIGNALS:
 private:
     void initFiltersVaapi();
     void initFiltersSoftware();
+
     std::unique_ptr<Encoder> makeEncoder();
+    bool setupEncoder(Encoder *encoder, const QSize &size);
 };
