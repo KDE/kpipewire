@@ -380,39 +380,28 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
         auto profile = m_encoderType == PipeWireBaseEncodedStream::H264Baseline ? Encoder::H264Profile::Baseline : Encoder::H264Profile::Main;
 
         if (forcedEncoder.isNull() || forcedEncoder == u"h264_vaapi") {
-            auto hardwareEncoder = std::make_unique<H264VAAPIEncoder>(profile, this);
-            hardwareEncoder->setQuality(m_quality);
-            hardwareEncoder->setEncodingPreference(m_encodingPreference);
-            if (hardwareEncoder->initialize(size)) {
-                return hardwareEncoder;
+            if (auto encoder = makeEncoderImpl<H264VAAPIEncoder>(size, profile, this)) {
+                return encoder;
             }
         }
 
         if (forcedEncoder.isNull() || forcedEncoder == u"libx264") {
-            auto softwareEncoder = std::make_unique<LibX264Encoder>(profile, this);
-            softwareEncoder->setQuality(m_quality);
-            softwareEncoder->setEncodingPreference(m_encodingPreference);
-            if (softwareEncoder->initialize(size)) {
-                return softwareEncoder;
+            if (auto encoder = makeEncoderImpl<LibX264Encoder>(size, profile, this)) {
+                return encoder;
             }
         }
 
         // Try libopenh264 last, it's slower and has less features.
         if (forcedEncoder.isNull() || forcedEncoder == u"libopenh264") {
-            auto softwareEncoder = std::make_unique<LibOpenH264Encoder>(profile, this);
-            softwareEncoder->setQuality(m_quality);
-            softwareEncoder->setEncodingPreference(m_encodingPreference);
-            if (softwareEncoder->initialize(size)) {
-                return softwareEncoder;
+            if (auto encoder = makeEncoderImpl<LibOpenH264Encoder>(size, profile, this)) {
+                return encoder;
             }
         }
         break;
     }
     case PipeWireBaseEncodedStream::VP8: {
         if (forcedEncoder.isNull() || forcedEncoder == u"libvpx") {
-            auto encoder = std::make_unique<LibVpxEncoder>(this);
-            encoder->setQuality(m_quality);
-            if (encoder->initialize(size)) {
+            if (auto encoder = makeEncoderImpl<LibVpxEncoder>(size, this)) {
                 return encoder;
             }
         }
@@ -420,9 +409,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     }
     case PipeWireBaseEncodedStream::VP9: {
         if (forcedEncoder.isNull() || forcedEncoder == u"libvpx-vp9") {
-            auto encoder = std::make_unique<LibVpxVp9Encoder>(this);
-            encoder->setQuality(m_quality);
-            if (encoder->initialize(size)) {
+            if (auto encoder = makeEncoderImpl<LibVpxVp9Encoder>(size, this)) {
                 return encoder;
             }
         }
@@ -430,8 +417,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     }
     case PipeWireBaseEncodedStream::Gif: {
         if (forcedEncoder.isNull() || forcedEncoder == u"gif") {
-            auto encoder = std::make_unique<GifEncoder>(this);
-            if (encoder->initialize(size)) {
+            if (auto encoder = makeEncoderImpl<GifEncoder>(size, this)) {
                 return encoder;
             }
         }
@@ -439,9 +425,7 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     }
     case PipeWireBaseEncodedStream::WebP: {
         if (forcedEncoder.isNull() || forcedEncoder == u"libwebp") {
-            auto encoder = std::make_unique<LibWebPEncoder>(this);
-            encoder->setQuality(m_quality);
-            if (encoder->initialize(size)) {
+            if (auto encoder = makeEncoderImpl<LibWebPEncoder>(size, this)) {
                 return encoder;
             }
         }

@@ -160,5 +160,19 @@ Q_SIGNALS:
 private:
     void initFiltersVaapi();
     void initFiltersSoftware();
+
+    template<typename T, typename... Args>
+    std::unique_ptr<T> makeEncoderImpl(const QSize &size, Args &&...args)
+    {
+        auto encoder = std::make_unique<T>(args...);
+        encoder->setQuality(m_quality);
+        encoder->setEncodingPreference(m_encodingPreference);
+        if (encoder->initialize(size)) {
+            return std::move(encoder);
+        } else {
+            return nullptr;
+        }
+    }
+
     std::unique_ptr<Encoder> makeEncoder();
 };
