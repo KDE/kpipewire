@@ -148,6 +148,13 @@ public:
     Q_ENUM(EncodingPreference);
     void setEncodingPreference(EncodingPreference profile);
 
+    enum class ColorRange {
+        Limited,
+        Full,
+    };
+    Q_ENUM(ColorRange)
+    void setColorRange(ColorRange colorRange);
+
 Q_SIGNALS:
     void activeChanged(bool active);
     void nodeIdChanged(uint nodeId);

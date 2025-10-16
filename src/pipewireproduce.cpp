@@ -273,6 +273,14 @@ void PipeWireProduce::setEncodingPreference(const PipeWireBaseEncodedStream::Enc
     }
 }
 
+void PipeWireProduce::setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange)
+{
+    m_colorRange = colorRange;
+    if (m_encoder) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Changing color range after encoding has started is not supported";
+    }
+}
+
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 {
     auto f = frame;
@@ -449,6 +457,7 @@ bool PipeWireProduce::setupEncoder(Encoder *encoder, const QSize &size)
 {
     encoder->setQuality(m_quality);
     encoder->setEncodingPreference(m_encodingPreference);
+    encoder->setColorRange(m_colorRange);
     return encoder->initialize(size);
 }
 

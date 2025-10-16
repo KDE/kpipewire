@@ -98,6 +98,8 @@ public:
 
     void setEncodingPreference(const PipeWireBaseEncodedStream::EncodingPreference &encodingPreference);
 
+    void setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange);
+
     void handleEncodedFramesChanged();
 
     const uint m_nodeId;
@@ -114,6 +116,7 @@ public:
     std::optional<quint8> m_quality;
 
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
+    PipeWireBaseEncodedStream::ColorRange m_colorRange = PipeWireBaseEncodedStream::ColorRange::Limited;
 
     struct {
         QImage texture;

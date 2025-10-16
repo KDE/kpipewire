@@ -32,10 +32,12 @@ LibX264Encoder::LibX264Encoder(H264Profile profile, PipeWireProduce *produce)
     : SoftwareEncoder(produce)
     , m_profile(profile)
 {
+    auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? u"full"_s : u"limited"_s;
+
     // Adjust the filter graph to ensure we are using an even frame size using a
     // pad filter. Otherwise the size adjustment below will insert a row/column
     // of garbage instead of black.
-    m_filterGraphToParse = u"pad=ceil(iw/2)*2:ceil(ih/2)*2,format=pix_fmts=yuv420p"_s;
+    m_filterGraphToParse = u"pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=format=yuv420p,out_range=%1"_s.arg(colorRange);
 }
 
 bool LibX264Encoder::initialize(const QSize &size)
