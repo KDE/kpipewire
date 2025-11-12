@@ -65,6 +65,12 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
      */
     Q_PROPERTY(bool ready READ isReady NOTIFY readyChanged)
 
+    /**
+     * The painted rectangle of the item. Depending on the aspect ratio of the stream and the item only part of
+     * the item rectangle may actually be painted on.
+     */
+    Q_PROPERTY(QRectF paintedRect READ paintedRect NOTIFY paintedRectChanged)
+
 public:
     enum class StreamState { Error, Unconnected, Connecting, Paused, Streaming };
     Q_ENUM(StreamState);
@@ -95,6 +101,8 @@ public:
 
     StreamState state() const;
 
+    [[nodiscard]] QRectF paintedRect() const;
+
 Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
@@ -102,6 +110,10 @@ Q_SIGNALS:
     void stateChanged();
     void usingDmaBufChanged();
     void readyChanged();
+    void paintedRectChanged();
+
+private Q_SLOTS:
+    void updatePaintedRect();
 
 private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
@@ -110,6 +122,8 @@ private:
     void updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data);
     void refresh();
     void setReady(bool ready);
+    void setPaintedRect(const QRectF &rect);
+    [[nodiscard]] QRect calculatePaintedRect(const QSize &size) const;
 
     QScopedPointer<PipeWireSourceItemPrivate> d;
 };

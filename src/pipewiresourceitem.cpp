@@ -54,6 +54,7 @@ public:
         bool dirty = false;
     } m_cursor;
     std::optional<QRegion> m_damage;
+    QRectF m_paintedRect;
 };
 
 class DiscardEglPixmapRunnable : public QRunnable
@@ -84,6 +85,9 @@ PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     , d(new PipeWireSourceItemPrivate)
 {
     setFlag(ItemHasContents, true);
+    connect(this, &PipeWireSourceItem::streamSizeChanged, this, &PipeWireSourceItem::updatePaintedRect);
+    connect(this, &PipeWireSourceItem::widthChanged, this, &PipeWireSourceItem::updatePaintedRect);
+    connect(this, &PipeWireSourceItem::heightChanged, this, &PipeWireSourceItem::updatePaintedRect);
 }
 
 PipeWireSourceItem::~PipeWireSourceItem()
@@ -272,10 +276,7 @@ QSGNode *PipeWireSourceItem::updatePaintNode(QSGNode *node, QQuickItem::UpdatePa
     QSGImageNode *screenNode = pwNode->screenNode(window());
     screenNode->setTexture(texture);
     screenNode->setOwnsTexture(true);
-
-    const auto br = boundingRect().toRect();
-    QRect rect({0, 0}, texture->textureSize().scaled(br.size(), Qt::KeepAspectRatio));
-    rect.moveCenter(br.center());
+    const auto rect = calculatePaintedRect(texture->textureSize());
     screenNode->setRect(rect);
 
     if (!d->m_cursor.position.has_value() || d->m_cursor.texture.isNull()) {
@@ -487,6 +488,43 @@ void PipeWireSourceItem::setReady(bool ready)
 bool PipeWireSourceItem::isReady() const
 {
     return d->m_ready;
+}
+
+void PipeWireSourceItem::setPaintedRect(const QRectF &rect)
+{
+    if (rect == d->m_paintedRect) {
+        return;
+    }
+
+    d->m_paintedRect = rect;
+    Q_EMIT paintedRectChanged();
+}
+
+QRectF PipeWireSourceItem::paintedRect() const
+{
+    return d->m_paintedRect;
+}
+
+QRect PipeWireSourceItem::calculatePaintedRect(const QSize &size) const
+{
+    if (size.isNull()) {
+        return {};
+    }
+
+    const auto bounding = boundingRect().toRect();
+    QRect rect({0, 0}, size.scaled(bounding.size(), Qt::KeepAspectRatio));
+    rect.moveCenter(bounding.center());
+    return rect;
+}
+
+void PipeWireSourceItem::updatePaintedRect()
+{
+    if (!d->m_stream) {
+        setPaintedRect(QRectF());
+        return;
+    }
+
+    setPaintedRect(calculatePaintedRect(d->m_stream->size()));
 }
 
 #include "moc_pipewiresourceitem.cpp"
