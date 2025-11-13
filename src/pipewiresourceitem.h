@@ -49,7 +49,7 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
 
     /**
      * Returns the size of the source being rendered
-     * @note: This won't be updated until the first frame is recieved
+     * @note: This won't be updated until the first frame is received
      */
     Q_PROPERTY(QSize streamSize READ streamSize NOTIFY streamSizeChanged)
 
