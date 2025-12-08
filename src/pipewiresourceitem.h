@@ -95,6 +95,9 @@ public:
 
     StreamState state() const;
 
+public Q_SLOTS:
+    void invalidateSceneGraph(); // called via metaobject from QQuickWindow
+
 Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
     void fdChanged(uint fd);
