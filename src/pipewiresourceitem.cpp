@@ -127,6 +127,15 @@ void PipeWireSourceItem::releaseResources()
     }
 }
 
+void PipeWireSourceItem::invalidateSceneGraph()
+{
+    if (d->m_image != EGL_NO_IMAGE_KHR) {
+        eglDestroyImageKHR(eglGetCurrentDisplay(), d->m_image);
+        d->m_image = EGL_NO_IMAGE_KHR;
+    }
+    d->m_texture.reset();
+}
+
 void PipeWireSourceItem::setFd(uint fd)
 {
     if (fd == d->m_fd)
