@@ -87,14 +87,14 @@ void DmaBufHandler::setupEgl()
     }
 
     if (m_egl.display == EGL_NO_DISPLAY) {
-        qCWarning(PIPEWIREDMABUF_LOGGING) << "Error during obtaining EGL display: " << GLHelpers::formatGLError(eglGetError());
+        qCWarning(PIPEWIREDMABUF_LOGGING) << "Error during obtaining EGL display: " << GLHelpers::formatEGLError(eglGetError());
         return;
     }
 
     EGLint major = 0;
     EGLint minor = 0;
     if (eglInitialize(m_egl.display, &major, &minor) == EGL_FALSE) {
-        qCWarning(PIPEWIREDMABUF_LOGGING) << "Error during eglInitialize: " << GLHelpers::formatGLError(eglGetError());
+        qCWarning(PIPEWIREDMABUF_LOGGING) << "Error during eglInitialize: " << GLHelpers::formatEGLError(eglGetError());
         return;
     }
 
