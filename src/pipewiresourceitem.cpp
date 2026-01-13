@@ -55,6 +55,9 @@ public:
     } m_cursor;
     std::optional<QRegion> m_damage;
     QRectF m_paintedRect;
+    PipeWireSourceItem::FillMode m_fillMode = PipeWireSourceItem::FillMode::PreserveAspectFit;
+    Qt::Alignment m_verticalAlignment = Qt::AlignVCenter;
+    Qt::Alignment m_horizontalAlignment = Qt::AlignHCenter;
 };
 
 class DiscardEglPixmapRunnable : public QRunnable
@@ -521,8 +524,32 @@ QRect PipeWireSourceItem::calculatePaintedRect(const QSize &size) const
     }
 
     const auto bounding = boundingRect().toRect();
-    QRect rect({0, 0}, size.scaled(bounding.size(), Qt::KeepAspectRatio));
+    auto scaledSize = [&] {
+        switch (d->m_fillMode) {
+        case FillMode::PreserveAspectFit:
+            return size.scaled(bounding.size(), Qt::KeepAspectRatio);
+        case FillMode::PreserveAspectCrop:
+            return size.scaled(bounding.size(), Qt::KeepAspectRatioByExpanding);
+        }
+        Q_ASSERT_X(false, Q_FUNC_INFO, "unhandled FillMode");
+        return QSize();
+    }();
+
+    QRect rect({0, 0}, scaledSize);
     rect.moveCenter(bounding.center());
+
+    if (d->m_horizontalAlignment & Qt::AlignLeft) {
+        rect.moveLeft(bounding.left());
+    } else if (d->m_horizontalAlignment & Qt::AlignRight) {
+        rect.moveRight(bounding.right());
+    }
+
+    if (d->m_verticalAlignment & Qt::AlignTop) {
+        rect.moveTop(bounding.top());
+    } else if (d->m_verticalAlignment & Qt::AlignBottom) {
+        rect.moveBottom(bounding.bottom());
+    }
+
     return rect;
 }
 
@@ -534,6 +561,54 @@ void PipeWireSourceItem::updatePaintedRect()
     }
 
     setPaintedRect(calculatePaintedRect(d->m_stream->size()));
+}
+
+[[nodiscard]] PipeWireSourceItem::FillMode PipeWireSourceItem::fillMode() const
+{
+    return d->m_fillMode;
+}
+
+void PipeWireSourceItem::setFillMode(FillMode mode)
+{
+    if (d->m_fillMode == mode) {
+        return;
+    }
+
+    d->m_fillMode = mode;
+    updatePaintedRect();
+    Q_EMIT fillModeChanged();
+}
+
+[[nodiscard]] Qt::Alignment PipeWireSourceItem::verticalAlignment() const
+{
+    return d->m_verticalAlignment;
+}
+
+void PipeWireSourceItem::setVerticalAlignment(Qt::Alignment alignment)
+{
+    if (d->m_verticalAlignment == alignment) {
+        return;
+    }
+
+    d->m_verticalAlignment = alignment;
+    updatePaintedRect();
+    Q_EMIT verticalAlignmentChanged();
+}
+
+[[nodiscard]] Qt::Alignment PipeWireSourceItem::horizontalAlignment() const
+{
+    return d->m_horizontalAlignment;
+}
+
+void PipeWireSourceItem::setHorizontalAlignment(Qt::Alignment alignment)
+{
+    if (d->m_horizontalAlignment == alignment) {
+        return;
+    }
+
+    d->m_horizontalAlignment = alignment;
+    updatePaintedRect();
+    Q_EMIT horizontalAlignmentChanged();
 }
 
 #include "moc_pipewiresourceitem.cpp"

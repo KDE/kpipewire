@@ -71,7 +71,34 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
      */
     Q_PROPERTY(QRectF paintedRect READ paintedRect NOTIFY paintedRectChanged)
 
+    /*!
+        \qmlproperty real PipeWireSourceItem::fillMode
+
+        The fill mode strategy to use when rendering the video stream. Crop must be combined with clip:true for correct behavior.
+        Defaults to PreserveAspectFit.
+    */
+    Q_PROPERTY(FillMode fillMode READ fillMode WRITE setFillMode NOTIFY fillModeChanged)
+
+    /*!
+        \qmlproperty enumeration PipeWireSourceItem::fillMode
+
+        The vertical alignment rule. By default the painted rectangle is centered.
+    */
+    Q_PROPERTY(Qt::Alignment verticalAlignment READ verticalAlignment WRITE setVerticalAlignment NOTIFY verticalAlignmentChanged)
+
+    /*!
+        \qmlproperty enumeration PipeWireSourceItem::fillMode
+
+        The horizontal alignment rule. By default the painted rectangle is centered.
+    */
+    Q_PROPERTY(Qt::Alignment horizontalAlignment READ horizontalAlignment WRITE setHorizontalAlignment NOTIFY horizontalAlignmentChanged)
+
 public:
+    enum class FillMode {
+        PreserveAspectFit,
+        PreserveAspectCrop
+    };
+    Q_ENUM(FillMode);
     enum class StreamState { Error, Unconnected, Connecting, Paused, Streaming };
     Q_ENUM(StreamState);
 
@@ -102,6 +129,12 @@ public:
     StreamState state() const;
 
     [[nodiscard]] QRectF paintedRect() const;
+    [[nodiscard]] FillMode fillMode() const;
+    void setFillMode(FillMode mode);
+    [[nodiscard]] Qt::Alignment verticalAlignment() const;
+    void setVerticalAlignment(Qt::Alignment alignment);
+    [[nodiscard]] Qt::Alignment horizontalAlignment() const;
+    void setHorizontalAlignment(Qt::Alignment alignment);
 
 public Q_SLOTS:
     void invalidateSceneGraph(); // called via metaobject from QQuickWindow
@@ -114,6 +147,9 @@ Q_SIGNALS:
     void usingDmaBufChanged();
     void readyChanged();
     void paintedRectChanged();
+    void verticalAlignmentChanged();
+    void horizontalAlignmentChanged();
+    void fillModeChanged();
 
 private Q_SLOTS:
     void updatePaintedRect();
