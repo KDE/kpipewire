@@ -42,7 +42,7 @@ struct PipeWireSourceStreamPrivate
 {
     QSharedPointer<PipeWireCore> pwCore;
     pw_stream *pwStream = nullptr;
-    spa_hook streamListener;
+    spa_hook streamListener{};
 
     uint32_t pwNodeId = 0;
     std::optional<std::chrono::nanoseconds> m_currentPresentationTimestamp;
@@ -50,7 +50,7 @@ struct PipeWireSourceStreamPrivate
     QAtomicInt m_stopped = false;
     pw_stream_state m_state = PW_STREAM_STATE_UNCONNECTED;
 
-    spa_video_info_raw videoFormat;
+    spa_video_info_raw videoFormat{};
     QString m_error;
     bool m_allowDmaBuf = true;
     bool m_usingDmaBuf = false;
