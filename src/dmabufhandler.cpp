@@ -205,19 +205,18 @@ bool DmaBufHandler::downloadFrame(QImage &qimage, const PipeWireFrame &frame)
     glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           texture, 0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+    auto releaseResources = qScopeGuard([&]() {
         glDeleteFramebuffers(1, &fbo);
         glDeleteTextures(1, &texture);
         eglDestroyImageKHR(m_egl.display, image);
+    });
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         return false;
     }
 
     glReadPixels(0, 0, frame.dmabuf->width, frame.dmabuf->height, closestGLType(qimage), GL_UNSIGNED_BYTE, qimage.bits());
-
-    glDeleteFramebuffers(1, &fbo);
-    glDeleteTextures(1, &texture);
-    eglDestroyImageKHR(m_egl.display, image);
     return true;
 }
