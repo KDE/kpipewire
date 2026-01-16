@@ -91,7 +91,8 @@ void DmaBufHandler::setupEgl()
         return;
     }
 
-    EGLint major, minor;
+    EGLint major = 0;
+    EGLint minor = 0;
     if (eglInitialize(m_egl.display, &major, &minor) == EGL_FALSE) {
         qCWarning(PIPEWIREDMABUF_LOGGING) << "Error during eglInitialize: " << GLHelpers::formatGLError(eglGetError());
         return;
@@ -102,7 +103,7 @@ void DmaBufHandler::setupEgl()
         return;
     }
 
-    EGLConfig configs;
+    EGLConfig configs{};
     auto createConfig = [&] {
         static const EGLint configAttribs[] = {
             EGL_SURFACE_TYPE,
@@ -192,8 +193,8 @@ bool DmaBufHandler::downloadFrame(QImage &qimage, const PipeWireFrame &frame)
 
     GLHelpers::initDebugOutput();
     // create GL 2D texture for framebuffer
-    GLuint texture;
-    GLuint fbo;
+    GLuint texture = 0;
+    GLuint fbo = 0;
     glGenTextures(1, &texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
