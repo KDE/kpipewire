@@ -99,11 +99,11 @@ EGLImage createImage(EGLDisplay display, const DmaBufAttributes &dmabufAttribs, 
     Q_ASSERT(!size.isEmpty());
     gbm_bo *imported = nullptr;
     if (gbmDevice) {
-        gbm_import_fd_data importInfo = {static_cast<int>(dmabufAttribs.planes[0].fd),
-                                         static_cast<uint32_t>(size.width()),
-                                         static_cast<uint32_t>(size.height()),
-                                         static_cast<uint32_t>(dmabufAttribs.planes[0].stride),
-                                         GBM_BO_FORMAT_ARGB8888};
+        gbm_import_fd_data importInfo = {.fd = static_cast<int>(dmabufAttribs.planes[0].fd),
+                                         .width = static_cast<uint32_t>(size.width()),
+                                         .height = static_cast<uint32_t>(size.height()),
+                                         .stride = static_cast<uint32_t>(dmabufAttribs.planes[0].stride),
+                                         .format = GBM_BO_FORMAT_ARGB8888};
         imported = gbm_bo_import(gbmDevice, GBM_BO_IMPORT_FD, &importInfo, GBM_BO_USE_SCANOUT);
         if (!imported) {
             qCWarning(PIPEWIRE_LOGGING) << "Failed to process buffer: Cannot import passed GBM fd - " << strerror(errno);
