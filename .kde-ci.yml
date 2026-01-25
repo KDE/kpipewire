@@ -11,3 +11,4 @@ Dependencies:
     'third-party/wayland': '@latest'
 Options:
  require-passing-tests-on: ['Linux', 'FreeBSD']
+ enable-lsan: True
