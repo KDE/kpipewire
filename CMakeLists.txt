@@ -62,6 +62,8 @@ if (BUILD_TESTING)
    find_package(PlasmaWaylandProtocols REQUIRED)
    include(ECMAddTests)
    find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
+
+   add_subdirectory(autotests)
    add_subdirectory(tests)
 endif()
 add_subdirectory(src)
