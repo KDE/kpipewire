@@ -9,6 +9,7 @@
 
 #include <QImage>
 #include <QQuickItem>
+#include <cstdint>
 #include <functional>
 #include <optional>
 
@@ -119,6 +120,7 @@ private:
     void processFrame(const PipeWireFrame &frame);
     void updateTextureDmaBuf(const DmaBufAttributes &attribs, spa_video_format format);
     void updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data);
+    void renegotiate(spa_video_format format, uint64_t modifier);
     void refresh();
     void setReady(bool ready);
     void setPaintedRect(const QRectF &rect);
