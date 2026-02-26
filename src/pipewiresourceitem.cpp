@@ -11,15 +11,21 @@
 #include "pipewiresourcestream.h"
 #include "pwhelpers.h"
 
+// This must be before Qt headers which sets VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
+
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QOpenGLTexture>
 #include <QPainter>
 #include <QQuickWindow>
 #include <QSGImageNode>
+#include <QSGRendererInterface>
 #include <QSocketNotifier>
 #include <QThread>
 #include <memory>
+#include <QtGui/qvulkanfunctions.h>
+#include <QtGui/qvulkaninstance.h>
 #include <qpa/qplatformnativeinterface.h>
 
 #include <EGL/eglext.h>
@@ -55,6 +61,7 @@ public:
     QRectF m_paintedRect;
 };
 
+// QRunnable-based cleanup removed; cleanup is now tied to QSGTexture destruction
 PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
     : QQuickItem(parent)
     , d(new PipeWireSourceItemPrivate)
@@ -90,6 +97,7 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
     QQuickItem::itemChange(change, data);
 }
 
+// No releaseResources/invalidateSceneGraph overrides; cleanup happens when QSGTexture is destroyed
 void PipeWireSourceItem::setFd(uint fd)
 {
     if (fd == d->m_fd)
@@ -136,7 +144,15 @@ void PipeWireSourceItem::refresh()
         };
     } else {
         d->m_stream.reset(new PipeWireSourceStream(this));
-        d->m_stream->setAllowDmaBuf(d->m_allowDmaBuf);
+        // Prefer zero-copy via dmabuf on OpenGL and Vulkan; fall back on others
+        bool allowDmabuf = d->m_allowDmaBuf;
+        if (window()) {
+            const auto api = window()->rendererInterface()->graphicsApi();
+            if (api != QSGRendererInterface::OpenGL && api != QSGRendererInterface::Vulkan) {
+                allowDmabuf = false;
+            }
+        }
+        d->m_stream->setAllowDmaBuf(allowDmabuf);
         Q_EMIT streamSizeChanged();
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::streamSizeChanged);
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::usingDmaBufChanged);
@@ -313,66 +329,240 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
         return;
     }
 
-    const auto openglContext = static_cast<QOpenGLContext *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::OpenGLContextResource));
-    if (!openglContext || !d->m_stream) {
-        qCWarning(PIPEWIRE_LOGGING) << "need a window and a context" << window();
+    // Ensure we have an active RHI-based scene graph and a valid stream
+    void *rhi = window()->rendererInterface()->getResource(window(), QSGRendererInterface::RhiResource);
+    if (!rhi || !d->m_stream) {
+        qCWarning(PIPEWIRE_LOGGING) << "Need a window and an RHI context" << window();
         return;
     }
 
-    d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
-        const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-        const auto size = d->m_stream->size();
+/* merged OpenGL path is placed below */
+    const auto api = window()->rendererInterface()->graphicsApi();
 
-        EGLImageKHR image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
-        if (image == EGL_NO_IMAGE_KHR) {
-            QMetaObject::invokeMethod(
-                d->m_stream.get(),
-                [this, format, attribs]() {
-                    d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
-                },
-                Qt::QueuedConnection);
-            return nullptr;
-        }
+    if (api == QSGRendererInterface::Vulkan) {
+        d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
+            QVulkanInstance *inst =
+                static_cast<QVulkanInstance *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::VulkanInstanceResource));
+            VkDevice device = reinterpret_cast<VkDevice>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::DeviceResource));
+            VkPhysicalDevice phys =
+                reinterpret_cast<VkPhysicalDevice>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::PhysicalDeviceResource));
+            auto renegotiate = [&]() -> QSGTexture * {
+                QMetaObject::invokeMethod(
+                    d->m_stream.get(),
+                    [this, format, attribs]() {
+                        d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
+                    },
+                    Qt::QueuedConnection);
+                return nullptr;
+            };
+            if (!inst || device == VK_NULL_HANDLE || phys == VK_NULL_HANDLE) {
+                qCWarning(PIPEWIRE_LOGGING) << "Vulkan resources not available";
+                return renegotiate();
+            }
 
-        // One raw QOpenGLTexture is used for all QSGTextures
-        auto sharedTex = d->m_sharedGlTex.lock();
-        if (!sharedTex) {
-            auto raw = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
-            bool created = raw->create();
-            Q_ASSERT(created);
-            sharedTex = raw;
-            d->m_sharedGlTex = sharedTex;
-        }
+            const auto size = d->m_stream->size();
+            // TODO: support multi-plane dmabufs (depends on modifier); re-negotiation may cause repeated reallocation
+            if (attribs.planes.size() != 1 || attribs.modifier == DRM_FORMAT_MOD_INVALID) {
+                return renegotiate();
+            }
 
-        GLHelpers::initDebugOutput();
-        sharedTex->bind();
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-        sharedTex->setWrapMode(QOpenGLTexture::ClampToEdge);
-        sharedTex->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-        sharedTex->release();
-        sharedTex->setSize(size.width(), size.height());
-
-        const int textureId = sharedTex->textureId();
-        const QQuickWindow::CreateTextureOption textureOption =
-            (format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA) ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
-        QSGTexture *tex = QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
-
-        QObject::connect(
-            tex,
-            &QObject::destroyed,
-            tex,
-            [sharedTex, image, display]() {
-                // sharedTex is captured so it gets destroyed when the texture replaces and the lambda goes out of scope
-                if (image != EGL_NO_IMAGE_KHR) {
-                    eglDestroyImageKHR(display, image);
+            auto spaToVk = [](spa_video_format f) -> VkFormat {
+                switch (f) {
+                case SPA_VIDEO_FORMAT_BGRA:
+                    return VK_FORMAT_B8G8R8A8_UNORM;
+                case SPA_VIDEO_FORMAT_ABGR:
+                    return VK_FORMAT_R8G8B8A8_UNORM;
+                case SPA_VIDEO_FORMAT_BGRx:
+                case SPA_VIDEO_FORMAT_RGBx:
+                    return VK_FORMAT_B8G8R8A8_UNORM;
+                default:
+                    return VK_FORMAT_UNDEFINED;
                 }
-            },
-            Qt::DirectConnection);
+            };
 
-        return tex;
-    };
+            VkFormat vkFormat = spaToVk(format);
+            if (vkFormat == VK_FORMAT_UNDEFINED) {
+                return renegotiate();
+            }
 
-    setReady(true);
+            VkImageDrmFormatModifierExplicitCreateInfoEXT drmInfo{};
+            drmInfo.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT;
+            drmInfo.drmFormatModifier = attribs.modifier;
+            VkSubresourceLayout planeLayout{};
+            planeLayout.offset = attribs.planes[0].offset;
+            planeLayout.rowPitch = attribs.planes[0].stride;
+            drmInfo.drmFormatModifierPlaneCount = 1;
+            drmInfo.pPlaneLayouts = &planeLayout;
+
+            VkExternalMemoryImageCreateInfo extMemInfo{};
+            extMemInfo.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+            extMemInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+            extMemInfo.pNext = &drmInfo;
+
+            VkImageCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            ci.pNext = &extMemInfo;
+            ci.imageType = VK_IMAGE_TYPE_2D;
+            ci.format = vkFormat;
+            ci.extent = {static_cast<uint32_t>(size.width()), static_cast<uint32_t>(size.height()), 1u};
+            ci.mipLevels = 1;
+            ci.arrayLayers = 1;
+            ci.samples = VK_SAMPLE_COUNT_1_BIT;
+            ci.tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
+            ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+            ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            ci.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkImage image = VK_NULL_HANDLE;
+            if (vkCreateImage(device, &ci, nullptr, &image) != VK_SUCCESS || image == VK_NULL_HANDLE) {
+                qCWarning(PIPEWIRE_LOGGING) << "vkCreateImage failed for dmabuf";
+                return renegotiate();
+            }
+
+            VkMemoryRequirements memReq{};
+            vkGetImageMemoryRequirements(device, image, &memReq);
+            // Restrict to memory types compatible with the imported FD
+            VkMemoryFdPropertiesKHR fdProps{VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR};
+            PFN_vkGetDeviceProcAddr pfnGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(inst->getInstanceProcAddr("vkGetDeviceProcAddr"));
+            PFN_vkGetMemoryFdPropertiesKHR pfnGetMemoryFdPropertiesKHR = nullptr;
+            if (pfnGetDeviceProcAddr) {
+                pfnGetMemoryFdPropertiesKHR = reinterpret_cast<PFN_vkGetMemoryFdPropertiesKHR>(pfnGetDeviceProcAddr(device, "vkGetMemoryFdPropertiesKHR"));
+            }
+            if (!pfnGetMemoryFdPropertiesKHR
+                || pfnGetMemoryFdPropertiesKHR(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, attribs.planes[0].fd, &fdProps) != VK_SUCCESS) {
+                qCWarning(PIPEWIRE_LOGGING) << "vkGetMemoryFdPropertiesKHR failed";
+                vkDestroyImage(device, image, nullptr);
+                return renegotiate();
+            }
+            VkPhysicalDeviceMemoryProperties memProps{};
+            inst->functions()->vkGetPhysicalDeviceMemoryProperties(phys, &memProps);
+            uint32_t memTypeIndex = UINT32_MAX;
+            const uint32_t allowedBits = memReq.memoryTypeBits & fdProps.memoryTypeBits;
+            for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+                if ((allowedBits & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+                    memTypeIndex = i;
+                    break;
+                }
+            }
+            if (memTypeIndex == UINT32_MAX) {
+                for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+                    if (allowedBits & (1u << i)) {
+                        memTypeIndex = i;
+                        break;
+                    }
+                }
+            }
+            if (memTypeIndex == UINT32_MAX) {
+                qCWarning(PIPEWIRE_LOGGING) << "No suitable memory type for dmabuf image";
+                vkDestroyImage(device, image, nullptr);
+                return renegotiate();
+            }
+
+            VkImportMemoryFdInfoKHR importInfo{};
+            importInfo.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
+            importInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+            importInfo.fd = attribs.planes[0].fd;
+
+            VkMemoryAllocateInfo ai{};
+            ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            ai.pNext = &importInfo;
+            ai.allocationSize = memReq.size;
+            ai.memoryTypeIndex = memTypeIndex;
+
+            VkDeviceMemory memory = VK_NULL_HANDLE;
+            if (vkAllocateMemory(device, &ai, nullptr, &memory) != VK_SUCCESS || memory == VK_NULL_HANDLE) {
+                qCWarning(PIPEWIRE_LOGGING) << "vkAllocateMemory failed for dmabuf";
+                vkDestroyImage(device, image, nullptr);
+                return renegotiate();
+            }
+
+            if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
+                qCWarning(PIPEWIRE_LOGGING) << "vkBindImageMemory failed";
+                vkFreeMemory(device, memory, nullptr);
+                vkDestroyImage(device, image, nullptr);
+                return renegotiate();
+            }
+
+            QQuickWindow::CreateTextureOption textureOption =
+                (format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA) ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
+            QSGTexture *tex = QNativeInterface::QSGVulkanTexture::fromNative(image, VK_IMAGE_LAYOUT_GENERAL, window(), size, textureOption);
+
+            QObject::connect(tex,
+                             &QObject::destroyed,
+                             tex,
+                             [device, image, memory]() {
+                                 if (image != VK_NULL_HANDLE) {
+                                     vkDestroyImage(device, image, nullptr);
+                                 }
+                                 if (memory != VK_NULL_HANDLE) {
+                                     vkFreeMemory(device, memory, nullptr);
+                                 }
+                             },
+                             Qt::DirectConnection);
+
+            return tex;
+        };
+
+        setReady(true);
+        return;
+    }
+
+    if (api == QSGRendererInterface::OpenGL) {
+        d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
+            const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+            const auto size = d->m_stream->size();
+
+            EGLImageKHR image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
+            if (image == EGL_NO_IMAGE_KHR) {
+                QMetaObject::invokeMethod(
+                    d->m_stream.get(),
+                    [this, format, attribs]() {
+                        d->m_stream->renegotiateModifierFailed(format, attribs.modifier);
+                    },
+                    Qt::QueuedConnection);
+                return nullptr;
+            }
+
+            // One raw QOpenGLTexture is used for all QSGTextures
+            auto sharedTex = d->m_sharedGlTex.lock();
+            if (!sharedTex) {
+                auto raw = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
+                bool created = raw->create();
+                Q_ASSERT(created);
+                sharedTex = raw;
+                d->m_sharedGlTex = sharedTex;
+            }
+
+            GLHelpers::initDebugOutput();
+            sharedTex->bind();
+            glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+            sharedTex->setWrapMode(QOpenGLTexture::ClampToEdge);
+            sharedTex->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+            sharedTex->release();
+            sharedTex->setSize(size.width(), size.height());
+
+            const int textureId = sharedTex->textureId();
+            const QQuickWindow::CreateTextureOption textureOption =
+                (format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA) ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
+            QSGTexture *tex = QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
+
+            QObject::connect(
+                tex,
+                &QObject::destroyed,
+                tex,
+                [sharedTex, image, display]() {
+                    if (image != EGL_NO_IMAGE_KHR) {
+                        eglDestroyImageKHR(display, image);
+                    }
+                },
+                Qt::DirectConnection);
+
+            return tex;
+        };
+
+        setReady(true);
+        return;
+    }
 }
 
 void PipeWireSourceItem::updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data)

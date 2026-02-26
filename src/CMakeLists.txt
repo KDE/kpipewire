@@ -80,6 +80,8 @@ target_link_libraries(KPipeWire PRIVATE Qt::Quick Qt::GuiPrivate Qt::OpenGL KF6:
 
 target_link_libraries(KPipeWire PRIVATE EGL::EGL)
 
+target_link_libraries(KPipeWire PRIVATE Vulkan::Vulkan)
+
 target_include_directories(KPipeWire PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
                                      PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>" ${PipeWire_INCLUDE_DIRS}
                                      INTERFACE "$<INSTALL_INTERFACE:${KDE_INSTALL_INCLUDEDIR}/KPipeWire>")
