@@ -16,10 +16,10 @@
 #include <QOpenGLTexture>
 #include <QPainter>
 #include <QQuickWindow>
-#include <QRunnable>
 #include <QSGImageNode>
 #include <QSocketNotifier>
 #include <QThread>
+#include <memory>
 #include <qpa/qplatformnativeinterface.h>
 
 #include <EGL/eglext.h>
@@ -36,14 +36,12 @@ Q_COREAPP_STARTUP_FUNCTION(pwInit);
 class PipeWireSourceItemPrivate
 {
 public:
+    std::weak_ptr<QOpenGLTexture> m_sharedGlTex;
+
     uint m_nodeId = 0;
     std::optional<uint> m_fd;
     std::function<QSGTexture *()> m_createNextTexture;
     std::unique_ptr<PipeWireSourceStream> m_stream;
-    std::unique_ptr<QOpenGLTexture> m_texture;
-
-    EGLImage m_image = nullptr;
-    bool m_needsRecreateTexture = false;
     bool m_allowDmaBuf = true;
     bool m_ready = false;
 
@@ -55,29 +53,6 @@ public:
     } m_cursor;
     std::optional<QRegion> m_damage;
     QRectF m_paintedRect;
-};
-
-class DiscardEglPixmapRunnable : public QRunnable
-{
-public:
-    DiscardEglPixmapRunnable(EGLImageKHR image, QOpenGLTexture *texture)
-        : m_image(image)
-        , m_texture(texture)
-    {
-    }
-
-    void run() override
-    {
-        if (m_image != EGL_NO_IMAGE_KHR) {
-            eglDestroyImageKHR(eglGetCurrentDisplay(), m_image);
-        }
-
-        delete m_texture;
-    }
-
-private:
-    const EGLImageKHR m_image;
-    QOpenGLTexture *m_texture;
 };
 
 PipeWireSourceItem::PipeWireSourceItem(QQuickItem *parent)
@@ -108,32 +83,11 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
             d->m_stream->setActive(isVisible());
         }
         break;
-    case ItemSceneChange:
-        d->m_needsRecreateTexture = true;
-        releaseResources();
-        break;
     default:
         break;
     }
 
     QQuickItem::itemChange(change, data);
-}
-
-void PipeWireSourceItem::releaseResources()
-{
-    if (window() && (d->m_image || d->m_texture)) {
-        window()->scheduleRenderJob(new DiscardEglPixmapRunnable(d->m_image, d->m_texture.release()), QQuickWindow::NoStage);
-        d->m_image = EGL_NO_IMAGE_KHR;
-    }
-}
-
-void PipeWireSourceItem::invalidateSceneGraph()
-{
-    if (d->m_image != EGL_NO_IMAGE_KHR) {
-        eglDestroyImageKHR(eglGetCurrentDisplay(), d->m_image);
-        d->m_image = EGL_NO_IMAGE_KHR;
-    }
-    d->m_texture.reset();
 }
 
 void PipeWireSourceItem::setFd(uint fd)
@@ -174,7 +128,6 @@ void PipeWireSourceItem::refresh()
     }
 
     if (d->m_nodeId == 0) {
-        releaseResources();
         d->m_stream.reset(nullptr);
         Q_EMIT streamSizeChanged();
 
@@ -368,12 +321,10 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
 
     d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
         const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
-        if (d->m_image) {
-            eglDestroyImageKHR(display, d->m_image);
-        }
         const auto size = d->m_stream->size();
-        d->m_image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
-        if (d->m_image == EGL_NO_IMAGE_KHR) {
+
+        EGLImageKHR image = GLHelpers::createImage(display, attribs, PipeWireSourceStream::spaVideoFormatToDrmFormat(format), size, nullptr);
+        if (image == EGL_NO_IMAGE_KHR) {
             QMetaObject::invokeMethod(
                 d->m_stream.get(),
                 [this, format, attribs]() {
@@ -382,26 +333,43 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
                 Qt::QueuedConnection);
             return nullptr;
         }
-        if (!d->m_texture) {
-            d->m_texture.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
-            bool created = d->m_texture->create();
+
+        // One raw QOpenGLTexture is used for all QSGTextures
+        auto sharedTex = d->m_sharedGlTex.lock();
+        if (!sharedTex) {
+            auto raw = std::make_shared<QOpenGLTexture>(QOpenGLTexture::Target2D);
+            bool created = raw->create();
             Q_ASSERT(created);
+            sharedTex = raw;
+            d->m_sharedGlTex = sharedTex;
         }
 
         GLHelpers::initDebugOutput();
-        d->m_texture->bind();
+        sharedTex->bind();
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+        sharedTex->setWrapMode(QOpenGLTexture::ClampToEdge);
+        sharedTex->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+        sharedTex->release();
+        sharedTex->setSize(size.width(), size.height());
 
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)d->m_image);
+        const int textureId = sharedTex->textureId();
+        const QQuickWindow::CreateTextureOption textureOption =
+            (format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA) ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
+        QSGTexture *tex = QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
 
-        d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
-        d->m_texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-        d->m_texture->release();
-        d->m_texture->setSize(size.width(), size.height());
+        QObject::connect(
+            tex,
+            &QObject::destroyed,
+            tex,
+            [sharedTex, image, display]() {
+                // sharedTex is captured so it gets destroyed when the texture replaces and the lambda goes out of scope
+                if (image != EGL_NO_IMAGE_KHR) {
+                    eglDestroyImageKHR(display, image);
+                }
+            },
+            Qt::DirectConnection);
 
-        int textureId = d->m_texture->textureId();
-        QQuickWindow::CreateTextureOption textureOption =
-            format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
-        return QNativeInterface::QSGOpenGLTexture::fromNative(textureId, window(), size, textureOption);
+        return tex;
     };
 
     setReady(true);

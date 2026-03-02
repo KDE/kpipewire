@@ -97,14 +97,10 @@ public:
     bool isReady() const;
 
     void componentComplete() override;
-    void releaseResources() override;
 
     StreamState state() const;
 
     [[nodiscard]] QRectF paintedRect() const;
-
-public Q_SLOTS:
-    void invalidateSceneGraph(); // called via metaobject from QQuickWindow
 
 Q_SIGNALS:
     void nodeIdChanged(uint nodeId);
