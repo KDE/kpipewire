@@ -11,9 +11,6 @@
 #include "pipewiresourcestream.h"
 #include "pwhelpers.h"
 
-// This must be before Qt headers which sets VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
-
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QOpenGLTexture>
@@ -50,6 +47,12 @@ public:
     std::unique_ptr<PipeWireSourceStream> m_stream;
     bool m_allowDmaBuf = true;
     bool m_ready = false;
+
+    bool m_vulkanInitialized = false;
+    QVulkanDeviceFunctions *m_devFuncs = nullptr;
+    QVulkanFunctions *m_funcs = nullptr;
+    VkDevice m_dev;
+    VkPhysicalDevice m_physDev;
 
     struct {
         QImage texture;
@@ -341,11 +344,23 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
 
     if (api == QSGRendererInterface::Vulkan) {
         d->m_createNextTexture = [this, format, attribs]() -> QSGTexture * {
-            QVulkanInstance *inst =
-                static_cast<QVulkanInstance *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::VulkanInstanceResource));
-            VkDevice device = reinterpret_cast<VkDevice>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::DeviceResource));
-            VkPhysicalDevice phys =
-                reinterpret_cast<VkPhysicalDevice>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::PhysicalDeviceResource));
+            if (!d->m_vulkanInitialized) {
+                qDebug() << QThread::currentThreadId();
+
+                QSGRendererInterface *rif = window()->rendererInterface();
+                QVulkanInstance *inst = reinterpret_cast<QVulkanInstance *>(rif->getResource(window(), QSGRendererInterface::VulkanInstanceResource));
+                Q_ASSERT(inst && inst->isValid());
+
+                d->m_physDev = *static_cast<VkPhysicalDevice *>(rif->getResource(window(), QSGRendererInterface::PhysicalDeviceResource));
+                d->m_dev = *static_cast<VkDevice *>(rif->getResource(window(), QSGRendererInterface::DeviceResource));
+                qDebug() << "init" << d->m_dev;
+                Q_ASSERT(d->m_physDev && d->m_dev);
+
+                d->m_devFuncs = inst->deviceFunctions(d->m_dev);
+                d->m_funcs = inst->functions();
+                d->m_vulkanInitialized = true;
+            }
+
             auto renegotiate = [&]() -> QSGTexture * {
                 QMetaObject::invokeMethod(
                     d->m_stream.get(),
@@ -355,7 +370,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
                     Qt::QueuedConnection);
                 return nullptr;
             };
-            if (!inst || device == VK_NULL_HANDLE || phys == VK_NULL_HANDLE) {
+            if (!d->m_devFuncs || !d->m_funcs || d->m_dev == VK_NULL_HANDLE || d->m_physDev == VK_NULL_HANDLE) {
                 qCWarning(PIPEWIRE_LOGGING) << "Vulkan resources not available";
                 return renegotiate();
             }
@@ -413,29 +428,35 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
             ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             ci.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
 
+            QVulkanDeviceFunctions *df = d->m_devFuncs;
+
             VkImage image = VK_NULL_HANDLE;
-            if (vkCreateImage(device, &ci, nullptr, &image) != VK_SUCCESS || image == VK_NULL_HANDLE) {
+            if (df->vkCreateImage(d->m_dev, &ci, nullptr, &image) != VK_SUCCESS || image == VK_NULL_HANDLE) {
                 qCWarning(PIPEWIRE_LOGGING) << "vkCreateImage failed for dmabuf";
                 return renegotiate();
             }
 
             VkMemoryRequirements memReq{};
-            vkGetImageMemoryRequirements(device, image, &memReq);
+            df->vkGetImageMemoryRequirements(d->m_dev, image, &memReq);
             // Restrict to memory types compatible with the imported FD
             VkMemoryFdPropertiesKHR fdProps{VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR};
-            PFN_vkGetDeviceProcAddr pfnGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(inst->getInstanceProcAddr("vkGetDeviceProcAddr"));
             PFN_vkGetMemoryFdPropertiesKHR pfnGetMemoryFdPropertiesKHR = nullptr;
+            PFN_vkGetDeviceProcAddr pfnGetDeviceProcAddr = nullptr;
+            if (QVulkanInstance *inst =
+                    reinterpret_cast<QVulkanInstance *>(window()->rendererInterface()->getResource(window(), QSGRendererInterface::VulkanInstanceResource))) {
+                pfnGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(inst->getInstanceProcAddr("vkGetDeviceProcAddr"));
+            }
             if (pfnGetDeviceProcAddr) {
-                pfnGetMemoryFdPropertiesKHR = reinterpret_cast<PFN_vkGetMemoryFdPropertiesKHR>(pfnGetDeviceProcAddr(device, "vkGetMemoryFdPropertiesKHR"));
+                pfnGetMemoryFdPropertiesKHR = reinterpret_cast<PFN_vkGetMemoryFdPropertiesKHR>(pfnGetDeviceProcAddr(d->m_dev, "vkGetMemoryFdPropertiesKHR"));
             }
             if (!pfnGetMemoryFdPropertiesKHR
-                || pfnGetMemoryFdPropertiesKHR(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, attribs.planes[0].fd, &fdProps) != VK_SUCCESS) {
+                || pfnGetMemoryFdPropertiesKHR(d->m_dev, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, attribs.planes[0].fd, &fdProps) != VK_SUCCESS) {
                 qCWarning(PIPEWIRE_LOGGING) << "vkGetMemoryFdPropertiesKHR failed";
-                vkDestroyImage(device, image, nullptr);
+                df->vkDestroyImage(d->m_dev, image, nullptr);
                 return renegotiate();
             }
             VkPhysicalDeviceMemoryProperties memProps{};
-            inst->functions()->vkGetPhysicalDeviceMemoryProperties(phys, &memProps);
+            d->m_funcs->vkGetPhysicalDeviceMemoryProperties(d->m_physDev, &memProps);
             uint32_t memTypeIndex = UINT32_MAX;
             const uint32_t allowedBits = memReq.memoryTypeBits & fdProps.memoryTypeBits;
             for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
@@ -454,7 +475,7 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
             }
             if (memTypeIndex == UINT32_MAX) {
                 qCWarning(PIPEWIRE_LOGGING) << "No suitable memory type for dmabuf image";
-                vkDestroyImage(device, image, nullptr);
+                df->vkDestroyImage(d->m_dev, image, nullptr);
                 return renegotiate();
             }
 
@@ -470,16 +491,16 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
             ai.memoryTypeIndex = memTypeIndex;
 
             VkDeviceMemory memory = VK_NULL_HANDLE;
-            if (vkAllocateMemory(device, &ai, nullptr, &memory) != VK_SUCCESS || memory == VK_NULL_HANDLE) {
+            if (df->vkAllocateMemory(d->m_dev, &ai, nullptr, &memory) != VK_SUCCESS || memory == VK_NULL_HANDLE) {
                 qCWarning(PIPEWIRE_LOGGING) << "vkAllocateMemory failed for dmabuf";
-                vkDestroyImage(device, image, nullptr);
+                df->vkDestroyImage(d->m_dev, image, nullptr);
                 return renegotiate();
             }
 
-            if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
+            if (df->vkBindImageMemory(d->m_dev, image, memory, 0) != VK_SUCCESS) {
                 qCWarning(PIPEWIRE_LOGGING) << "vkBindImageMemory failed";
-                vkFreeMemory(device, memory, nullptr);
-                vkDestroyImage(device, image, nullptr);
+                df->vkFreeMemory(d->m_dev, memory, nullptr);
+                df->vkDestroyImage(d->m_dev, image, nullptr);
                 return renegotiate();
             }
 
@@ -487,18 +508,19 @@ void PipeWireSourceItem::updateTextureDmaBuf(const DmaBufAttributes &attribs, sp
                 (format == SPA_VIDEO_FORMAT_ARGB || format == SPA_VIDEO_FORMAT_BGRA) ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::TextureIsOpaque;
             QSGTexture *tex = QNativeInterface::QSGVulkanTexture::fromNative(image, VK_IMAGE_LAYOUT_GENERAL, window(), size, textureOption);
 
-            QObject::connect(tex,
-                             &QObject::destroyed,
-                             tex,
-                             [device, image, memory]() {
-                                 if (image != VK_NULL_HANDLE) {
-                                     vkDestroyImage(device, image, nullptr);
-                                 }
-                                 if (memory != VK_NULL_HANDLE) {
-                                     vkFreeMemory(device, memory, nullptr);
-                                 }
-                             },
-                             Qt::DirectConnection);
+            QObject::connect(
+                tex,
+                &QObject::destroyed,
+                tex,
+                [df, dev = d->m_dev, image, memory]() {
+                    if (image != VK_NULL_HANDLE) {
+                        df->vkDestroyImage(dev, image, nullptr);
+                    }
+                    if (memory != VK_NULL_HANDLE) {
+                        df->vkFreeMemory(dev, memory, nullptr);
+                    }
+                },
+                Qt::DirectConnection);
 
             return tex;
         };
