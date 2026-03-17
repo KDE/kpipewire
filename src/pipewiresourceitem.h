@@ -118,6 +118,8 @@ private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
     void processFrame(const PipeWireFrame &frame);
     void updateTextureDmaBuf(const DmaBufAttributes &attribs, spa_video_format format);
+    QSGTexture *createQSGTextureForDmaBufVulkan(const DmaBufAttributes &attribs, spa_video_format format);
+    QSGTexture *createQSGTextureForDmaBufGL(const DmaBufAttributes &attribs, spa_video_format format);
     void updateTextureImage(const std::shared_ptr<PipeWireFrameData> &data);
     void refresh();
     void setReady(bool ready);
