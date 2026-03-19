@@ -4,6 +4,7 @@ ecm_add_test(TEST_NAME TestEncoder
     ${CMAKE_SOURCE_DIR}/src/encoder.cpp
     ${CMAKE_SOURCE_DIR}/src/gifencoder.cpp
     ${CMAKE_SOURCE_DIR}/src/h264vaapiencoder.cpp
+    ${CMAKE_SOURCE_DIR}/src/h264nvencencoder.cpp
     ${CMAKE_SOURCE_DIR}/src/libx264encoder.cpp
     ${CMAKE_SOURCE_DIR}/src/libopenh264encoder.cpp
     ${CMAKE_SOURCE_DIR}/src/libvpxencoder.cpp

@@ -16,6 +16,7 @@
 #include <qstringliteral.h>
 
 #include "gifencoder_p.h"
+#include "h264nvencencoder_p.h"
 #include "h264vaapiencoder_p.h"
 #include "libopenh264encoder_p.h"
 #include "libvpxencoder_p.h"
@@ -401,6 +402,13 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
 
         if (forcedEncoder.isNull() || forcedEncoder == u"h264_vaapi") {
             auto encoder = std::make_unique<H264VAAPIEncoder>(profile, this);
+            if (setupEncoder(encoder.get(), size)) {
+                return encoder;
+            }
+        }
+
+        if (forcedEncoder.isNull() || forcedEncoder == u"h264_nvenc") {
+            auto encoder = std::make_unique<H264NVENCEncoder>(profile, this);
             if (setupEncoder(encoder.get(), size)) {
                 return encoder;
             }

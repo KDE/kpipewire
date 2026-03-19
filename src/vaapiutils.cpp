@@ -32,15 +32,19 @@ VaapiUtils::VaapiUtils(VaapiUtils::Private)
         return;
     }
 
-    for (const drmDevicePtr &device : devices) {
-        if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
-            QByteArray fullPath = device->nodes[DRM_NODE_RENDER];
-            if (supportsH264(fullPath)) {
-                m_devicePath = fullPath;
-                break;
-            }
-        }
-    }
+    // for (const drmDevicePtr &device : devices) {
+    //     if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
+    //         QByteArray fullPath = device->nodes[DRM_NODE_RENDER];
+    //         qDebug() << m_devicePath;
+    //
+    //         if (supportsH264(fullPath)) {
+    //             m_devicePath = fullPath;
+    //             // break;
+    //         }
+    //     }
+    // }
+
+    m_devicePath = QByteArrayLiteral("/dev/dri/renderD129");
 
     drmFreeDevices(devices.data(), ret);
 

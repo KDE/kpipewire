@@ -52,7 +52,7 @@ struct PipeWireSourceStreamPrivate
 
     spa_video_info_raw videoFormat{};
     QString m_error;
-    bool m_allowDmaBuf = true;
+    bool m_allowDmaBuf = false;
     bool m_usingDmaBuf = false;
 
     QHash<spa_video_format, QList<uint64_t>> m_availableModifiers;

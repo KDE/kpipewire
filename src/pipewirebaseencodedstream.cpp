@@ -266,9 +266,11 @@ QList<PipeWireBaseEncodedStream::Encoder> PipeWireBaseEncodedStream::suggestedEn
             if (vaapi->supportsProfile(encoder == PipeWireBaseEncodedStream::H264Main ? VAProfileH264Main : VAProfileH264ConstrainedBaseline)
                 && avcodec_find_encoder_by_name("h264_vaapi")) {
                 return false;
-            } else {
-                return !(avcodec_find_encoder_by_name("libx264") || avcodec_find_encoder_by_name("libopenh264"));
             }
+            if (avcodec_find_encoder_by_name("h264_nvenc")) {
+                return false;
+            }
+            return !(avcodec_find_encoder_by_name("libx264") || avcodec_find_encoder_by_name("libopenh264"));
         case PipeWireBaseEncodedStream::WebP:
             return !avcodec_find_encoder_by_name("libwebp");
         case PipeWireBaseEncodedStream::Gif:

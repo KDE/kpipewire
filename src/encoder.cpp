@@ -176,7 +176,11 @@ void Encoder::setQuality(std::optional<quint8> quality)
 
 bool Encoder::supportsHardwareEncoding()
 {
-    return !VaapiUtils::instance()->devicePath().isEmpty();
+    // VAAPI device available or ffmpeg exposes NVENC encoder
+    if (!VaapiUtils::instance()->devicePath().isEmpty()) {
+        return true;
+    }
+    return avcodec_find_encoder_by_name("h264_nvenc");
 }
 
 void Encoder::setEncodingPreference(PipeWireBaseEncodedStream::EncodingPreference preference)

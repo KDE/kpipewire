@@ -140,11 +140,12 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             pipewirerecord.cpp
                             pipewireproduce.cpp
                             encoder.cpp
-                            gifencoder.cpp
-                            h264vaapiencoder.cpp
-                            libx264encoder.cpp
-                            libopenh264encoder.cpp
-                            libvpxencoder.cpp
+    gifencoder.cpp
+    h264vaapiencoder.cpp
+    h264nvencencoder.cpp
+    libx264encoder.cpp
+    libopenh264encoder.cpp
+    libvpxencoder.cpp
                             libvpxvp9encoder.cpp
                             libwebpencoder.cpp
 )
