@@ -52,7 +52,7 @@ struct PipeWireSourceStreamPrivate
 
     spa_video_info_raw videoFormat{};
     QString m_error;
-    bool m_allowDmaBuf = false;
+    bool m_allowDmaBuf = true;
     bool m_usingDmaBuf = false;
 
     QHash<spa_video_format, QList<uint64_t>> m_availableModifiers;
@@ -186,7 +186,7 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
 
         QList<uint64_t> usableModifiers;
         usableModifiers.reserve(count + 1);
-        if (usageHint == PipeWireSourceStream::UsageHint::EncodeHardware) {
+        if (usageHint == PipeWireSourceStream::UsageHint::EncodeHardware && false) { // DAVE
             auto vaapi = VaapiUtils::instance();
             for (int i = 0; i < queriedModifiers.size(); ++i) {
                 if (externalOnly[i]) {

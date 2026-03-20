@@ -164,6 +164,7 @@ bool H264NVENCEncoder::filterFrame(const PipeWireFrame &frame)
 
     QImage image;
     if (frame.dmabuf) {
+        qDebug() << "dma buf path";
         image = QImage(m_produce->m_stream->size(), QImage::Format_RGBA8888_Premultiplied);
         if (!m_dmaBufHandler.downloadFrame(image, frame)) {
             m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
