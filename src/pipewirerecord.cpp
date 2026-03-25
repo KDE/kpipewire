@@ -94,6 +94,7 @@ PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder 
     : PipeWireProduce(encoder, nodeId, fd, framerate)
     , m_output(output)
 {
+    m_enableFrameRepeat = false;
 }
 
 bool PipeWireRecordProduce::setupFormat()
