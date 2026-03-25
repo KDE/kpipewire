@@ -68,12 +68,6 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    if (m_quality) {
-        m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
-    } else {
-        m_avCodecContext->global_quality = 35;
-    }
-
     switch (m_profile) {
     case H264Profile::Baseline:
         m_avCodecContext->profile = AV_PROFILE_H264_BASELINE;
@@ -110,6 +104,11 @@ int LibX264Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &qua
 AVDictionary *LibX264Encoder::buildEncodingOptions()
 {
     AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+
+    // libx264 ignores the AVCodecContext global_quality / qscale fields and
+    // requires CRF to be passed as a private option for constant-quality mode.
+    const int crf = m_quality ? percentageToAbsoluteQuality(m_quality) : 35;
+    av_dict_set_int(&options, "crf", crf, 0);
 
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);
