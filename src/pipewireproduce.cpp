@@ -298,7 +298,9 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     auto f = frame;
 
     m_lastFrame = frame;
-    m_frameRepeatTimer->start();
+    if (m_enableFrameRepeat) {
+        m_frameRepeatTimer->start();
+    }
 
     if (frame.cursor) {
         m_cursor.position = frame.cursor->position;

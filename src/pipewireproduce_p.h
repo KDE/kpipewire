@@ -126,6 +126,7 @@ public:
     } m_cursor;
 
     QScopedPointer<QTimer> m_frameRepeatTimer;
+    bool m_enableFrameRepeat = true;
     PipeWireFrame m_lastFrame;
 
     std::thread m_passthroughThread;
