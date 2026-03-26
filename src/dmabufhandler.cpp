@@ -3,41 +3,11 @@
 
 #include "dmabufhandler.h"
 #include "glhelpers.h"
-#include <QGuiApplication>
+#include "rendernodecontext_p.h"
 #include <fcntl.h>
 #include <gbm.h>
 #include <logging_dmabuf.h>
-#include <qpa/qplatformnativeinterface.h>
 #include <unistd.h>
-#include <xf86drm.h>
-
-static QByteArray fetchRenderNode()
-{
-    int max_devices = drmGetDevices2(0, nullptr, 0);
-    if (max_devices <= 0) {
-        qCWarning(PIPEWIREDMABUF_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
-        return "/dev/dri/renderD128";
-    }
-
-    std::vector<drmDevicePtr> devices(max_devices);
-    int ret = drmGetDevices2(0, devices.data(), max_devices);
-    if (ret < 0) {
-        qCWarning(PIPEWIREDMABUF_LOGGING) << "drmGetDevices2() returned an error " << ret;
-        return "/dev/dri/renderD128";
-    }
-
-    QByteArray render_node;
-
-    for (const drmDevicePtr &device : devices) {
-        if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
-            render_node = device->nodes[DRM_NODE_RENDER];
-            break;
-        }
-    }
-
-    drmFreeDevices(devices.data(), ret);
-    return render_node;
-}
 
 DmaBufHandler::DmaBufHandler()
 {
@@ -56,7 +26,8 @@ void DmaBufHandler::setupEgl()
         return;
     }
 
-    m_egl.display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+    const auto renderContext = RenderNodeResolver::resolveForCurrentSession();
+    m_egl.display = renderContext.eglDisplay;
 
     // Use eglGetPlatformDisplayEXT() to get the display pointer
     // if the implementation supports it.
@@ -69,7 +40,11 @@ void DmaBufHandler::setupEgl()
         m_egl.display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, (void *)EGL_DEFAULT_DISPLAY, nullptr);
     }
     if (m_egl.display == EGL_NO_DISPLAY) {
-        const QByteArray renderNode = fetchRenderNode();
+        const QByteArray renderNode = renderContext.renderNode;
+        if (renderNode.isEmpty()) {
+            qCWarning(PIPEWIREDMABUF_LOGGING) << "Failed to resolve a render node for the current session";
+            return;
+        }
         m_drmFd = open(renderNode.constData(), O_RDWR);
 
         if (m_drmFd < 0) {
@@ -126,10 +101,7 @@ void DmaBufHandler::setupEgl()
             qCWarning(PIPEWIREDMABUF_LOGGING) << "choose config failed";
             return false;
         }
-        // if (count != 1) {
         qCWarning(PIPEWIREDMABUF_LOGGING) << "eglChooseConfig returned this many configs:" << count;
-        //     return false;
-        // }
         return true;
     };
 

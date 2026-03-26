@@ -5,47 +5,28 @@
 */
 
 #include "vaapiutils_p.h"
+#include "rendernodecontext_p.h"
 #include <logging_vaapi.h>
-
-#include <QDir>
 
 extern "C" {
 #include <drm_fourcc.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <va/va_drm.h>
-#include <xf86drm.h>
 }
 
 VaapiUtils::VaapiUtils(VaapiUtils::Private)
 {
-    int max_devices = drmGetDevices2(0, nullptr, 0);
-    if (max_devices <= 0) {
-        qCWarning(PIPEWIREVAAPI_LOGGING) << "drmGetDevices2() has not found any devices (errno=" << -max_devices << ")";
+    const auto renderContext = RenderNodeResolver::resolveForCurrentSession();
+    if (!renderContext.hasRenderNode()) {
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: could not resolve the current session render node; hardware encoding will not be auto-selected";
         return;
     }
 
-    std::vector<drmDevicePtr> devices(max_devices);
-    int ret = drmGetDevices2(0, devices.data(), max_devices);
-    if (ret < 0) {
-        qCWarning(PIPEWIREVAAPI_LOGGING) << "drmGetDevices2() returned an error " << ret;
-        return;
-    }
-
-    for (const drmDevicePtr &device : devices) {
-        if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
-            QByteArray fullPath = device->nodes[DRM_NODE_RENDER];
-            if (supportsH264(fullPath)) {
-                m_devicePath = fullPath;
-                break;
-            }
-        }
-    }
-
-    drmFreeDevices(devices.data(), ret);
-
-    if (m_devicePath.isEmpty()) {
-        qCWarning(PIPEWIREVAAPI_LOGGING) << "DRM device not found";
+    if (supportsH264(renderContext.renderNode)) {
+        m_devicePath = renderContext.renderNode;
+    } else {
+        qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI: current session render node" << renderContext.renderNode << "does not support H264 encoding";
     }
 }
 
@@ -136,7 +117,15 @@ bool VaapiUtils::supportsModifier(uint32_t /*format*/, uint64_t modifier)
 
 std::shared_ptr<VaapiUtils> VaapiUtils::instance()
 {
-    static std::shared_ptr<VaapiUtils> instance = std::make_shared<VaapiUtils>(VaapiUtils::Private{});
+    static std::shared_ptr<VaapiUtils> instance;
+    static QByteArray cachedRenderNode;
+
+    const auto currentRenderNode = RenderNodeResolver::resolveForCurrentSession().renderNode;
+    if (!instance || cachedRenderNode != currentRenderNode) {
+        instance = std::make_shared<VaapiUtils>(VaapiUtils::Private{});
+        cachedRenderNode = currentRenderNode;
+    }
+
     return instance;
 }
 

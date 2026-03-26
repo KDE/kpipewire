@@ -11,6 +11,7 @@
 #include "logging.h"
 #include "pipewirecore_p.h"
 #include "pwhelpers.h"
+#include "rendernodecontext_p.h"
 #include "vaapiutils_p.h"
 
 #include <libdrm/drm_fourcc.h>
@@ -19,12 +20,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <QGuiApplication>
 #include <QOpenGLTexture>
 #include <QSocketNotifier>
 #include <QThread>
 #include <QVersionNumber>
-#include <qpa/qplatformnativeinterface.h>
 
 #include <KLocalizedString>
 
@@ -485,7 +484,11 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     };
     QList<const spa_pod *> params;
     params.reserve(formats.size() * 2);
-    const EGLDisplay display = static_cast<EGLDisplay>(QGuiApplication::platformNativeInterface()->nativeResourceForIntegration("egldisplay"));
+    const EGLDisplay display = RenderNodeResolver::resolveForCurrentSession().eglDisplay;
+
+    if (display == EGL_NO_DISPLAY) {
+        d->m_allowDmaBuf = false;
+    }
 
     d->m_allowDmaBuf = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufMinVersion && pwServerVersion >= kDmaBufMinVersion));
     const bool withDontFixate = d->m_allowDmaBuf && (pwServerVersion.isNull() || (pwClientVersion >= kDmaBufModifierMinVersion && pwServerVersion >= kDmaBufModifierMinVersion));
@@ -495,7 +498,16 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     }
 
     if (d->m_availableModifiers.isEmpty()) {
-        static const auto availableModifiers = queryDmaBufModifiers(display, formats, d->usageHint);
+        static QHash<spa_video_format, QList<uint64_t>> availableModifiers;
+        if (availableModifiers.isEmpty()) {
+            if (display != EGL_NO_DISPLAY) {
+                availableModifiers = queryDmaBufModifiers(display, formats, d->usageHint);
+            } else {
+                for (spa_video_format format : formats) {
+                    availableModifiers[format] = {};
+                }
+            }
+        }
         d->m_availableModifiers = availableModifiers;
     }
 
