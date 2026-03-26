@@ -25,7 +25,7 @@ class TestProduce : public PipeWireProduce
 {
 public:
     TestProduce()
-        : PipeWireProduce(PipeWireBaseEncodedStream::Encoder::NoEncoder, 0, 0, Fraction{.numerator = 1, .denominator = 24})
+        : PipeWireProduce(PipeWireBaseEncodedStream::Encoder::NoEncoder, 0, 0, 0, Fraction{.numerator = 1, .denominator = 24})
     {
     }
 

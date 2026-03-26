@@ -18,7 +18,10 @@ class KPIPEWIRE_EXPORT PipeWireBaseEncodedStream : public QObject
 {
     Q_OBJECT
     /// Specify the pipewire node id that we want to record
+    /// @deprecated use objectSerial instead
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
+    /// Specify the pipewire object serial that should be recorded
+    Q_PROPERTY(quint64 objectSerial READ objectSerial WRITE setObjectSerial NOTIFY objectSerialChanged)
     /**
      * Specifies the file descriptor we are connected to, if none 0 will be returned
      *
@@ -44,8 +47,14 @@ public:
     PipeWireBaseEncodedStream(QObject *parent = nullptr);
     ~PipeWireBaseEncodedStream() override;
 
-    void setNodeId(uint nodeId);
-    uint nodeId() const;
+    /**
+     * @deprecated prefer using objectSerial and setObjectSerial
+     */
+    KPIPEWIRE_DEPRECATED void setNodeId(uint nodeId);
+    KPIPEWIRE_DEPRECATED uint nodeId() const;
+
+    void setObjectSerial(quint64 objectSerial);
+    quint64 objectSerial() const;
 
     void setFd(uint fd);
     uint fd() const;
@@ -164,6 +173,7 @@ Q_SIGNALS:
     void maxPendingFramesChanged();
     void stateChanged();
     void encoderChanged();
+    void objectSerialChanged();
 
 protected:
     virtual std::unique_ptr<PipeWireProduce> makeProduce() = 0;

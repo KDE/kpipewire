@@ -51,7 +51,7 @@ class PipeWireProduce : public QObject
 {
     Q_OBJECT
 public:
-    PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, uint fd, const Fraction &framerate);
+    PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, quint64 objectSerial, uint fd, const Fraction &framerate);
     ~PipeWireProduce() override;
 
     virtual void initialize();
@@ -103,6 +103,7 @@ public:
     void handleEncodedFramesChanged();
 
     const uint m_nodeId;
+    const quint64 m_objectSerial;
     QScopedPointer<PipeWireSourceStream> m_stream;
     QString m_error;
 

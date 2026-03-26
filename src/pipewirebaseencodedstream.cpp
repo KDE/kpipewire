@@ -24,6 +24,7 @@ extern "C" {
 
 struct PipeWireEncodedStreamPrivate {
     uint m_nodeId = 0;
+    quint64 m_objectSerial = quint64(-1);
     std::optional<uint> m_fd;
     Fraction m_maxFramerate;
     int m_maxPendingFrames = 50;
@@ -75,6 +76,16 @@ void PipeWireBaseEncodedStream::setNodeId(uint nodeId)
 
     d->m_nodeId = nodeId;
     Q_EMIT nodeIdChanged(nodeId);
+}
+
+void PipeWireBaseEncodedStream::setObjectSerial(quint64 objectSerial)
+{
+    if (objectSerial == d->m_objectSerial) {
+        return;
+    }
+
+    d->m_objectSerial = objectSerial;
+    Q_EMIT objectSerialChanged();
 }
 
 void PipeWireBaseEncodedStream::setFd(uint fd)
@@ -310,6 +321,11 @@ bool PipeWireBaseEncodedStream::isActive() const
 uint PipeWireBaseEncodedStream::nodeId() const
 {
     return d->m_nodeId;
+}
+
+quint64 PipeWireBaseEncodedStream::objectSerial() const
+{
+    return d->m_objectSerial;
 }
 
 uint PipeWireBaseEncodedStream::fd() const

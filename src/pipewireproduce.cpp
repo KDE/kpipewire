@@ -36,9 +36,10 @@ extern "C" {
 Q_DECLARE_METATYPE(std::optional<int>);
 Q_DECLARE_METATYPE(std::optional<std::chrono::nanoseconds>);
 
-PipeWireProduce::PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, uint fd, const Fraction &framerate)
+PipeWireProduce::PipeWireProduce(PipeWireBaseEncodedStream::Encoder encoderType, uint nodeId, quint64 objectSerial, uint fd, const Fraction &framerate)
     : QObject()
     , m_nodeId(nodeId)
+    , m_objectSerial(objectSerial)
     , m_encoderType(encoderType)
     , m_fd(fd)
     , m_frameRate(framerate)
@@ -65,8 +66,12 @@ void PipeWireProduce::initialize()
     // stream when we use the wrong hint with software encoding.
     m_stream->setUsageHint(Encoder::supportsHardwareEncoding() ? PipeWireSourceStream::UsageHint::EncodeHardware
                                                                : PipeWireSourceStream::UsageHint::EncodeSoftware);
-
-    bool created = m_stream->createStream(m_nodeId, m_fd);
+    bool created = false;
+    if (m_objectSerial != quint64(-1)) {
+        created = m_stream->createStream(m_objectSerial, m_fd);
+    } else {
+        created = m_stream->createStream(m_nodeId, m_fd);
+    }
     if (!created || !m_stream->error().isEmpty()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "failed to set up stream for" << m_nodeId << m_stream->error();
         m_error = m_stream->error();

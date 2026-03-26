@@ -39,6 +39,7 @@ public:
     std::weak_ptr<QOpenGLTexture> m_sharedGlTex;
 
     uint m_nodeId = 0;
+    quint64 m_objectSerial = quint64(-1);
     std::optional<uint> m_fd;
     std::function<QSGTexture *()> m_createNextTexture;
     std::unique_ptr<PipeWireSourceStream> m_stream;
@@ -127,7 +128,7 @@ void PipeWireSourceItem::refresh()
         return;
     }
 
-    if (d->m_nodeId == 0) {
+    if (d->m_nodeId == 0 && d->m_objectSerial == static_cast<quint64>(-1)) {
         d->m_stream.reset(nullptr);
         Q_EMIT streamSizeChanged();
 
@@ -140,8 +141,12 @@ void PipeWireSourceItem::refresh()
         Q_EMIT streamSizeChanged();
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::streamSizeChanged);
         connect(d->m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireSourceItem::usingDmaBufChanged);
-
-        const bool created = d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
+        bool created = false;
+        if (d->m_objectSerial != quint64(-1)) {
+            created = d->m_stream->createStream(d->m_objectSerial, d->m_fd.value_or(0));
+        } else {
+            created = d->m_stream->createStream(d->m_nodeId, d->m_fd.value_or(0));
+        }
         if (!created || !d->m_stream->error().isEmpty()) {
             d->m_stream.reset(nullptr);
             d->m_nodeId = 0;
@@ -163,6 +168,16 @@ void PipeWireSourceItem::setNodeId(uint nodeId)
     d->m_nodeId = nodeId;
     refresh();
     Q_EMIT nodeIdChanged(nodeId);
+}
+
+void PipeWireSourceItem::setObjectSerial(quint64 objectSerial)
+{
+    if (objectSerial == d->m_objectSerial)
+        return;
+
+    d->m_objectSerial = objectSerial;
+    refresh();
+    Q_EMIT objectSerialChanged();
 }
 
 class PipeWireRenderNode : public QSGNode
@@ -426,6 +441,11 @@ uint PipeWireSourceItem::fd() const
 uint PipeWireSourceItem::nodeId() const
 {
     return d->m_nodeId;
+}
+
+quint64 PipeWireSourceItem::objectSerial() const
+{
+    return d->m_objectSerial;
 }
 
 QSize PipeWireSourceItem::streamSize() const
