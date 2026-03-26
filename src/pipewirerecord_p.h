@@ -16,7 +16,12 @@ class PipeWireRecordProduce : public PipeWireProduce
 {
     Q_OBJECT
 public:
-    PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, const Fraction &framerate, const QString &output);
+    PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder,
+                          uint nodeId,
+                          quint64 objectSerial,
+                          uint fd,
+                          const Fraction &framerate,
+                          const QString &output);
 
     void processFrame(const PipeWireFrame &frame) override;
     void processPacket(AVPacket *packet) override;

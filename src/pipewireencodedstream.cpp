@@ -43,10 +43,11 @@ bool PipeWireEncodedStream::Packet::isKeyFrame() const
 
 PipeWireEncodeProduce::PipeWireEncodeProduce(PipeWireBaseEncodedStream::Encoder encoder,
                                              uint nodeId,
+                                             quint64 objectSerial,
                                              uint fd,
                                              const Fraction &framerate,
                                              PipeWireEncodedStream *stream)
-    : PipeWireProduce(encoder, nodeId, fd, framerate)
+    : PipeWireProduce(encoder, nodeId, objectSerial, fd, framerate)
     , m_encodedStream(stream)
 {
 }
@@ -83,7 +84,7 @@ PipeWireEncodedStream::~PipeWireEncodedStream() = default;
 
 std::unique_ptr<PipeWireProduce> PipeWireEncodedStream::makeProduce()
 {
-    auto produce = new PipeWireEncodeProduce(encoder(), nodeId(), fd(), maxFramerate(), this);
+    auto produce = new PipeWireEncodeProduce(encoder(), nodeId(), objectSerial(), fd(), maxFramerate(), this);
     connect(produce, &PipeWireEncodeProduce::newPacket, this, &PipeWireEncodedStream::newPacket);
     connect(this, &PipeWireEncodedStream::maxFramerateChanged, produce, [this, produce]() {
         produce->setMaxFramerate(maxFramerate());

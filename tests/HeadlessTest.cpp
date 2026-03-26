@@ -86,7 +86,7 @@ void createStream(int nodeId, std::optional<int> fd = {})
     if (s_framerate) {
         pwStream->setMaxFramerate(*s_framerate);
     }
-    if (!pwStream->createStream(nodeId, 0)) {
+    if (!pwStream->createStream((uint)nodeId, 0)) {
         qWarning() << "failed!" << pwStream->error();
         exit(1);
     }

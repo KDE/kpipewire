@@ -90,8 +90,13 @@ QString PipeWireRecord::extension() const
     return s_extensions.value(encoder());
 }
 
-PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder, uint nodeId, uint fd, const Fraction &framerate, const QString &output)
-    : PipeWireProduce(encoder, nodeId, fd, framerate)
+PipeWireRecordProduce::PipeWireRecordProduce(PipeWireBaseEncodedStream::Encoder encoder,
+                                             uint nodeId,
+                                             quint64 objectSerial,
+                                             uint fd,
+                                             const Fraction &framerate,
+                                             const QString &output)
+    : PipeWireProduce(encoder, nodeId, objectSerial, fd, framerate)
     , m_output(output)
 {
 }
@@ -182,7 +187,7 @@ void PipeWireRecordProduce::processPacket(AVPacket *packet)
 
 std::unique_ptr<PipeWireProduce> PipeWireRecord::makeProduce()
 {
-    return std::make_unique<PipeWireRecordProduce>(encoder(), nodeId(), fd(), maxFramerate(), d->m_output);
+    return std::make_unique<PipeWireRecordProduce>(encoder(), nodeId(), objectSerial(), fd(), maxFramerate(), d->m_output);
 }
 
 int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)

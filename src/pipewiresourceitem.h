@@ -38,7 +38,11 @@ class KPIPEWIRE_EXPORT PipeWireSourceItem : public QQuickItem
     Q_PROPERTY(StreamState state READ state NOTIFY stateChanged)
 
     /// Specify the pipewire node id that we want to play
+    /// @deprecated use objectSerial instead
     Q_PROPERTY(uint nodeId READ nodeId WRITE setNodeId NOTIFY nodeIdChanged)
+
+    /// Specify the pipewire object serial that we want to play
+    Q_PROPERTY(quint64 objectSerial READ objectSerial WRITE setObjectSerial NOTIFY objectSerialChanged)
 
     /**
      * Specifies the file descriptor we are connected to, if none 0 will be returned
@@ -81,8 +85,11 @@ public:
     QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *data) override;
     Q_SCRIPTABLE QString error() const;
 
-    void setNodeId(uint nodeId);
-    uint nodeId() const;
+    void KPIPEWIRE_DEPRECATED setNodeId(uint nodeId);
+    uint KPIPEWIRE_DEPRECATED nodeId() const;
+
+    void setObjectSerial(quint64 objectSerial);
+    quint64 objectSerial() const;
 
     void setFd(uint fd);
     void resetFd();
@@ -110,6 +117,7 @@ Q_SIGNALS:
     void usingDmaBufChanged();
     void readyChanged();
     void paintedRectChanged();
+    void objectSerialChanged();
 
 private Q_SLOTS:
     void updatePaintedRect();

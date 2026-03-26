@@ -45,6 +45,7 @@ struct PipeWireSourceStreamPrivate
     spa_hook streamListener{};
 
     uint32_t pwNodeId = 0;
+    uint64_t pwObjectSerial = uint64_t(-1);
     std::optional<std::chrono::nanoseconds> m_currentPresentationTimestamp;
 
     QAtomicInt m_stopped = false;
@@ -62,6 +63,7 @@ struct PipeWireSourceStreamPrivate
     Fraction maxFramerate;
 
     PipeWireSourceStream::UsageHint usageHint = PipeWireSourceStream::UsageHint::Render;
+    bool createStream(uint nodeId, uint64_t objectSerial, int fd, PipeWireSourceStream *q);
 };
 
 static const QVersionNumber pwClientVersion = QVersionNumber::fromString(QString::fromUtf8(pw_get_library_version()));
@@ -512,41 +514,62 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     return params;
 }
 
-bool PipeWireSourceStream::createStream(uint nodeid, int fd)
+bool PipeWireSourceStreamPrivate::createStream(uint nodeId, uint64_t objectSerial, int fd, PipeWireSourceStream *q)
 {
-    d->m_availableModifiers.clear();
-    d->pwCore = PipeWireCore::fetch(fd);
-    if (!d->pwCore->error().isEmpty()) {
-        qCDebug(PIPEWIRE_LOGGING) << "received error while creating the stream" << d->pwCore->error();
-        d->m_error = d->pwCore->error();
+    m_availableModifiers.clear();
+    pwCore = PipeWireCore::fetch(fd);
+    if (!pwCore->error().isEmpty()) {
+        qCDebug(PIPEWIRE_LOGGING) << "received error while creating the stream" << pwCore->error();
+        m_error = pwCore->error();
         return false;
     }
 
-    connect(d->pwCore.data(), &PipeWireCore::pipewireFailed, this, &PipeWireSourceStream::coreFailed);
+    QObject::connect(pwCore.data(), &PipeWireCore::pipewireFailed, q, &PipeWireSourceStream::coreFailed);
 
-    if (objectName().isEmpty()) {
-        setObjectName(QStringLiteral("plasma-screencast-%1").arg(nodeid));
+    if (q->objectName().isEmpty() && objectSerial != uint64_t(-1)) {
+        q->setObjectName(QStringLiteral("plasma-screencast-serial-%1").arg(objectSerial));
+    }
+    if (q->objectName().isEmpty()) {
+        q->setObjectName(QStringLiteral("plasma-screencast-node-%1").arg(nodeId));
     }
 
-    const auto pwServerVersion = d->pwCore->serverVersion();
-    d->pwStream = pw_stream_new(**d->pwCore, objectName().toUtf8().constData(), nullptr);
-    d->pwNodeId = nodeid;
-    pw_stream_add_listener(d->pwStream, &d->streamListener, &pwStreamEvents, this);
+    const auto pwServerVersion = pwCore->serverVersion();
+    pw_properties *properties = nullptr;
+    if (objectSerial != uint64_t(-1)) {
+        properties = pw_properties_new(nullptr, nullptr);
+        pw_properties_setf(properties, PW_KEY_TARGET_OBJECT, "%" PRIu64, objectSerial);
+    }
 
-    d->m_renegotiateEvent = pw_loop_add_event(d->pwCore->loop(), onRenegotiate, this);
+    pwStream = pw_stream_new(**pwCore, q->objectName().toUtf8().constData(), properties);
+    pwNodeId = nodeId;
+    pwObjectSerial = objectSerial;
+
+    pw_stream_add_listener(pwStream, &streamListener, &pwStreamEvents, q);
+
+    m_renegotiateEvent = pw_loop_add_event(pwCore->loop(), q->onRenegotiate, q);
 
     uint8_t buffer[4096];
     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    auto params = createFormatsParams(podBuilder);
+    auto params = q->createFormatsParams(podBuilder);
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
-    if (pw_stream_connect(d->pwStream, PW_DIRECTION_INPUT, d->pwNodeId, s, params.data(), params.size()) != 0) {
+    if (pw_stream_connect(pwStream, PW_DIRECTION_INPUT, pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
-        pw_stream_destroy(d->pwStream);
-        d->pwStream = nullptr;
+        pw_stream_destroy(pwStream);
+        pwStream = nullptr;
         return false;
     }
-    qCDebug(PIPEWIRE_LOGGING) << "created successfully" << nodeid;
+    qCDebug(PIPEWIRE_LOGGING) << "created successfully" << nodeId << objectSerial;
     return true;
+}
+
+bool PipeWireSourceStream::createStream(uint nodeid, int fd)
+{
+    return d->createStream(nodeid, uint64_t(-1), fd, this);
+}
+
+bool PipeWireSourceStream::createStream(quint64 objectSerial, int fd)
+{
+    return d->createStream(PW_ID_ANY, objectSerial, fd, this);
 }
 
 void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
