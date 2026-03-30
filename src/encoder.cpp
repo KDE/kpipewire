@@ -19,10 +19,12 @@ extern "C" {
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_drm.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/pixdesc.h>
 }
 
 #include <libdrm/drm_fourcc.h>
 
+#include "rendernodecontext_p.h"
 #include "vaapiutils_p.h"
 
 #include "logging_record.h"
@@ -176,6 +178,11 @@ void Encoder::setQuality(std::optional<quint8> quality)
 
 bool Encoder::supportsHardwareEncoding()
 {
+    // FIXME -  it needs to be each backend looking this up
+    // with the vaapi paths looking up the device path, but we also need the device to be on a per-stream basis
+    if (avcodec_find_encoder_by_name("h264_vulkan")) {
+        return true;
+    }
     return !VaapiUtils::instance()->devicePath().isEmpty();
 }
 
@@ -384,6 +391,16 @@ bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
         drmFrame->quality = percentageToFrameQuality(m_quality.value());
     }
 
+    // Provide color metadata to help HW filters (e.g., scale_vulkan) choose conversions.
+    drmFrame->color_range = (m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full) ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG;
+
+    // PING AT XAVER!!!
+    // I think kwin always renders without any fancy colourspacing
+    // if we want to supprt things we would have to negotiate it somehow
+    drmFrame->color_primaries = AVCOL_PRI_BT709;
+    drmFrame->color_trc = AVCOL_TRC_BT709;
+    drmFrame->colorspace = AVCOL_SPC_BT709;
+
     AVDRMFrameDescriptor *frameDesc = (AVDRMFrameDescriptor *)av_mallocz(sizeof(AVDRMFrameDescriptor));
     frameDesc->nb_layers = 1;
     frameDesc->layers[0].nb_planes = attribs.planes.count();
@@ -406,7 +423,8 @@ bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
     }
 
     if (auto result = av_buffersrc_add_frame(m_inputFilter, drmFrame); result < 0) {
-        qCDebug(PIPEWIRERECORD_LOGGING) << "Failed sending frame for encoding" << av_err2str(result);
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Failed sending frame for encoding" << av_err2str(result) << "— requesting renegotiation of modifier";
+        m_produce->m_stream->renegotiateModifierFailed(frame.format, attribs.modifier);
         av_frame_unref(drmFrame);
         return false;
     }
@@ -438,11 +456,22 @@ QByteArray HardwareEncoder::checkVaapi(const QSize &size)
     return utils->devicePath();
 }
 
-bool HardwareEncoder::createDrmContext(const QSize &size)
+bool HardwareEncoder::createDrmContext(const QSize &size, AVPixelFormat swFormat)
 {
-    auto path = checkVaapi(size);
+    // auto path = checkVaapi(size);
+    auto path = RenderNodeResolver::resolveForCurrentSession().renderNode;
     if (path.isEmpty()) {
         return false;
+    }
+
+    // Clean up any previous contexts if re-initializing
+    if (m_drmFramesContext) {
+        av_buffer_unref(&m_drmFramesContext);
+        m_drmFramesContext = nullptr;
+    }
+    if (m_drmContext) {
+        av_buffer_unref(&m_drmContext);
+        m_drmContext = nullptr;
     }
 
     int err = av_hwdevice_ctx_create(&m_drmContext, AV_HWDEVICE_TYPE_DRM, path.data(), NULL, AV_HWFRAME_MAP_READ);
@@ -459,7 +488,7 @@ bool HardwareEncoder::createDrmContext(const QSize &size)
 
     auto framesContext = reinterpret_cast<AVHWFramesContext *>(m_drmFramesContext->data);
     framesContext->format = AV_PIX_FMT_DRM_PRIME;
-    framesContext->sw_format = AV_PIX_FMT_0BGR;
+    framesContext->sw_format = swFormat;
     framesContext->width = size.width();
     framesContext->height = size.height();
 
@@ -467,6 +496,10 @@ bool HardwareEncoder::createDrmContext(const QSize &size)
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed initializing DRM frames context" << av_err2str(result);
         av_buffer_unref(&m_drmFramesContext);
         return false;
+    }
+
+    if (PIPEWIRERECORD_LOGGING().isDebugEnabled()) {
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Created DRM frames context with sw_format" << av_get_pix_fmt_name(swFormat) << "size" << size;
     }
 
     return true;

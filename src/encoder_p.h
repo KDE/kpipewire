@@ -183,7 +183,7 @@ protected:
      *
      * @return true if the contexts were successfully created, false if not.
      */
-    bool createDrmContext(const QSize &size);
+    bool createDrmContext(const QSize &size, AVPixelFormat swFormat = AV_PIX_FMT_0BGR);
 
     AVBufferRef *m_drmContext = nullptr;
     AVBufferRef *m_drmFramesContext = nullptr;

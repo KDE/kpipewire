@@ -10,6 +10,7 @@ extern "C" {
 #include "encoder_p.h"
 #include "gifencoder_p.h"
 #include "h264vaapiencoder_p.h"
+#include "h264vulkanencoder_p.h"
 #include "libopenh264encoder_p.h"
 #include "libvpxencoder_p.h"
 #include "libvpxvp9encoder_p.h"

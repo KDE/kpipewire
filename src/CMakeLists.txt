@@ -140,9 +140,11 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             pipewireencodedstream.cpp
                             pipewirerecord.cpp
                             pipewireproduce.cpp
+                            rendernodecontext.cpp
                             encoder.cpp
                             gifencoder.cpp
                             h264vaapiencoder.cpp
+                            h264vulkanencoder.cpp
                             libx264encoder.cpp
                             libopenh264encoder.cpp
                             libvpxencoder.cpp
@@ -150,7 +152,7 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             libwebpencoder.cpp
 )
 target_link_libraries(KPipeWireRecord PUBLIC KPipeWire Qt6::QmlIntegration
-    PRIVATE Qt::Core Qt::Gui KF6::CoreAddons KPipeWireDmaBuf
+    PRIVATE Qt::Core Qt::Gui Qt::GuiPrivate KF6::CoreAddons KPipeWireDmaBuf
     PkgConfig::AVCodec PkgConfig::AVUtil PkgConfig::AVFormat PkgConfig::AVFilter PkgConfig::GBM PkgConfig::SWScale
     epoxy::epoxy Libdrm::Libdrm
 )

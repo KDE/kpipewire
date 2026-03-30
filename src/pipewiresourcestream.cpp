@@ -12,7 +12,6 @@
 #include "pipewirecore_p.h"
 #include "pwhelpers.h"
 #include "rendernodecontext_p.h"
-#include "vaapiutils_p.h"
 
 #include <libdrm/drm_fourcc.h>
 #include <spa/utils/result.h>
@@ -131,7 +130,8 @@ spa_video_format drmFormatToSpaVideoFormat(uint32_t drm_format)
     }
 }
 
-static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay display, const QList<spa_video_format> &formats, PipeWireSourceStream::UsageHint usageHint)
+static QHash<spa_video_format, QList<uint64_t>>
+queryDmaBufModifiers(EGLDisplay display, const QList<spa_video_format> &formats, PipeWireSourceStream::UsageHint /*usageHint*/)
 {
     QHash<spa_video_format, QList<uint64_t>> ret;
     ret.reserve(formats.size());
@@ -185,22 +185,9 @@ static QHash<spa_video_format, QList<uint64_t>> queryDmaBufModifiers(EGLDisplay 
 
         QList<uint64_t> usableModifiers;
         usableModifiers.reserve(count + 1);
-        if (usageHint == PipeWireSourceStream::UsageHint::EncodeHardware) {
-            auto vaapi = VaapiUtils::instance();
-            for (int i = 0; i < queriedModifiers.size(); ++i) {
-                if (externalOnly[i]) {
-                    continue;
-                }
-                const uint64_t modifier = queriedModifiers[i];
-                if (vaapi->supportsModifier(drm_format, modifier)) {
-                    usableModifiers.append(modifier);
-                }
-            }
-        } else {
-            for (int i = 0; i < queriedModifiers.size(); ++i) {
-                if (!externalOnly[i]) {
-                    usableModifiers.append(queriedModifiers[i]);
-                }
+        for (int i = 0; i < queriedModifiers.size(); ++i) {
+            if (!externalOnly[i]) {
+                usableModifiers.append(queriedModifiers[i]);
             }
         }
 
@@ -498,17 +485,7 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     }
 
     if (d->m_availableModifiers.isEmpty()) {
-        static QHash<spa_video_format, QList<uint64_t>> availableModifiers;
-        if (availableModifiers.isEmpty()) {
-            if (display != EGL_NO_DISPLAY) {
-                availableModifiers = queryDmaBufModifiers(display, formats, d->usageHint);
-            } else {
-                for (spa_video_format format : formats) {
-                    availableModifiers[format] = {};
-                }
-            }
-        }
-        d->m_availableModifiers = availableModifiers;
+        d->m_availableModifiers = queryDmaBufModifiers(display, formats, d->usageHint);
     }
 
     for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {

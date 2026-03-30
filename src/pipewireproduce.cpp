@@ -17,11 +17,13 @@
 
 #include "gifencoder_p.h"
 #include "h264vaapiencoder_p.h"
+#include "h264vulkanencoder_p.h"
 #include "libopenh264encoder_p.h"
 #include "libvpxencoder_p.h"
 #include "libvpxvp9encoder_p.h"
 #include "libwebpencoder_p.h"
 #include "libx264encoder_p.h"
+#include "rendernodecontext_p.h"
 
 #include "logging_frame_statistics.h"
 #if defined(Q_OS_OPENBSD)
@@ -56,15 +58,8 @@ void PipeWireProduce::initialize()
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
 
-    // The check in supportsHardwareEncoding() is insufficient to fully
-    // determine if we actually support hardware encoding the current stream,
-    // but to determine that we need the stream size, which we don't get until
-    // after we've created the stream, but creating the stream sets important
-    // parameters that require the correct usage hint to be set. So use the
-    // insufficient check to set the hint, assuming that we still get a working
-    // stream when we use the wrong hint with software encoding.
-    m_stream->setUsageHint(Encoder::supportsHardwareEncoding() ? PipeWireSourceStream::UsageHint::EncodeHardware
-                                                               : PipeWireSourceStream::UsageHint::EncodeSoftware);
+    m_stream->setUsageHint(RenderNodeResolver::resolveForCurrentSession().hasRenderNode() ? PipeWireSourceStream::UsageHint::EncodeHardware
+                                                                                          : PipeWireSourceStream::UsageHint::EncodeSoftware);
 
     bool created = m_stream->createStream(m_nodeId, m_fd);
     if (!created || !m_stream->error().isEmpty()) {
@@ -400,6 +395,14 @@ std::unique_ptr<Encoder> PipeWireProduce::makeEncoder()
     case PipeWireBaseEncodedStream::H264Baseline:
     case PipeWireBaseEncodedStream::H264Main: {
         auto profile = m_encoderType == PipeWireBaseEncodedStream::H264Baseline ? Encoder::H264Profile::Baseline : Encoder::H264Profile::Main;
+
+        // Prefer Vulkan if requested/available (good for NVIDIA with Vulkan Video)
+        if (forcedEncoder.isNull() || forcedEncoder == u"h264_vulkan") {
+            auto encoder = std::make_unique<H264VulkanEncoder>(profile, this);
+            if (setupEncoder(encoder.get(), size)) {
+                return encoder;
+            }
+        }
 
         if (forcedEncoder.isNull() || forcedEncoder == u"h264_vaapi") {
             auto encoder = std::make_unique<H264VAAPIEncoder>(profile, this);
