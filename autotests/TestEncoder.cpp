@@ -85,6 +85,10 @@ private Q_SLOTS:
         }
 
         QVERIFY(encoder->initialize(QSize(512, 512)));
+
+        if (avcodecEncoder.contains("264")) {
+            QCOMPARE(encoder->avCodecContext()->level, Encoder::H264CompatibilityLevel);
+        }
     }
 
 private:

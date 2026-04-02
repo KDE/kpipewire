@@ -153,6 +153,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
         m_avCodecContext->profile = AV_PROFILE_H264_HIGH;
         break;
     }
+    m_avCodecContext->level = Encoder::H264CompatibilityLevel;
 
     AVDictionary *options = buildEncodingOptions();
     maybeLogOptions(options);

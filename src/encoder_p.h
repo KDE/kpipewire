@@ -35,6 +35,7 @@ class Encoder : public QObject
     Q_OBJECT
 public:
     enum class H264Profile { Baseline, Main, High };
+    static constexpr int H264CompatibilityLevel = 40;
 
     /**
      * Constructor.
