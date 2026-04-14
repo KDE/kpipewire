@@ -32,7 +32,7 @@ GifEncoder::GifEncoder(PipeWireProduce *produce)
 
 bool GifEncoder::initialize(const QSize &size)
 {
-    m_filterGraphToParse = u"split[v1][v2];[v1]palettegen=stats_mode=single[palette];[v2][palette]paletteuse=new=1:dither=sierra2_4a"_s;
+    m_filterGraphToParse = u"split[v1][v2];[v1]palettegen=stats_mode=single[palette];[v2][palette]paletteuse=new=0:dither=bayer:bayer_scale=5:diff_mode=1"_s;
     createFilterGraph(size);
 
     auto codec = avcodec_find_encoder_by_name("gif");
