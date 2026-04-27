@@ -9,6 +9,7 @@
 
 #include "libopenh264encoder_p.h"
 
+#include <QScopeGuard>
 #include <QSize>
 #include <QThread>
 
@@ -39,7 +40,28 @@ LibOpenH264Encoder::LibOpenH264Encoder(H264Profile profile, PipeWireProduce *pro
 
 bool LibOpenH264Encoder::initialize(const QSize &size)
 {
-    createFilterGraph(size);
+    if (initializeWithLevel(size, 60)) {
+        return true;
+    }
+
+    qCWarning(PIPEWIRERECORD_LOGGING) << "Retrying libopenh264 initialization without forcing an H.264 level";
+    return initializeWithLevel(size, AV_LEVEL_UNKNOWN);
+}
+
+bool LibOpenH264Encoder::initializeWithLevel(const QSize &size, int level)
+{
+    auto cleanup = qScopeGuard([&]() {
+        if (m_avFilterGraph) {
+            avfilter_graph_free(&m_avFilterGraph);
+        }
+        if (m_avCodecContext) {
+            avcodec_free_context(&m_avCodecContext);
+        }
+    });
+
+    if (!createFilterGraph(size)) {
+        return false;
+    }
 
     auto codec = avcodec_find_encoder_by_name("libopenh264");
     if (!codec) {
@@ -60,6 +82,9 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
+    if (level != AV_LEVEL_UNKNOWN) {
+        m_avCodecContext->level = level;
+    }
 
     if (m_quality) {
         // "q" here stands for "quantization", but that effectively impacts quality.
@@ -92,6 +117,7 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
         return false;
     }
 
+    cleanup.dismiss();
     return true;
 }
 

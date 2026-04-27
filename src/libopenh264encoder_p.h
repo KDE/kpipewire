@@ -24,5 +24,7 @@ protected:
     AVDictionary *buildEncodingOptions() override;
 
 private:
+    bool initializeWithLevel(const QSize &size, int level);
+
     H264Profile m_profile = H264Profile::Main;
 };

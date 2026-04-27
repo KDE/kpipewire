@@ -10,6 +10,7 @@
 
 #include <format>
 
+#include <QScopeGuard>
 #include <QSize>
 
 extern "C" {
@@ -36,6 +37,31 @@ H264VAAPIEncoder::H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce
 
 bool H264VAAPIEncoder::initialize(const QSize &size)
 {
+    if (initializeWithLevel(size, 60)) {
+        return true;
+    }
+
+    qCWarning(PIPEWIRERECORD_LOGGING) << "Retrying h264_vaapi initialization without forcing an H.264 level";
+    return initializeWithLevel(size, AV_LEVEL_UNKNOWN);
+}
+
+bool H264VAAPIEncoder::initializeWithLevel(const QSize &size, int level)
+{
+    auto cleanup = qScopeGuard([&]() {
+        if (m_avFilterGraph) {
+            avfilter_graph_free(&m_avFilterGraph);
+        }
+        if (m_avCodecContext) {
+            avcodec_free_context(&m_avCodecContext);
+        }
+        if (m_drmFramesContext) {
+            av_buffer_unref(&m_drmFramesContext);
+        }
+        if (m_drmContext) {
+            av_buffer_unref(&m_drmContext);
+        }
+    });
+
     if (!createDrmContext(size)) {
         return false;
     }
@@ -135,6 +161,9 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_VAAPI;
     m_avCodecContext->time_base = AVRational{1, 1000};
+    if (level != AV_LEVEL_UNKNOWN) {
+        m_avCodecContext->level = level;
+    }
 
     if (m_quality) {
         m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
@@ -164,10 +193,11 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     m_avCodecContext->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(m_outputFilter));
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
 
+    cleanup.dismiss();
     return true;
 }
 

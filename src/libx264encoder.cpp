@@ -8,6 +8,7 @@
 
 #include "libx264encoder_p.h"
 
+#include <QScopeGuard>
 #include <QSize>
 #include <QThread>
 
@@ -42,7 +43,28 @@ LibX264Encoder::LibX264Encoder(H264Profile profile, PipeWireProduce *produce)
 
 bool LibX264Encoder::initialize(const QSize &size)
 {
-    createFilterGraph(size);
+    if (initializeWithLevel(size, 60)) {
+        return true;
+    }
+
+    qCWarning(PIPEWIRERECORD_LOGGING) << "Retrying libx264 initialization without forcing an H.264 level";
+    return initializeWithLevel(size, AV_LEVEL_UNKNOWN);
+}
+
+bool LibX264Encoder::initializeWithLevel(const QSize &size, int level)
+{
+    auto cleanup = qScopeGuard([&]() {
+        if (m_avFilterGraph) {
+            avfilter_graph_free(&m_avFilterGraph);
+        }
+        if (m_avCodecContext) {
+            avcodec_free_context(&m_avCodecContext);
+        }
+    });
+
+    if (!createFilterGraph(size)) {
+        return false;
+    }
 
     auto codec = avcodec_find_encoder_by_name("libx264");
     if (!codec) {
@@ -67,6 +89,9 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
+    if (level != AV_LEVEL_UNKNOWN) {
+        m_avCodecContext->level = level;
+    }
 
     switch (m_profile) {
     case H264Profile::Baseline:
@@ -88,6 +113,7 @@ bool LibX264Encoder::initialize(const QSize &size)
         return false;
     }
 
+    cleanup.dismiss();
     return true;
 }
 
