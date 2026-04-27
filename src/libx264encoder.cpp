@@ -67,6 +67,7 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
+    m_avCodecContext->level = 6;
 
     switch (m_profile) {
     case H264Profile::Baseline:
