@@ -67,6 +67,9 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
+    if (m_produce->maxFramerate().isValid()) {
+        m_avCodecContext->framerate = AVRational(m_produce->maxFramerate().numerator, m_produce->maxFramerate().denominator);
+    }
 
     switch (m_profile) {
     case H264Profile::Baseline:
