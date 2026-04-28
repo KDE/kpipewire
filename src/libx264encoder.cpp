@@ -61,8 +61,8 @@ bool LibX264Encoder::initialize(const QSize &size)
     // ensure we don't get errors, we need to ensure the size we set here is
     // even. We also insert a pad filter into the filter chain above to ensure
     // we don't end up padding with garbage.
-    m_avCodecContext->width = std::ceil(size.width() / 2) * 2;
-    m_avCodecContext->height = std::ceil(size.height() / 2) * 2;
+    m_avCodecContext->width = std::ceil(size.width() / 2.0) * 2;
+    m_avCodecContext->height = std::ceil(size.height() / 2.0) * 2;
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
