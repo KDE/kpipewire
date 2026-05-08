@@ -163,8 +163,8 @@ VADisplay VaapiUtils::openDevice(int *fd, const QByteArray &path)
         return NULL;
     }
 
-    qCInfo(PIPEWIREVAAPI_LOGGING) << "VAAPI: API version" << major << "." << minor;
-    qCInfo(PIPEWIREVAAPI_LOGGING) << "VAAPI: Display initialized";
+    qCDebug(PIPEWIREVAAPI_LOGGING) << "VAAPI: API version" << major << "." << minor;
+    qCDebug(PIPEWIREVAAPI_LOGGING) << "VAAPI: Display initialized";
 
     return vaDpy;
 }

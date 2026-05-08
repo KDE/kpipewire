@@ -222,7 +222,7 @@ void Encoder::maybeLogOptions(AVDictionary *options)
     if (PIPEWIRERECORD_LOGGING().isInfoEnabled()) {
         char *buffer = NULL;
         av_dict_get_string(options, &buffer, '=', ',');
-        qCInfo(PIPEWIRERECORD_LOGGING) << "Using encoding options:" << buffer;
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Using encoding options:" << buffer;
         av_freep(&buffer);
     }
 }
