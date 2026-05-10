@@ -51,6 +51,7 @@ bool LibWebPEncoder::initialize(const QSize &size)
     m_avCodecContext->time_base = AVRational{1, 1000};
 
     AVDictionary *options = nullptr;
+    m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
@@ -61,5 +62,9 @@ bool LibWebPEncoder::initialize(const QSize &size)
 
 int LibWebPEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
 {
-    return quality.value_or(-1); // Already 0-100. -1 resets to default.
+    // AVCodecContext::global_quality uses the scale of MPEG-1/2/4 qscale.
+    // FFmpeg will convert it to a 0-100 scale internally.
+    // 100 is maximum quality and 75 is default quality.
+    // FFmpeg will use the default quality if global_quality is -1.
+    return quality.has_value() ? quality.value() * FF_QP2LAMBDA : -1;
 }
