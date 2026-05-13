@@ -169,9 +169,6 @@ AVCodecContext *Encoder::avCodecContext() const
 void Encoder::setQuality(std::optional<quint8> quality)
 {
     m_quality = quality;
-    if (m_avCodecContext) {
-        m_avCodecContext->global_quality = percentageToAbsoluteQuality(quality);
-    }
 }
 
 bool Encoder::supportsHardwareEncoding()
@@ -343,6 +340,15 @@ HardwareEncoder::~HardwareEncoder()
 
     if (m_drmContext) {
         av_free(m_drmContext);
+    }
+}
+
+void HardwareEncoder::setQuality(std::optional<quint8> quality)
+{
+    Encoder::setQuality(quality);
+    if (m_avCodecContext) {
+        // For now we assume all hardware encoders are FFmpeg VA-API encoders.
+        m_avCodecContext->global_quality = percentageToAbsoluteQuality(quality);
     }
 }
 
