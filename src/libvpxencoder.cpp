@@ -49,13 +49,6 @@ bool LibVpxEncoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
-    m_avCodecContext->global_quality = 35;
-
-    if (m_quality) {
-        m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
-    } else {
-        m_avCodecContext->global_quality = 35;
-    }
 
     AVDictionary *options = buildEncodingOptions();
     maybeLogOptions(options);

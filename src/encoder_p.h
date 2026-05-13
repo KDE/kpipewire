@@ -94,7 +94,7 @@ public:
      *
      * Internally this will be converted to an encoder-specific quality value.
      */
-    void setQuality(std::optional<quint8> quality);
+    virtual void setQuality(std::optional<quint8> quality);
 
     static bool supportsHardwareEncoding();
 
@@ -159,6 +159,8 @@ class HardwareEncoder : public Encoder
 public:
     HardwareEncoder(PipeWireProduce *produce);
     ~HardwareEncoder() override;
+
+    void setQuality(std::optional<quint8> quality) override;
 
     bool filterFrame(const PipeWireFrame &frame) override;
 

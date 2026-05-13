@@ -71,6 +71,14 @@ int LibWebPEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &qua
     return quality.has_value() ? quality.value() * FF_QP2LAMBDA : -1;
 }
 
+void LibWebPEncoder::setQuality(std::optional<quint8> quality)
+{
+    SoftwareEncoder::setQuality(quality);
+    if (m_avCodecContext) {
+        m_avCodecContext->global_quality = percentageToAbsoluteQuality(quality);
+    }
+}
+
 AVDictionary *LibWebPEncoder::buildEncodingOptions()
 {
     AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
