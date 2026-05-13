@@ -105,6 +105,25 @@ AVDictionary *LibX264Encoder::buildEncodingOptions()
 {
     AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
 
+    switch (m_encodingPreference) {
+    case PipeWireBaseEncodedStream::EncodingPreference::NoPreference:
+        av_dict_set(&options, "preset", "veryfast", 0);
+        break;
+    case PipeWireBaseEncodedStream::EncodingPreference::Quality:
+        av_dict_set(&options, "preset", "medium", 0);
+        break;
+    case PipeWireBaseEncodedStream::EncodingPreference::Speed:
+        av_dict_set(&options, "preset", "ultrafast", 0);
+        av_dict_set(&options, "tune", "zerolatency", 0);
+        break;
+    case PipeWireBaseEncodedStream::EncodingPreference::Size:
+        av_dict_set(&options, "preset", "slow", 0);
+        break;
+    default: //  Same as NoPreference
+        av_dict_set(&options, "preset", "veryfast", 0);
+        break;
+    }
+
     // libx264 ignores the AVCodecContext global_quality / qscale fields and
     // requires CRF to be passed as a private option for constant-quality mode.
     const int crf = m_quality ? percentageToAbsoluteQuality(m_quality) : 35;
