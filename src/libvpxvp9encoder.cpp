@@ -19,6 +19,7 @@ extern "C" {
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/pixfmt.h>
+#include <libavutil/opt.h>
 }
 
 #include "logging_record.h"
@@ -60,6 +61,8 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
 
     m_avCodecContext->gop_size = fps * 2;
 
+    setQuality(m_quality);
+
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
@@ -68,14 +71,28 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
     return true;
 }
 
-int LibVpxVp9Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
-{
-    if (!quality) {
-        return -1;
-    }
 
-    constexpr int MinQuality = 63;
-    return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
+void LibVpxVp9Encoder::setQuality(std::optional<quint8> quality)
+{
+    SoftwareEncoder::setQuality(quality);
+    // AVCodecContext::priv_data is where the encoder specific options are.
+    // Naturally, you can't use the C API of the private data object and using
+    // a private data object directly to set options seems like a bad idea.
+    // However, you can still set the options by setting options on the
+    // AVCodecContext object with the AV_OPT_SEARCH_CHILDREN search flag.
+    if (!m_avCodecContext) {
+        return;
+    }
+    // Lower crf is higher quality. Max 0, min 63. libvpx-vp9 doesn't use global_quality.
+    int crf = 31;
+    if (m_quality) {
+        constexpr int MinQuality = 63;
+        crf = std::max(1, int(MinQuality - (quality.value() / 100.0) * MinQuality));
+    }
+    // libvpx-vp9 crf takes an int
+    av_opt_set_int(m_avCodecContext, "qmin", std::clamp(crf / 2, 0, crf), AV_OPT_SEARCH_CHILDREN);
+    av_opt_set_int(m_avCodecContext, "qmax", std::clamp(int(crf * 1.5), crf, 63), AV_OPT_SEARCH_CHILDREN);
+    av_opt_set_int(m_avCodecContext, "crf", crf, AV_OPT_SEARCH_CHILDREN);
 }
 
 AVDictionary *LibVpxVp9Encoder::buildEncodingOptions()
@@ -84,16 +101,6 @@ AVDictionary *LibVpxVp9Encoder::buildEncodingOptions()
 
     // We're probably capturing a screen
     av_dict_set(&options, "tune-content", "screen", 0);
-
-    // Lower crf is higher quality. Max 0, min 63. libvpx-vp9 doesn't use global_quality.
-    int crf = 31;
-    if (m_quality) {
-        crf = percentageToAbsoluteQuality(m_quality);
-    }
-
-    av_dict_set_int(&options, "qmin", std::clamp(crf / 2, 0, crf), 0);
-    av_dict_set_int(&options, "qmax", std::clamp(int(crf * 1.5), crf, 63), 0);
-    av_dict_set_int(&options, "crf", crf, 0);
 
     // 0-4 are for Video-On-Demand with the good or best deadline.
     // Don't use best, it's not worth it.

@@ -20,6 +20,5 @@ public:
     void setQuality(std::optional<quint8> quality) override;
 
 protected:
-    int percentageToAbsoluteQuality(const std::optional<quint8> &quality) override;
     AVDictionary *buildEncodingOptions() override;
 };

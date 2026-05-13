@@ -71,8 +71,3 @@ std::pair<int, int> GifEncoder::encodeFrame(int maximumFrames)
     av_log_set_level(level);
     return ret;
 }
-
-int GifEncoder::percentageToAbsoluteQuality([[maybe_unused]] const std::optional<quint8> &quality)
-{
-    return -1; // Not possible to set quality
-}

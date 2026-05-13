@@ -103,7 +103,6 @@ public:
     void setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange);
 
 protected:
-    virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
     virtual AVDictionary *buildEncodingOptions();
     void maybeLogOptions(AVDictionary *options);
 
@@ -186,6 +185,14 @@ protected:
      * @return true if the contexts were successfully created, false if not.
      */
     bool createDrmContext(const QSize &size);
+    /**
+     * @param quality The quality level for the encoder.
+     * 
+     * @return Integer representing the quality level.
+     * VA-API encoders don't use this value the same way as each other.
+     * Each of them must have their own implementation of this function.
+     */
+    virtual int percentageToAbsoluteQuality(const std::optional<quint8> &quality) = 0;
 
     AVBufferRef *m_drmContext = nullptr;
     AVBufferRef *m_drmFramesContext = nullptr;

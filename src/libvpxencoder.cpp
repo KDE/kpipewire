@@ -61,16 +61,6 @@ bool LibVpxEncoder::initialize(const QSize &size)
     return true;
 }
 
-int LibVpxEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
-{
-    if (!quality) {
-        return -1;
-    }
-
-    constexpr int MinQuality = 63;
-    return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
-}
-
 AVDictionary *LibVpxEncoder::buildEncodingOptions()
 {
     AVDictionary *options = SoftwareEncoder::buildEncodingOptions();

@@ -16,6 +16,7 @@ extern "C" {
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/pixfmt.h>
+#include <libavutil/opt.h>
 }
 
 #include "logging_record.h"
@@ -80,6 +81,7 @@ bool LibX264Encoder::initialize(const QSize &size)
         break;
     }
 
+    setQuality(m_quality);
     AVDictionary *options = buildEncodingOptions();
     maybeLogOptions(options);
 
@@ -91,14 +93,18 @@ bool LibX264Encoder::initialize(const QSize &size)
     return true;
 }
 
-int LibX264Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
+void LibX264Encoder::setQuality(std::optional<quint8> quality)
 {
-    if (!quality) {
-        return -1;
+    SoftwareEncoder::setQuality(quality);
+    if (!m_avCodecContext) {
+        return;
     }
-
-    constexpr int MinQuality = 51 + 6 * 6;
-    return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
+    // libx264 ignores the AVCodecContext global_quality / qscale fields and
+    // requires CRF to be passed as a private option for constant-quality mode.
+    constexpr qreal MinQuality = 51 + 6 * 6;
+    const qreal crf = m_quality ? std::max(1.0, (MinQuality - (quality.value() / 100.0) * MinQuality)) : 35;
+    // libx264 crf takes a float
+    av_opt_set_double(m_avCodecContext, "crf", crf, AV_OPT_SEARCH_CHILDREN);
 }
 
 AVDictionary *LibX264Encoder::buildEncodingOptions()
@@ -123,11 +129,6 @@ AVDictionary *LibX264Encoder::buildEncodingOptions()
         av_dict_set(&options, "preset", "veryfast", 0);
         break;
     }
-
-    // libx264 ignores the AVCodecContext global_quality / qscale fields and
-    // requires CRF to be passed as a private option for constant-quality mode.
-    const int crf = m_quality ? percentageToAbsoluteQuality(m_quality) : 35;
-    av_dict_set_int(&options, "crf", crf, 0);
 
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);

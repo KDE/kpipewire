@@ -61,10 +61,7 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    if (m_quality) {
-        // "q" here stands for "quantization", but that effectively impacts quality.
-        m_avCodecContext->qmin = m_avCodecContext->qmax = percentageToAbsoluteQuality(m_quality);
-    }
+    setQuality(m_quality);
 
     switch (m_profile) {
     case H264Profile::Baseline:
@@ -95,14 +92,15 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
     return true;
 }
 
-int LibOpenH264Encoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
+void LibOpenH264Encoder::setQuality(std::optional<quint8> quality)
 {
-    if (!quality) {
-        return -1;
+    SoftwareEncoder::setQuality(quality);
+    if (!m_avCodecContext) {
+        return;
     }
-
-    // 1-51 (incl.), lower is better
-    return 51 - (m_quality.value() / 100.0) * 50;
+    // "q" here stands for "quantization", but that effectively impacts quality.
+    // 1-51 (incl.), lower is higher quality
+    m_avCodecContext->qmin = m_avCodecContext->qmax = quality ? 51 - (quality.value() / 100.0) * 50 : -1;
 }
 
 AVDictionary *LibOpenH264Encoder::buildEncodingOptions()
