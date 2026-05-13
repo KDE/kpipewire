@@ -171,7 +171,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     return true;
 }
 
-int H264VAAPIEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
+int H264VAAPIEncoder::percentageToAbsoluteQuality(std::optional<quint8> quality)
 {
     if (!quality) {
         return -1;

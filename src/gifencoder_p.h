@@ -17,7 +17,4 @@ public:
 
     bool initialize(const QSize &size) override;
     std::pair<int, int> encodeFrame(int maximumFrames) override;
-
-protected:
-    int percentageToAbsoluteQuality(const std::optional<quint8> &quality) override;
 };

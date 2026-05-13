@@ -50,7 +50,7 @@ bool LibWebPEncoder::initialize(const QSize &size)
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUVA420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
+    setQuality(m_quality);
     AVDictionary *options = buildEncodingOptions();
     maybeLogOptions(options);
 
@@ -62,21 +62,17 @@ bool LibWebPEncoder::initialize(const QSize &size)
     return true;
 }
 
-int LibWebPEncoder::percentageToAbsoluteQuality(const std::optional<quint8> &quality)
+void LibWebPEncoder::setQuality(std::optional<quint8> quality)
 {
+    SoftwareEncoder::setQuality(quality);
+    if (!m_avCodecContext) {
+        return;
+    }
     // AVCodecContext::global_quality uses the scale of MPEG-1/2/4 qscale.
     // FFmpeg will convert it to a 0-100 scale internally.
     // 100 is maximum quality and 75 is default quality.
     // FFmpeg will use the default quality if global_quality is -1.
-    return quality.has_value() ? quality.value() * FF_QP2LAMBDA : -1;
-}
-
-void LibWebPEncoder::setQuality(std::optional<quint8> quality)
-{
-    SoftwareEncoder::setQuality(quality);
-    if (m_avCodecContext) {
-        m_avCodecContext->global_quality = percentageToAbsoluteQuality(quality);
-    }
+    m_avCodecContext->global_quality = quality.has_value() ? quality.value() * FF_QP2LAMBDA : -1;
 }
 
 AVDictionary *LibWebPEncoder::buildEncodingOptions()
