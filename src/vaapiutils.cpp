@@ -4,8 +4,8 @@
     SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
 */
 
-#include "vaapiutils_p.h"
 #include "rendernodecontext_p.h"
+#include "vaapiutils_p.h"
 #include <logging_vaapi.h>
 
 extern "C" {
@@ -80,6 +80,54 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
     closeDevice(&drmFd, vaDpy);
 
     return ret;
+}
+
+bool VaapiUtils::supportsVideoProcessing()
+{
+    if (m_devicePath.isEmpty()) {
+        return false;
+    }
+    if (m_cacheSupportsVideoProcessing.has_value()) {
+        return *m_cacheSupportsVideoProcessing;
+    }
+
+    int drmFd = -1;
+    VADisplay vaDpy = openDevice(&drmFd, m_devicePath);
+    if (!vaDpy) {
+        m_cacheSupportsVideoProcessing = false;
+        return false;
+    }
+
+    // Check if VideoProc is available as an entrypoint for any profile
+    // We use a common profile to query; if VideoProc is available at all,
+    // it will show up here.
+    VAProfile procProfile = VAProfileNone;
+    VAEntrypoint entrypoint = VAEntrypointVideoProc;
+    int numEntrypoints = 0;
+
+    VAStatus status = vaQueryConfigEntrypoints(vaDpy, procProfile, nullptr, &numEntrypoints);
+    if (status != VA_STATUS_SUCCESS || numEntrypoints <= 0) {
+        closeDevice(&drmFd, vaDpy);
+        qCDebug(PIPEWIREVAAPI_LOGGING) << "VAAPI: VideoProc entrypoint query failed";
+        m_cacheSupportsVideoProcessing = false;
+        return false;
+    }
+
+    VAEntrypoint entrypoints[numEntrypoints];
+    status = vaQueryConfigEntrypoints(vaDpy, procProfile, entrypoints, &numEntrypoints);
+    bool hasVideoProc = false;
+    for (int i = 0; i < numEntrypoints; ++i) {
+        if (entrypoints[i] == VAEntrypointVideoProc) {
+            hasVideoProc = true;
+            break;
+        }
+    }
+
+    closeDevice(&drmFd, vaDpy);
+
+    qCDebug(PIPEWIREVAAPI_LOGGING) << "VAAPI: VideoProc entrypoint" << (hasVideoProc ? "supported" : "not supported");
+    m_cacheSupportsVideoProcessing = hasVideoProc;
+    return hasVideoProc;
 }
 
 QByteArray VaapiUtils::devicePath()

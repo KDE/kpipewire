@@ -27,6 +27,7 @@ public:
     ~VaapiUtils();
 
     bool supportsProfile(VAProfile profile);
+    bool supportsVideoProcessing();
 
     QByteArray devicePath();
 
@@ -49,4 +50,5 @@ private:
 
     mutable QSize m_minSize;
     mutable QSize m_maxSize = QSize{std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
+    mutable std::optional<bool> m_cacheSupportsVideoProcessing;
 };

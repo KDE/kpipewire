@@ -7,7 +7,6 @@
 */
 
 #pragma once
-
 #include "encoder_p.h"
 
 /**
@@ -19,6 +18,7 @@ public:
     H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce);
 
     bool initialize(const QSize &size) override;
+    bool filterFrame(const PipeWireFrame &frame) override;
 
 protected:
     int percentageToAbsoluteQuality(std::optional<quint8> quality) override;
@@ -26,4 +26,6 @@ protected:
 
 private:
     H264Profile m_profile = H264Profile::Main;
+    bool m_useSoftwareConversion = false;
+    DmaBufHandler m_dmaBufHandler;
 };

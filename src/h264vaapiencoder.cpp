@@ -10,15 +10,19 @@
 
 #include <format>
 
+#include <QImage>
 #include <QSize>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 }
 
 #include "logging_record.h"
+#include "vaapiutils_p.h"
 
 #ifndef AV_PROFILE_H264_CONSTRAINED_BASELINE // ffmpeg before 8.0
 #define AV_PROFILE_H264_CONSTRAINED_BASELINE FF_PROFILE_H264_CONSTRAINED_BASELINE
@@ -40,12 +44,26 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
         return false;
     }
 
+    m_useSoftwareConversion = !VaapiUtils::instance()->supportsVideoProcessing();
+
     m_avFilterGraph = avfilter_graph_alloc();
     if (!m_avFilterGraph) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not create filter graph";
         return false;
     }
 
+    if (m_useSoftwareConversion) {
+        qCDebug(PIPEWIRERECORD_LOGGING) << "VAAPI: VideoProc not supported, using software format conversion path";
+    }
+
+    // Set up the input buffer filter. The input format differs depending on
+    // whether we can use VAAPI VideoProc for format conversion:
+    //
+    // - With VideoProc: input is DRM_PRIME (dmabuf), mapped directly to a
+    //   VAAPI surface and then converted to NV12 via scale_vaapi.
+    // - Without VideoProc: input is NV12 CPU memory, uploaded to a VAAPI
+    //   surface via hwupload. The dmabuf is downloaded and converted in
+    //   filterFrame().
     m_inputFilter = avfilter_graph_alloc_filter(m_avFilterGraph, avfilter_get_by_name("buffer"), "in");
     if (!m_inputFilter) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create the buffer filter";
@@ -57,11 +75,15 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
         qFatal("Failed to allocate memory");
     }
 
-    parameters->format = AV_PIX_FMT_DRM_PRIME;
+    if (m_useSoftwareConversion) {
+        parameters->format = AV_PIX_FMT_NV12;
+    } else {
+        parameters->format = AV_PIX_FMT_DRM_PRIME;
+        parameters->hw_frames_ctx = m_drmFramesContext;
+    }
     parameters->width = size.width();
     parameters->height = size.height();
     parameters->time_base = {1, 1000};
-    parameters->hw_frames_ctx = m_drmFramesContext;
 
     av_buffersrc_parameters_set(m_inputFilter, parameters);
     av_free(parameters);
@@ -97,8 +119,21 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     outputs->pad_idx = 0;
     outputs->next = nullptr;
 
-    const auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? "full"s : "limited"s;
-    const auto filterGraph = std::format("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast:out_range={}", colorRange);
+    const auto filterGraph = [this]() -> std::string {
+        if (m_useSoftwareConversion) {
+            // Software conversion fallback: NV12 CPU frames are uploaded to
+            // VAAPI surfaces for encoding. This path is used when the VAAPI
+            // driver does not support VAEntrypointVideoProc (e.g. NVIDIA
+            // NVDEC/NVENC driver).
+            return "hwupload";
+        } else {
+            // Hardware-accelerated path: map the DRM dmabuf directly to a
+            // VAAPI surface, then use scale_vaapi for pixel format conversion
+            // and color range adjustment.
+            const auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? "full"s : "limited"s;
+            return std::format("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast:out_range={}", colorRange);
+        }
+    }();
 
     ret = avfilter_graph_parse(m_avFilterGraph, filterGraph.data(), outputs, inputs, NULL);
     if (ret < 0) {
@@ -164,10 +199,76 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     m_avCodecContext->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(m_outputFilter));
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
 
+    return true;
+}
+
+bool H264VAAPIEncoder::filterFrame(const PipeWireFrame &frame)
+{
+    if (!m_useSoftwareConversion) {
+        // Hardware conversion path: use the default hardware encoder behavior
+        // that passes the dmabuf directly as a DRM_PRIME frame.
+        return HardwareEncoder::filterFrame(frame);
+    }
+
+    // Software conversion fallback: when the VAAPI driver does not support
+    // VAEntrypointVideoProc, we cannot use scale_vaapi for pixel format
+    // conversion. Instead, download the dmabuf to a CPU buffer, convert to
+    // NV12 via sws_scale, then upload to a VAAPI surface via hwupload.
+
+    if (!frame.dmabuf) {
+        return false;
+    }
+
+    auto attribs = frame.dmabuf.value();
+    QSize size(m_produce->m_stream->size());
+
+    // Download the dmabuf to a QImage (RGBA on CPU)
+    QImage image(size, QImage::Format_RGBA8888_Premultiplied);
+    if (!m_dmaBufHandler.downloadFrame(image, frame)) {
+        m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+        return false;
+    }
+
+    // Allocate an NV12 AVFrame for the upload
+    auto nv12Frame = av_frame_alloc();
+    if (!nv12Frame) {
+        qFatal("Failed to allocate memory");
+    }
+    nv12Frame->format = AV_PIX_FMT_NV12;
+    nv12Frame->width = size.width();
+    nv12Frame->height = size.height();
+    av_frame_get_buffer(nv12Frame, 32);
+
+    // Convert RGBA QImage to NV12 using sws_scale
+    SwsContext *swsCtx =
+        sws_getContext(size.width(), size.height(), AV_PIX_FMT_RGBA, size.width(), size.height(), AV_PIX_FMT_NV12, SWS_BILINEAR, nullptr, nullptr, nullptr);
+    if (!swsCtx) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create sws context for NV12 conversion";
+        av_frame_free(&nv12Frame);
+        return false;
+    }
+
+    const uint8_t *srcData[4] = {image.constBits(), nullptr, nullptr, nullptr};
+    int srcLinesize[4] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
+    sws_scale(swsCtx, srcData, srcLinesize, 0, size.height(), nv12Frame->data, nv12Frame->linesize);
+    sws_freeContext(swsCtx);
+
+    if (frame.presentationTimestamp) {
+        nv12Frame->pts = m_produce->framePts(frame.presentationTimestamp);
+    }
+
+    // Submit the NV12 frame to the filter graph (hwupload will upload it to VAAPI)
+    if (auto result = av_buffersrc_add_frame(m_inputFilter, nv12Frame); result < 0) {
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Failed sending NV12 frame for encoding" << av_err2str(result);
+        av_frame_free(&nv12Frame);
+        return false;
+    }
+
+    av_frame_free(&nv12Frame);
     return true;
 }
 
