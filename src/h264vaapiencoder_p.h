@@ -16,6 +16,7 @@ class H264VAAPIEncoder : public HardwareEncoder
 {
 public:
     H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce);
+    ~H264VAAPIEncoder() override;
 
     bool initialize(const QSize &size) override;
     bool filterFrame(const PipeWireFrame &frame) override;
@@ -28,4 +29,5 @@ private:
     H264Profile m_profile = H264Profile::Main;
     bool m_useSoftwareConversion = false;
     DmaBufHandler m_dmaBufHandler;
+    AVBufferRef *m_vaapiDeviceContext = nullptr;
 };

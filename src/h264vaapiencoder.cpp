@@ -38,6 +38,13 @@ H264VAAPIEncoder::H264VAAPIEncoder(H264Profile profile, PipeWireProduce *produce
 {
 }
 
+H264VAAPIEncoder::~H264VAAPIEncoder()
+{
+    if (m_vaapiDeviceContext) {
+        av_buffer_unref(&m_vaapiDeviceContext);
+    }
+}
+
 bool H264VAAPIEncoder::initialize(const QSize &size)
 {
     if (!createDrmContext(size)) {
@@ -45,6 +52,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     }
 
     m_useSoftwareConversion = !VaapiUtils::instance()->supportsVideoProcessing();
+    qCDebug(PIPEWIRERECORD_LOGGING) << "H264VAAPIEncoder: VideoProc supported =" << !m_useSoftwareConversion;
 
     m_avFilterGraph = avfilter_graph_alloc();
     if (!m_avFilterGraph) {
@@ -119,30 +127,61 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     outputs->pad_idx = 0;
     outputs->next = nullptr;
 
-    const auto filterGraph = [this]() -> std::string {
-        if (m_useSoftwareConversion) {
-            // Software conversion fallback: NV12 CPU frames are uploaded to
-            // VAAPI surfaces for encoding. This path is used when the VAAPI
-            // driver does not support VAEntrypointVideoProc (e.g. NVIDIA
-            // NVDEC/NVENC driver).
-            return "hwupload";
-        } else {
-            // Hardware-accelerated path: map the DRM dmabuf directly to a
-            // VAAPI surface, then use scale_vaapi for pixel format conversion
-            // and color range adjustment.
-            const auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? "full"s : "limited"s;
-            return std::format("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast:out_range={}", colorRange);
+    // Create and configure the filter graph.
+    // For the VPP path: use avfilter_graph_parse to build hwmap+scale_vaapi
+    // For the no-VPP path: manually create hwupload so we can set hw_device_ctx before its init()
+    if (m_useSoftwareConversion) {
+        // No-VPP path: create hwupload filter manually.
+        // hwupload needs a VAAPI device context set before init(), so we
+        // cannot use avfilter_graph_parse() which would call init() too early.
+
+        // Create VAAPI device context
+        auto devicePath = VaapiUtils::instance()->devicePath();
+        int err = av_hwdevice_ctx_create(&m_vaapiDeviceContext, AV_HWDEVICE_TYPE_VAAPI, devicePath.data(), NULL, 0);
+        if (err < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create VAAPI device context:" << av_err2str(err);
+            return false;
         }
-    }();
 
-    ret = avfilter_graph_parse(m_avFilterGraph, filterGraph.data(), outputs, inputs, NULL);
-    if (ret < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
-        return false;
-    }
+        // Create hwupload filter with device context pre-set
+        AVFilterContext *hwuploadFilter = avfilter_graph_alloc_filter(m_avFilterGraph, avfilter_get_by_name("hwupload"), "hwupload");
+        if (!hwuploadFilter) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to create hwupload filter";
+            return false;
+        }
+        hwuploadFilter->hw_device_ctx = av_buffer_ref(m_vaapiDeviceContext);
 
-    for (auto i = 0u; i < m_avFilterGraph->nb_filters; ++i) {
-        m_avFilterGraph->filters[i]->hw_device_ctx = av_buffer_ref(m_drmContext);
+        ret = avfilter_init_str(hwuploadFilter, nullptr);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to init hwupload filter";
+            return false;
+        }
+
+        // Link: buffer -> hwupload -> buffersink
+        ret = avfilter_link(m_inputFilter, 0, hwuploadFilter, 0);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to link buffer to hwupload";
+            return false;
+        }
+        ret = avfilter_link(hwuploadFilter, 0, m_outputFilter, 0);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to link hwupload to buffersink";
+            return false;
+        }
+    } else {
+        // VPP path: use graph parsing for the hwmap+scale_vaapi chain
+        const auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? "full"s : "limited"s;
+        const auto filterGraph = std::format("hwmap=mode=direct:derive_device=vaapi,scale_vaapi=format=nv12:mode=fast:out_range={}", colorRange);
+
+        ret = avfilter_graph_parse(m_avFilterGraph, filterGraph.data(), outputs, inputs, NULL);
+        if (ret < 0) {
+            qCWarning(PIPEWIRERECORD_LOGGING) << "Failed creating filter graph";
+            return false;
+        }
+
+        for (auto i = 0u; i < m_avFilterGraph->nb_filters; ++i) {
+            m_avFilterGraph->filters[i]->hw_device_ctx = av_buffer_ref(m_drmContext);
+        }
     }
 
     ret = avfilter_graph_config(m_avFilterGraph, nullptr);
