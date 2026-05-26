@@ -8,6 +8,7 @@
 
 #include <QByteArray>
 #include <QSize>
+#include <QString>
 
 extern "C" {
 #include <va/va.h>
@@ -28,6 +29,7 @@ public:
 
     bool supportsProfile(VAProfile profile);
     bool supportsVideoProcessing();
+    bool driverSupportsDmaBuf() const;
 
     QByteArray devicePath();
 
@@ -41,12 +43,13 @@ public:
 private:
     static VADisplay openDevice(int *fd, const QByteArray &path);
     static void closeDevice(int *fd, VADisplay dpy);
-    bool supportsH264(const QByteArray &path) const;
+    bool supportsH264(const QByteArray &path);
     void querySizeConstraints(VADisplay dpy) const;
     static bool supportsProfile(VAProfile profile, VADisplay dpy, const QByteArray &path);
     static uint32_t rateControlForProfile(VAProfile profile, VAEntrypoint entrypoint, VADisplay dpy, const QByteArray &path);
 
     QByteArray m_devicePath;
+    mutable QString m_driverName;
 
     mutable QSize m_minSize;
     mutable QSize m_maxSize = QSize{std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};

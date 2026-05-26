@@ -55,7 +55,7 @@ bool VaapiUtils::supportsProfile(VAProfile profile)
     return ret;
 }
 
-bool VaapiUtils::supportsH264(const QByteArray &path) const
+bool VaapiUtils::supportsH264(const QByteArray &path)
 {
     if (path.isEmpty()) {
         return false;
@@ -70,7 +70,8 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
     }
 
     const char *driver = vaQueryVendorString(vaDpy);
-    qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI:" << driver << "in use for device" << path;
+    m_driverName = QString::fromUtf8(driver);
+    qCWarning(PIPEWIREVAAPI_LOGGING) << "VAAPI:" << m_driverName << "in use for device" << path;
 
     ret = supportsProfile(VAProfileH264ConstrainedBaseline, vaDpy, path) || supportsProfile(VAProfileH264Main, vaDpy, path)
         || supportsProfile(VAProfileH264High, vaDpy, path);
@@ -80,6 +81,21 @@ bool VaapiUtils::supportsH264(const QByteArray &path) const
     closeDevice(&drmFd, vaDpy);
 
     return ret;
+}
+
+bool VaapiUtils::driverSupportsDmaBuf() const
+{
+    // The NVIDIA NVDEC/NVENC VA-API driver (nvidia-vaapi-driver) does not
+    // properly support EGL DMA-BUF import required for downloading dmabuf
+    // frames to CPU memory. Using DMA-BUF with this driver causes KWin
+    // screencasting to fail with GL errors.
+    //
+    // Detect NVIDIA by checking the driver vendor string, which contains
+    // "NVDEC" for the nvidia-vaapi-driver.
+    if (m_driverName.contains(QLatin1String("NVDEC"), Qt::CaseInsensitive)) {
+        return false;
+    }
+    return true;
 }
 
 bool VaapiUtils::supportsVideoProcessing()
