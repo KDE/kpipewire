@@ -255,20 +255,32 @@ bool H264VAAPIEncoder::filterFrame(const PipeWireFrame &frame)
 
     // Software conversion fallback: when the VAAPI driver does not support
     // VAEntrypointVideoProc, we cannot use scale_vaapi for pixel format
-    // conversion. Instead, download the dmabuf to a CPU buffer, convert to
-    // NV12 via sws_scale, then upload to a VAAPI surface via hwupload.
+    // conversion. Instead, download the buffer to a CPU-side QImage, convert
+    // to NV12 via sws_scale, then upload to a VAAPI surface via hwupload.
+    //
+    // PipeWire may provide buffers as:
+    //   - DMA-BUF (SPA_DATA_DmaBuf) -> frame.dmabuf is set
+    //   - MemFd/memfd (SPA_DATA_MemFd) -> frame.dataFrame is set
+    //   - MemPtr (SPA_DATA_MemPtr) -> frame.dataFrame is set
+    // Handle all three cases by obtaining a QImage first.
 
-    if (!frame.dmabuf) {
-        return false;
-    }
-
-    auto attribs = frame.dmabuf.value();
     QSize size(m_produce->m_stream->size());
 
-    // Download the dmabuf to a QImage (RGBA on CPU)
-    QImage image(size, QImage::Format_RGBA8888_Premultiplied);
-    if (!m_dmaBufHandler.downloadFrame(image, frame)) {
-        m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+    // Obtain a QImage from whichever buffer type PipeWire provided
+    QImage image;
+    if (frame.dmabuf) {
+        image = QImage(size, QImage::Format_RGBA8888_Premultiplied);
+        if (!m_dmaBufHandler.downloadFrame(image, frame)) {
+            m_produce->m_stream->renegotiateModifierFailed(frame.format, frame.dmabuf->modifier);
+            return false;
+        }
+    } else if (frame.dataFrame) {
+        image = frame.dataFrame->toImage().convertToFormat(QImage::Format_RGBA8888);
+        if (image.isNull()) {
+            return false;
+        }
+    } else {
+        qCDebug(PIPEWIRERECORD_LOGGING) << "No dmabuf or dataFrame available, skipping frame";
         return false;
     }
 
