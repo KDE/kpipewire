@@ -159,18 +159,67 @@ GLenum closestGLType(const QImage &image)
     }
 }
 
+static QImage downloadViaGbm(gbm_device *gbmDevice, const PipeWireFrame &frame)
+{
+    auto &attribs = frame.dmabuf.value();
+    const QSize size(attribs.width, attribs.height);
+
+    gbm_import_fd_data importInfo = {
+        .fd = static_cast<int>(attribs.planes[0].fd),
+        .width = static_cast<uint32_t>(size.width()),
+        .height = static_cast<uint32_t>(size.height()),
+        .stride = static_cast<uint32_t>(attribs.planes[0].stride),
+        .format = GBM_BO_FORMAT_ARGB8888,
+    };
+    gbm_bo *imported = gbm_bo_import(gbmDevice, GBM_BO_IMPORT_FD, &importInfo, GBM_BO_USE_LINEAR);
+    if (!imported) {
+        qCWarning(PIPEWIREDMABUF_LOGGING) << "Failed to import dmabuf via GBM for CPU read:" << strerror(errno);
+        return {};
+    }
+
+    uint32_t mapStride = 0;
+    void *mapData = gbm_bo_map(imported, 0, 0, size.width(), size.height(), GBM_BO_TRANSFER_READ, &mapStride, nullptr);
+    if (!mapData) {
+        qCWarning(PIPEWIREDMABUF_LOGGING) << "Failed to map dmabuf via GBM for CPU read:" << strerror(errno);
+        gbm_bo_destroy(imported);
+        return {};
+    }
+
+    QImage result(static_cast<const uchar *>(mapData), size.width(), size.height(), mapStride, QImage::Format_RGBA8888);
+    result = result.copy(); // Deep copy to detach from mapped memory
+
+    gbm_bo_unmap(imported, mapData);
+    gbm_bo_destroy(imported);
+    return result;
+}
+
 bool DmaBufHandler::downloadFrame(QImage &qimage, const PipeWireFrame &frame)
 {
     Q_ASSERT(frame.dmabuf);
     const QSize streamSize = {frame.dmabuf->width, frame.dmabuf->height};
     Q_ASSERT(qimage.size() == streamSize);
     setupEgl();
+<<<<<<< HEAD
     if (!d->eglInitialized) {
+=======
+    if (!m_eglInitialized) {
+        // Fallback to GBM mmap path even without EGL
+        auto gbmImage = downloadViaGbm(m_gbmDevice, frame);
+        if (!gbmImage.isNull()) {
+            qimage = gbmImage;
+            return true;
+        }
+>>>>>>> ec36ad2 (dmabufhandler: Add GBM fallback when EGL DMA-BUF import fails)
         return false;
     }
 
     if (!eglMakeCurrent(d->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, d->egl.context)) {
         qCWarning(PIPEWIREDMABUF_LOGGING) << "Failed to make context current" << GLHelpers::formatEGLError(eglGetError());
+        auto gbmImage = downloadViaGbm(m_gbmDevice, frame);
+        if (!gbmImage.isNull()) {
+            qimage = gbmImage;
+            return true;
+        }
         return false;
     }
     EGLImageKHR image =
@@ -178,6 +227,11 @@ bool DmaBufHandler::downloadFrame(QImage &qimage, const PipeWireFrame &frame)
 
     if (image == EGL_NO_IMAGE_KHR) {
         qCWarning(PIPEWIREDMABUF_LOGGING) << "Failed to record frame: Error creating EGLImageKHR - " << GLHelpers::formatEGLError(eglGetError());
+        auto gbmImage = downloadViaGbm(m_gbmDevice, frame);
+        if (!gbmImage.isNull()) {
+            qimage = gbmImage;
+            return true;
+        }
         return false;
     }
 
@@ -204,6 +258,12 @@ bool DmaBufHandler::downloadFrame(QImage &qimage, const PipeWireFrame &frame)
     });
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        qCWarning(PIPEWIREDMABUF_LOGGING) << "GL framebuffer incomplete, falling back to GBM mmap";
+        auto gbmImage = downloadViaGbm(m_gbmDevice, frame);
+        if (!gbmImage.isNull()) {
+            qimage = gbmImage;
+            return true;
+        }
         return false;
     }
 
