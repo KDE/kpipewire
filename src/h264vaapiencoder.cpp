@@ -213,7 +213,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     if (m_quality) {
         m_avCodecContext->global_quality = percentageToAbsoluteQuality(m_quality);
     } else {
-        m_avCodecContext->global_quality = 35;
+        m_avCodecContext->global_quality = 20;
     }
 
     switch (m_profile) {
@@ -338,8 +338,6 @@ AVDictionary *H264VAAPIEncoder::buildEncodingOptions()
     AVDictionary *options = HardwareEncoder::buildEncodingOptions();
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);
-    // Disable in-loop filtering
-    av_dict_set(&options, "-flags", "+loop", 0);
 
     return options;
 }
