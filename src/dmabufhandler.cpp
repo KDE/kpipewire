@@ -199,17 +199,13 @@ bool DmaBufHandler::downloadFrame(QImage &qimage, const PipeWireFrame &frame)
     const QSize streamSize = {frame.dmabuf->width, frame.dmabuf->height};
     Q_ASSERT(qimage.size() == streamSize);
     setupEgl();
-<<<<<<< HEAD
     if (!d->eglInitialized) {
-=======
-    if (!m_eglInitialized) {
         // Fallback to GBM mmap path even without EGL
-        auto gbmImage = downloadViaGbm(m_gbmDevice, frame);
+        auto gbmImage = downloadViaGbm(d->gbmDevice, frame);
         if (!gbmImage.isNull()) {
             qimage = gbmImage;
             return true;
         }
->>>>>>> ec36ad2 (dmabufhandler: Add GBM fallback when EGL DMA-BUF import fails)
         return false;
     }
 

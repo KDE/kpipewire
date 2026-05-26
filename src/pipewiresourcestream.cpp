@@ -519,6 +519,18 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
         qCWarning(PIPEWIRE_LOGGING) << "DMABUF is unsupported but hardware encoding is requested, which requires DMABUF import. This will not work correctly.";
     }
 
+    // Some VAAPI drivers (notably the NVIDIA NVDEC/NVENC driver) do not
+    // properly support EGL DMA-BUF import required for KWin screencasting.
+    // Force non-DMA-BUF (MemFd) buffers so the software conversion fallback
+    // path can work with the NVIDIA driver.
+    if (d->m_allowDmaBuf && d->usageHint == UsageHint::EncodeHardware) {
+        auto vaapi = VaapiUtils::instance();
+        if (!vaapi->driverSupportsDmaBuf()) {
+            qCDebug(PIPEWIRE_LOGGING) << "VAAPI driver does not support DMA-BUF, falling back to MemFd buffers for hardware encoding";
+            d->m_allowDmaBuf = false;
+        }
+    }
+
     if (d->m_availableModifiers.isEmpty()) {
         static QHash<spa_video_format, QList<uint64_t>> availableModifiers;
         if (availableModifiers.isEmpty()) {
