@@ -10,7 +10,9 @@
 #include "kpipewiredmabuf_export.h"
 #include "pipewiresourcestream.h"
 #include <QImage>
-#include <epoxy/egl.h>
+#include <memory>
+
+struct DmaBufHandlerPrivate;
 
 class KPIPEWIREDMABUF_EXPORT DmaBufHandler
 {
@@ -22,15 +24,7 @@ public:
 
 private:
     void setupEgl();
-    bool m_eglInitialized = false;
-    qint32 m_drmFd = 0; // for GBM buffer mmap
-    gbm_device *m_gbmDevice = nullptr; // for passed GBM buffer retrieval
-
-    struct EGLStruct {
-        EGLDisplay display = EGL_NO_DISPLAY;
-        EGLContext context = EGL_NO_CONTEXT;
-    };
-    EGLStruct m_egl;
+    std::unique_ptr<DmaBufHandlerPrivate> d;
 };
 
 #endif // DMABUFHANDLER_H
