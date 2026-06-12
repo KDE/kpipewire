@@ -78,12 +78,15 @@ public:
         if (!isInitialized()) {
             qWarning() << "Remember requesting the interface on your desktop file: X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1";
         }
-        Q_ASSERT(isInitialized());
     }
 
     ~ScreencastingPrivate()
     {
-        destroy();
+        // The global is only bound when the compositor announced it,
+        // destroy() on a null proxy would crash.
+        if (isInitialized()) {
+            destroy();
+        }
     }
 
     Screencasting *const q;
@@ -93,9 +96,15 @@ Screencasting::Screencasting(QObject *parent)
     : QObject(parent)
     , d(new ScreencastingPrivate(this))
 {
+    connect(d.data(), &QWaylandClientExtension::activeChanged, this, &Screencasting::initialized);
 }
 
 Screencasting::~Screencasting() = default;
+
+bool Screencasting::isAvailable() const
+{
+    return d->isActive();
+}
 
 ScreencastingStream *Screencasting::createOutputStream(const QString &outputName, Screencasting::CursorMode mode)
 {
@@ -109,7 +118,13 @@ ScreencastingStream *Screencasting::createOutputStream(const QString &outputName
 
 ScreencastingStream *Screencasting::createOutputStream(QScreen *screen, CursorMode mode)
 {
+    if (!d->isActive()) {
+        return nullptr;
+    }
     wl_output *output = (wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
+    if (!output) {
+        return nullptr;
+    }
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(screen->name());
     stream->d->init(d->stream_output(output, mode));
@@ -118,6 +133,9 @@ ScreencastingStream *Screencasting::createOutputStream(QScreen *screen, CursorMo
 
 ScreencastingStream *Screencasting::createRegionStream(const QRect &geometry, qreal scaling, CursorMode mode)
 {
+    if (!d->isActive()) {
+        return nullptr;
+    }
     Q_ASSERT(d->QWaylandClientExtension::version() >= ZKDE_SCREENCAST_UNSTABLE_V1_STREAM_REGION_SINCE_VERSION);
     auto stream = new ScreencastingStream(this);
     stream->setObjectName(QStringLiteral("region-%1,%2 (%3x%4)").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
@@ -127,6 +145,9 @@ ScreencastingStream *Screencasting::createRegionStream(const QRect &geometry, qr
 
 ScreencastingStream *Screencasting::createWindowStream(const QString &uuid, CursorMode mode)
 {
+    if (!d->isActive()) {
+        return nullptr;
+    }
     auto stream = new ScreencastingStream(this);
     stream->d->init(d->stream_window(uuid, mode));
     return stream;
@@ -134,6 +155,9 @@ ScreencastingStream *Screencasting::createWindowStream(const QString &uuid, Curs
 
 ScreencastingStream *Screencasting::createVirtualMonitorStream(const QString &name, const QSize &size, qreal scale, CursorMode mode)
 {
+    if (!d->isActive()) {
+        return nullptr;
+    }
     auto stream = new ScreencastingStream(this);
     stream->d->init(d->stream_virtual_output(name, size.width(), size.height(), wl_fixed_from_double(scale), mode));
     return stream;

@@ -53,6 +53,9 @@ public:
     explicit Screencasting(QObject *parent = nullptr);
     ~Screencasting() override;
 
+    /// Whether the zkde_screencast_unstable_v1 interface was announced by the compositor and is bound
+    bool isAvailable() const;
+
     enum CursorMode {
         Hidden = 1,
         Embedded = 2,
