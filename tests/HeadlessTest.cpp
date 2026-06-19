@@ -7,14 +7,17 @@
 #include <KSignalHandler>
 #include <QCommandLineParser>
 #include <QDebug>
+#include <QEventLoop>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QTimer>
 
 #include "screencasting.h"
 #include "xdp_dbus_remotedesktop_interface.h"
 #include "xdp_dbus_screencast_interface.h"
 #include <DmaBufHandler>
 #include <PipeWireEncodedStream>
+#include <PipeWireRecord>
 #include <PipeWireSourceStream>
 #include <QDBusArgument>
 #include <unistd.h>
@@ -25,6 +28,9 @@ static bool s_encodedStream = false;
 static std::optional<Fraction> s_framerate;
 static std::optional<QByteArray> s_encoder;
 static Screencasting::CursorMode s_cursorMode = Screencasting::Embedded;
+static QString s_recordTo;
+static bool s_systemAudio = false;
+static bool s_microphone = false;
 
 static QString createHandleToken()
 {
@@ -33,6 +39,49 @@ static QString createHandleToken()
 
 void createStream(int nodeId, std::optional<int> fd = {})
 {
+    if (!s_recordTo.isEmpty()) {
+        // only record the first stream, checkPlasmaScreens may report several
+        static bool s_recording = false;
+        if (s_recording) {
+            return;
+        }
+        s_recording = true;
+
+        auto record = new PipeWireRecord(qGuiApp);
+        record->setNodeId(nodeId);
+        if (fd) {
+            record->setFd(*fd);
+        }
+        if (s_framerate) {
+            record->setMaxFramerate(*s_framerate);
+        }
+        record->setOutput(s_recordTo);
+        record->setEncoder(s_recordTo.endsWith(u".webm"_s) ? PipeWireBaseEncodedStream::VP9 : PipeWireBaseEncodedStream::H264Main);
+        record->setRecordSystemAudio(s_systemAudio);
+        record->setRecordMicrophone(s_microphone);
+        QObject::connect(record, &PipeWireRecord::stateChanged, qGuiApp, [record] {
+            switch (record->state()) {
+            case PipeWireRecord::Recording:
+                qDebug() << "Started recording to" << record->output();
+                break;
+            case PipeWireRecord::Rendering:
+                qDebug() << "Stopped recording, flushing remaining frames";
+                break;
+            case PipeWireRecord::Paused:
+                qDebug() << "Recording paused";
+                break;
+            case PipeWireRecord::Idle:
+                qDebug() << "Recording finished, quitting";
+                exit(0);
+                break;
+            }
+        });
+        QObject::connect(KSignalHandler::self(), &KSignalHandler::signalReceived, record, [record] {
+            record->stop();
+        });
+        record->start();
+        return;
+    }
     if (s_encodedStream) {
         auto encoded = new PipeWireEncodedStream(qGuiApp);
         encoded->setNodeId(nodeId);
@@ -119,23 +168,49 @@ void processStream(ScreencastingStream *stream)
     });
 }
 
-void checkPlasmaScreens()
+Screencasting *createScreencasting()
 {
     auto screencasting = new Screencasting(qGuiApp);
+    if (!screencasting->isAvailable()) {
+        // the global might still be on its way, wait for it for a bit before giving up
+        QEventLoop loop;
+        QObject::connect(screencasting, &Screencasting::initialized, &loop, &QEventLoop::quit);
+        QTimer::singleShot(2000, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+    if (!screencasting->isAvailable()) {
+        qWarning() << "zkde_screencast_unstable_v1 is not available, the compositor did not announce it to this client."
+                   << "Make sure a desktop file with X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1 matching this executable is installed.";
+        exit(1);
+    }
+    return screencasting;
+}
+
+void checkPlasmaScreens()
+{
+    auto screencasting = createScreencasting();
     for (auto screen : qGuiApp->screens()) {
         auto stream = screencasting->createOutputStream(screen->name(), s_cursorMode);
+        if (!stream) {
+            qWarning() << "failed to create an output stream for" << screen->name();
+            exit(1);
+        }
         processStream(stream);
     }
 }
 
 void checkPlasmaWorkspace()
 {
-    auto screencasting = new Screencasting(qGuiApp);
+    auto screencasting = createScreencasting();
     QRegion region;
     for (auto screen : qGuiApp->screens()) {
         region |= screen->geometry();
     }
     auto stream = screencasting->createRegionStream(region.boundingRect(), 1, s_cursorMode);
+    if (!stream) {
+        qWarning() << "failed to create a region stream for" << region.boundingRect();
+        exit(1);
+    }
     processStream(stream);
 }
 
@@ -512,12 +587,23 @@ int main(int argc, char **argv)
                                            QStringLiteral("Makes sure a framerate is requested (format 30/1 would mean 30fps)"),
                                            QStringLiteral("num/denom"));
         parser.addOption(streamFramerate);
+        QCommandLineOption recordTo(QStringLiteral("record-to"),
+                                    QStringLiteral("Records to the given file with PipeWireRecord, the encoder is picked by extension (mp4, webm)"),
+                                    QStringLiteral("file"));
+        parser.addOption(recordTo);
+        QCommandLineOption systemAudio(QStringLiteral("system-audio"), QStringLiteral("Records the default audio output monitor (with --record-to)"));
+        parser.addOption(systemAudio);
+        QCommandLineOption microphone(QStringLiteral("microphone"), QStringLiteral("Records the default audio input (with --record-to)"));
+        parser.addOption(microphone);
         parser.addOption(cursorOption);
         parser.addHelpOption();
         parser.process(app);
 
         s_cursorMode = cursorOptions[parser.value(cursorOption).toLower()];
         s_encodedStream = parser.isSet(encodedStream);
+        s_recordTo = parser.value(recordTo);
+        s_systemAudio = parser.isSet(systemAudio);
+        s_microphone = parser.isSet(microphone);
         if (parser.isSet(streamEncoder)) {
             s_encoder = parser.value(streamEncoder).toUtf8();
         }
