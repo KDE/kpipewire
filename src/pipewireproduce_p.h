@@ -32,6 +32,7 @@ extern "C" {
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <vector>
 
 #include "pipewirebaseencodedstream.h"
 #include "pipewiresourcestream.h"
@@ -44,9 +45,19 @@ struct AVPacket;
 struct AVFilterContext;
 struct AVFilterGraph;
 
+class AudioEncoder;
 class CustomAVFrame;
 class Encoder;
+class PipeWireAudioSourceStream;
+struct PipeWireAudioFrame;
 class PipeWireReceiveEncodedThread;
+
+enum class AudioSource {
+    SystemAudio = 1 << 0,
+    Microphone = 1 << 1,
+};
+Q_DECLARE_FLAGS(AudioSources, AudioSource)
+Q_DECLARE_OPERATORS_FOR_FLAGS(AudioSources)
 
 class PipeWireProduce : public QObject
 {
@@ -116,7 +127,12 @@ public:
     // encoder. Split out so the encoder can be swapped safely on a resize.
     void startThreads();
     void stopThreads();
+    void initializeAudioStreams();
     virtual void processFrame(const PipeWireFrame &frame);
+    void processAudioFrame(int input, const PipeWireAudioFrame &frame);
+    void handleAudioStreamStopped(int input);
+    void pushSilence(int input, int64_t sampleCount, quint32 channels, quint32 rate);
+    void padAudioInputToTarget(int input, std::chrono::steady_clock::time_point target);
     void render(const QImage &image, const PipeWireFrame &frame);
     virtual void aboutToEncode(PipeWireFrame &frame)
     {
@@ -151,6 +167,29 @@ public:
     // The source size the current encoder was created for, used to detect
     // mid-stream resizes that require rebuilding the encoder.
     QSize m_encoderSize;
+
+    AudioSources m_audioSources;
+    std::unique_ptr<AudioEncoder> m_audioEncoder;
+    std::vector<std::unique_ptr<PipeWireAudioSourceStream>> m_audioStreams;
+
+    struct AudioInputState {
+        int64_t sampleCount = 0;
+        int64_t trimSamples = 0;
+        bool anchored = false;
+        bool ended = false;
+    };
+    // Only ever accessed from the produce thread, like all media processing.
+    std::vector<AudioInputState> m_audioInputStates;
+    std::unique_ptr<QTimer> m_audioPadTimer;
+
+    // The instant deactivate() was called, on the same clock as recordEpoch().
+    // The final audio padding in destroy() must run up to this moment and not
+    // up to now(): destroy() can be reached seconds later, after the queued
+    // video frames have been flushed (the Rendering phase on a software
+    // encoder), and padding to now() would make the audio track outlast the
+    // video with a tail of silence. Left unset if deactivate() never ran, in
+    // which case destroy() falls back to the current time.
+    std::optional<std::chrono::steady_clock::time_point> m_stopTimepoint;
 
     // The instant the recording started, on CLOCK_MONOTONIC like the video
     // frames' presentation timestamps and the audio capture times. It is
