@@ -77,6 +77,10 @@ public:
     }
 
     virtual void processPacket(AVPacket *packet) = 0;
+    virtual void processAudioPacket(AVPacket *packet)
+    {
+        Q_UNUSED(packet);
+    }
     virtual bool setupFormat()
     {
         return true;

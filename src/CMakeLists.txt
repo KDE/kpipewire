@@ -134,6 +134,9 @@ add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
                             pipewirerecord.cpp
                             pipewireproduce.cpp
                             encoder.cpp
+                            audioencoder.cpp
+                            aacencoder.cpp
+                            libopusencoder.cpp
                             gifencoder.cpp
                             h264vaapiencoder.cpp
                             libx264encoder.cpp
