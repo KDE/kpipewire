@@ -166,6 +166,11 @@ AVCodecContext *Encoder::avCodecContext() const
     return m_avCodecContext;
 }
 
+bool Encoder::supportsAudio() const
+{
+    return true;
+}
+
 void Encoder::setQuality(std::optional<quint8> quality)
 {
     m_quality = quality;

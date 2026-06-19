@@ -30,6 +30,11 @@ GifEncoder::GifEncoder(PipeWireProduce *produce)
 {
 }
 
+bool GifEncoder::supportsAudio() const
+{
+    return false;
+}
+
 bool GifEncoder::initialize(const QSize &size)
 {
     m_filterGraphToParse = u"split[v1][v2];[v1]palettegen=stats_mode=single[palette];[v2][palette]paletteuse=new=0:dither=bayer:bayer_scale=5:diff_mode=1"_s;

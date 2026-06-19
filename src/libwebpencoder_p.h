@@ -16,6 +16,7 @@ public:
     LibWebPEncoder(PipeWireProduce *produce);
 
     bool initialize(const QSize &size) override;
+    bool supportsAudio() const override;
 
     void setQuality(std::optional<quint8> quality) override;
 

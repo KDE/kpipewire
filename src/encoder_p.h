@@ -90,6 +90,14 @@ public:
     AVCodecContext *avCodecContext() const;
 
     /**
+     * Whether the format produced by this encoder can carry an audio track.
+     *
+     * Defaults to true; the image formats that cannot mux audio (GIF, WebP)
+     * override this to return false.
+     */
+    virtual bool supportsAudio() const;
+
+    /**
      * Set the quality level, from 0 (lowest) to 100 (highest).
      *
      * Internally this will be converted to an encoder-specific quality value.

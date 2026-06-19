@@ -17,4 +17,5 @@ public:
 
     bool initialize(const QSize &size) override;
     std::pair<int, int> encodeFrame(int maximumFrames) override;
+    bool supportsAudio() const override;
 };

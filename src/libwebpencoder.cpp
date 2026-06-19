@@ -28,6 +28,11 @@ LibWebPEncoder::LibWebPEncoder(PipeWireProduce *produce)
 {
 }
 
+bool LibWebPEncoder::supportsAudio() const
+{
+    return false;
+}
+
 bool LibWebPEncoder::initialize(const QSize &size)
 {
     createFilterGraph(size);
