@@ -327,6 +327,23 @@ void PipeWireProduce::stopThreads()
     }
 }
 
+std::chrono::steady_clock::time_point PipeWireProduce::recordEpoch()
+{
+    // The epoch is taken from the monotonic clock when the first media is
+    // processed rather than from that media's own timestamp: the first video
+    // frame of a screencast stream carries the render time of the last
+    // screen update, which can be arbitrarily far in the past for a static
+    // screen. All media is delivered on the produce thread: the audio
+    // streams' PipeWire loop is driven by this thread's event loop via the
+    // per-thread PipeWireCore, and video frames are processed here as well.
+    // That single-threaded delivery is also what makes the unsynchronized
+    // m_audioInputStates accesses safe.
+    if (!m_recordEpoch) {
+        m_recordEpoch = std::chrono::steady_clock::now();
+    }
+    return *m_recordEpoch;
+}
+
 void PipeWireProduce::deactivate()
 {
     m_deactivated = true;
@@ -431,13 +448,17 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     }
 
     auto pts = framePts(frame.presentationTimestamp);
-    if (m_previousPts >= 0 && pts <= m_previousPts) {
-        return;
-    }
+    // Always accept the first frame: it carries the initial screen content
+    // and, for a static screen, may be the only frame ever delivered.
+    if (m_previousPts >= 0) {
+        if (pts <= m_previousPts) {
+            return;
+        }
 
-    auto frameTime = 1000.0 / (m_maxFramerate.numerator / m_maxFramerate.denominator);
-    if ((pts - m_previousPts) < frameTime) {
-        return;
+        auto frameTime = 1000.0 / (m_maxFramerate.numerator / m_maxFramerate.denominator);
+        if ((pts - m_previousPts) < frameTime) {
+            return;
+        }
     }
 
     if (m_pendingFilterFrames + 1 > m_maxPendingFrames) {

@@ -148,6 +148,15 @@ public:
     // mid-stream resizes that require rebuilding the encoder.
     QSize m_encoderSize;
 
+    // The instant the recording started, on CLOCK_MONOTONIC like the video
+    // frames' presentation timestamps and the audio capture times. It is
+    // initialized when the first media (video frame or audio buffer) is
+    // processed; media timestamped earlier than it belongs at the very start
+    // of the recording. Only used on the produce thread.
+    std::chrono::steady_clock::time_point recordEpoch();
+
+    std::optional<std::chrono::steady_clock::time_point> m_recordEpoch;
+
     uint m_fd;
     Fraction m_frameRate;
     QSize m_requestedSize;

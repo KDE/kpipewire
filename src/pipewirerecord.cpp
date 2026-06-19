@@ -193,12 +193,17 @@ std::unique_ptr<PipeWireProduce> PipeWireRecord::makeProduce()
 
 int64_t PipeWireRecordProduce::framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
 {
-    const auto current = std::chrono::duration_cast<std::chrono::milliseconds>(*presentationTimestamp).count();
-    if ((*m_avFormatContext->streams)->start_time == 0) {
-        (*m_avFormatContext->streams)->start_time = current;
+    if (!presentationTimestamp) {
+        // No timestamp to place this frame on the timeline; treat it as the
+        // very start rather than dereferencing an empty optional.
+        return 0;
     }
-
-    return current - (*m_avFormatContext->streams)->start_time;
+    // A frame rendered before the recording started (the screencast stream
+    // delivers the current screen content as its first frame, timestamped
+    // with when it was originally rendered) belongs at the very start.
+    const auto pts =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::time_point(*presentationTimestamp) - recordEpoch()).count();
+    return std::max<int64_t>(pts, 0);
 }
 
 void PipeWireRecordProduce::cleanup()
