@@ -56,6 +56,7 @@ ecm_qt_install_logging_categories(
 )
 
 target_sources(KPipeWire PRIVATE
+    pipewireaudiosourcestream.cpp
     pipewirecore.cpp
     pipewiresourceitem.cpp
     pipewiresourcestream.cpp
