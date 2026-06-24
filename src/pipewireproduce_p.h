@@ -22,6 +22,7 @@ extern "C" {
 #include <QPoint>
 #include <QQueue>
 #include <QRunnable>
+#include <QSize>
 #include <QThread>
 #include <QTimer>
 #include <QWaitCondition>
@@ -77,12 +78,33 @@ public:
     {
         return true;
     }
+    // Whether this producer can cope with the source changing size while
+    // streaming. Producers that write a container/muxer (e.g. recording to a
+    // file) cannot, since the format is fixed once the header is written, so
+    // they keep the default and ignore size changes. Live consumers that can
+    // re-key the stream override this to opt into mid-stream encoder rebuilds.
+    virtual bool supportsResize() const
+    {
+        return false;
+    }
     virtual void cleanup()
     {
     }
 
     void stateChanged(pw_stream_state state);
     void setupStream();
+    // Handles the source stream (re)negotiating its parameters. On the first
+    // call it performs the full stream setup; on later calls it rebuilds the
+    // encoder when the source size changed, so a resolution change is handled
+    // mid-stream without tearing down the connection.
+    void handleStreamParametersChanged();
+    // Rebuild the encoder (and its worker threads) to match the current source
+    // size after a mid-stream resize.
+    void reconfigureStream();
+    // Start/stop the passthrough and output worker threads that drive the
+    // encoder. Split out so the encoder can be swapped safely on a resize.
+    void startThreads();
+    void stopThreads();
     virtual void processFrame(const PipeWireFrame &frame);
     void render(const QImage &image, const PipeWireFrame &frame);
     virtual void aboutToEncode(PipeWireFrame &frame)
@@ -110,6 +132,9 @@ public:
     PipeWireBaseEncodedStream::Encoder m_encoderType;
     QByteArray m_encoderName;
     std::unique_ptr<Encoder> m_encoder;
+    // The source size the current encoder was created for, used to detect
+    // mid-stream resizes that require rebuilding the encoder.
+    QSize m_encoderSize;
 
     uint m_fd;
     Fraction m_frameRate;

@@ -78,7 +78,7 @@ void PipeWireProduce::initialize()
         m_stream.reset(nullptr);
         return;
     }
-    connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
+    connect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::handleStreamParametersChanged);
 
     if (PIPEWIRERECORDFRAMESTATS_LOGGING().isDebugEnabled()) {
         m_frameStatisticsTimer = std::make_unique<QTimer>();
@@ -103,6 +103,9 @@ void PipeWireProduce::initialize()
     m_frameRepeatTimer->setSingleShot(true);
     m_frameRepeatTimer->setInterval(100);
     connect(m_frameRepeatTimer.data(), &QTimer::timeout, this, [this]() {
+        if (!m_encoder) {
+            return;
+        }
         auto f = m_lastFrame;
         m_lastFrame = {};
         aboutToEncode(f);
@@ -147,16 +150,32 @@ void PipeWireProduce::setMaxPendingFrames(int newMaxBufferSize)
     m_maxPendingFrames = newMaxBufferSize;
 }
 
+void PipeWireProduce::handleStreamParametersChanged()
+{
+    if (!m_encoder) {
+        // First parameter negotiation: perform the full stream setup.
+        setupStream();
+        return;
+    }
+
+    const auto size = m_stream->size();
+    if (supportsResize() && size.isValid() && !size.isEmpty() && size != m_encoderSize) {
+        // The source was resized while streaming; rebuild the encoder so the
+        // filter graph and hardware frames context match the new size.
+        reconfigureStream();
+    }
+}
+
 void PipeWireProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
-    disconnect(m_stream.get(), &PipeWireSourceStream::streamParametersChanged, this, &PipeWireProduce::setupStream);
 
     m_encoder = makeEncoder();
     if (!m_encoder) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "No encoder could be created";
         return;
     }
+    m_encoderSize = m_stream->size();
 
     connect(m_stream.get(), &PipeWireSourceStream::stateChanged, this, &PipeWireProduce::stateChanged);
     if (!setupFormat()) {
@@ -166,6 +185,42 @@ void PipeWireProduce::setupStream()
 
     connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
 
+    startThreads();
+
+    if (m_frameStatisticsTimer) {
+        m_frameStatisticsTimer->start();
+    }
+    Q_EMIT started();
+}
+
+void PipeWireProduce::reconfigureStream()
+{
+    const auto newSize = m_stream->size();
+    qCDebug(PIPEWIRERECORD_LOGGING) << "Source size changed from" << m_encoderSize << "to" << newSize << "- rebuilding encoder";
+
+    // Stop the worker threads so nothing touches the encoder while we swap it.
+    stopThreads();
+
+    // Frames queued for the old encoder belong to the previous size; drop them
+    // as the new encoder starts from a fresh keyframe.
+    m_pendingFilterFrames = 0;
+    m_pendingEncodeFrames = 0;
+
+    m_encoder = makeEncoder();
+    if (!m_encoder) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to recreate encoder after size change";
+        return;
+    }
+    m_encoderSize = newSize;
+
+    // Note: setupFormat() is deliberately not called here. Only the encoder is
+    // rebuilt; the output format is left untouched. This is gated to consumers
+    // that opt in via supportsResize() and do not write a fixed container.
+    startThreads();
+}
+
+void PipeWireProduce::startThreads()
+{
     m_passthroughThread = std::thread([this]() {
         m_passthroughRunning = true;
         while (m_passthroughRunning) {
@@ -214,11 +269,21 @@ void PipeWireProduce::setupStream()
 #else
     pthread_setname_np(m_outputThread.native_handle(), "PipeWireProduce::output");
 #endif
+}
 
-    if (m_frameStatisticsTimer) {
-        m_frameStatisticsTimer->start();
+void PipeWireProduce::stopThreads()
+{
+    if (m_passthroughThread.joinable()) {
+        m_passthroughRunning = false;
+        m_passthroughCondition.notify_all();
+        m_passthroughThread.join();
     }
-    Q_EMIT started();
+
+    if (m_outputThread.joinable()) {
+        m_outputRunning = false;
+        m_outputCondition.notify_all();
+        m_outputThread.join();
+    }
 }
 
 void PipeWireProduce::deactivate()
@@ -253,17 +318,7 @@ void PipeWireProduce::destroy()
 
     m_frameStatisticsTimer = nullptr;
 
-    if (m_passthroughThread.joinable()) {
-        m_passthroughRunning = false;
-        m_passthroughCondition.notify_all();
-        m_passthroughThread.join();
-    }
-
-    if (m_outputThread.joinable()) {
-        m_outputRunning = false;
-        m_outputCondition.notify_all();
-        m_outputThread.join();
-    }
+    stopThreads();
 
     m_stream.reset();
 
@@ -300,6 +355,10 @@ void PipeWireProduce::setColorRange(PipeWireBaseEncodedStream::ColorRange colorR
 
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 {
+    if (!m_encoder) {
+        return;
+    }
+
     auto f = frame;
 
     m_lastFrame = frame;

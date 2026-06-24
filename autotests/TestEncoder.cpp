@@ -3,6 +3,10 @@
 
 #include <QtTest>
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 }
@@ -85,6 +89,64 @@ private Q_SLOTS:
         }
 
         QVERIFY(encoder->initialize(QSize(512, 512)));
+    }
+
+    // A mid-stream source resize is handled by PipeWireProduce::reconfigureStream(),
+    // which discards the encoder and creates a fresh one for the new size. Verify
+    // every encoder sets up cleanly when (re)created at a second, different size.
+    void testReinitializeAtNewSize()
+    {
+        struct Case {
+            const char *name;
+            QByteArray avcodecEncoder;
+            std::function<std::shared_ptr<Encoder>()> make;
+        };
+        const std::vector<Case> cases = {
+            {"x264",
+             "libx264"_ba,
+             [this] {
+                 return std::shared_ptr<Encoder>(new LibX264Encoder(Encoder::H264Profile::Main, m_produce.get()));
+             }},
+            {"openh264",
+             "libopenh264"_ba,
+             [this] {
+                 return std::shared_ptr<Encoder>(new LibOpenH264Encoder(Encoder::H264Profile::Main, m_produce.get()));
+             }},
+            {"vp8",
+             "libvpx"_ba,
+             [this] {
+                 return std::shared_ptr<Encoder>(new LibVpxEncoder(m_produce.get()));
+             }},
+            {"vp9",
+             "libvpx-vp9"_ba,
+             [this] {
+                 return std::shared_ptr<Encoder>(new LibVpxVp9Encoder(m_produce.get()));
+             }},
+            {"h264_vaapi",
+             "h264_vaapi"_ba,
+             [this] {
+                 return std::shared_ptr<Encoder>(new H264VAAPIEncoder(Encoder::H264Profile::Main, m_produce.get()));
+             }},
+        };
+
+        bool ranAny = false;
+        for (const auto &testCase : cases) {
+            if (!avcodec_find_encoder_by_name(testCase.avcodecEncoder.data())) {
+                continue;
+            }
+            if (testCase.avcodecEncoder.contains("vaapi") && VaapiUtils::instance()->devicePath().isEmpty()) {
+                continue;
+            }
+            // Build at one size, then build a fresh encoder at a different size,
+            // exactly as the mid-stream rebuild does.
+            QVERIFY2(testCase.make()->initialize(QSize(512, 512)), testCase.name);
+            QVERIFY2(testCase.make()->initialize(QSize(1280, 720)), testCase.name);
+            ranAny = true;
+        }
+
+        if (!ranAny) {
+            QSKIP("No usable encoders available to test");
+        }
     }
 
 private:
