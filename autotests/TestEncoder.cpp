@@ -36,6 +36,28 @@ public:
     void processPacket([[maybe_unused]] AVPacket *packet) override
     {
     }
+
+    // Expose the resize state reset and let the test drive the members it
+    // clears. In production these are set up by initialize(), which needs a live
+    // PipeWire stream we don't have here, so prime them by hand.
+    using PipeWireProduce::discardFrameState;
+
+    void primeFrameState()
+    {
+        m_frameRepeatTimer.reset(new QTimer);
+        m_frameRepeatTimer->start(1000);
+        m_lastFrame = {};
+        m_lastFrame.sequential = 7;
+        m_lastFrame.presentationTimestamp = std::chrono::nanoseconds(42);
+        m_pendingFilterFrames = 3;
+        m_pendingEncodeFrames = 2;
+    }
+
+    bool frameStateCleared() const
+    {
+        return !m_lastFrame.sequential.has_value() && !m_lastFrame.presentationTimestamp.has_value() && (!m_frameRepeatTimer || !m_frameRepeatTimer->isActive())
+            && m_pendingFilterFrames == 0 && m_pendingEncodeFrames == 0;
+    }
 };
 
 // This is a pretty simple smoke test that verifies all the encoders can
@@ -147,6 +169,20 @@ private Q_SLOTS:
         if (!ranAny) {
             QSKIP("No usable encoders available to test");
         }
+    }
+
+    // Regression test: on a mid-stream resize the encoder is swapped while the
+    // repeat timer may still be armed with the last frame of the old size. If
+    // that frame survived the swap it would be fed into the new encoder and
+    // allocate a hardware surface of the wrong size. reconfigureStream() must
+    // discard it (and the queued frame counts) via discardFrameState().
+    void testDiscardFrameStateOnResize()
+    {
+        m_produce->primeFrameState();
+        QVERIFY(!m_produce->frameStateCleared());
+
+        m_produce->discardFrameState();
+        QVERIFY(m_produce->frameStateCleared());
     }
 
 private:

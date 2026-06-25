@@ -201,10 +201,9 @@ void PipeWireProduce::reconfigureStream()
     // Stop the worker threads so nothing touches the encoder while we swap it.
     stopThreads();
 
-    // Frames queued for the old encoder belong to the previous size; drop them
-    // as the new encoder starts from a fresh keyframe.
-    m_pendingFilterFrames = 0;
-    m_pendingEncodeFrames = 0;
+    // Drop every bit of frame state tied to the old encoder before swapping, so
+    // nothing of the previous size can reach the new one.
+    discardFrameState();
 
     m_encoder = makeEncoder();
     if (!m_encoder) {
@@ -217,6 +216,21 @@ void PipeWireProduce::reconfigureStream()
     // rebuilt; the output format is left untouched. This is gated to consumers
     // that opt in via supportsResize() and do not write a fixed container.
     startThreads();
+}
+
+void PipeWireProduce::discardFrameState()
+{
+    // The repeat timer may be armed with m_lastFrame holding a frame of the
+    // previous size. If it fired after an encoder swap it would push that stale
+    // frame into the new encoder, allocating a hardware surface of the wrong
+    // size — the exact failure the mid-stream rebuild exists to avoid. Stop it
+    // and drop the frame, along with the queue counters for the old encoder.
+    if (m_frameRepeatTimer) {
+        m_frameRepeatTimer->stop();
+    }
+    m_lastFrame = {};
+    m_pendingFilterFrames = 0;
+    m_pendingEncodeFrames = 0;
 }
 
 void PipeWireProduce::startThreads()

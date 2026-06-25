@@ -101,6 +101,10 @@ public:
     // Rebuild the encoder (and its worker threads) to match the current source
     // size after a mid-stream resize.
     void reconfigureStream();
+    // Drop all frame state (last frame, repeat timer, queue counters) tied to
+    // the encoder being replaced, so nothing of the previous size reaches the
+    // new encoder. Called from reconfigureStream() while the workers are stopped.
+    void discardFrameState();
     // Start/stop the passthrough and output worker threads that drive the
     // encoder. Split out so the encoder can be swapped safely on a resize.
     void startThreads();
