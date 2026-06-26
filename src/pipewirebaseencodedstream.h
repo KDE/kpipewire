@@ -117,8 +117,9 @@ public:
      * Pause recording without tearing down the stream.
      *
      * Unlike stop(), this keeps the PipeWire stream, encoder thread and node id
-     * alive and only stops frame delivery (and thus encoding). Call resume() to
-     * continue. Only has an effect while state() is Recording.
+     * alive. It stops the source stream, but in-flight frames keep being encoded
+     * for a short while before output ceases. Call resume() to continue. Only has
+     * an effect while state() is Recording.
      */
     Q_INVOKABLE void pause();
     /**
