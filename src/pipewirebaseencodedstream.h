@@ -114,6 +114,20 @@ public:
     Q_INVOKABLE void stop();
 
     /**
+     * Pause recording without tearing down the stream.
+     *
+     * Unlike stop(), this keeps the PipeWire stream, encoder thread and node id
+     * alive and only stops frame delivery (and thus encoding). Call resume() to
+     * continue. Only has an effect while state() is Recording.
+     */
+    Q_INVOKABLE void pause();
+    /**
+     * Resume a stream previously paused with pause(). Only has an effect while
+     * state() is Paused.
+     */
+    Q_INVOKABLE void resume();
+
+    /**
      * The quality used for encoding.
      */
     std::optional<quint8> quality() const;
@@ -132,6 +146,7 @@ public:
         Idle, //< ready to get started
         Recording, //< actively recording
         Rendering, //< recording is over but there are still frames being processed.
+        Paused, //< paused via pause(); call resume() to continue receiving frames.
     };
     Q_ENUM(State)
     State state() const;

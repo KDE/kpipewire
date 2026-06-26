@@ -116,6 +116,11 @@ public:
         Q_UNUSED(frame);
     }
 
+    // Pause/resume frame delivery without tearing the stream down (suppress-output).
+    // Runs on the produce thread. Does not set m_deactivated, so it does not trigger
+    // teardown in stateChanged().
+    void setStreamActive(bool active);
+
     void deactivate();
 
     void destroy();

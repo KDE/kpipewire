@@ -224,6 +224,42 @@ void PipeWireBaseEncodedStream::stop()
     Q_EMIT stateChanged();
 }
 
+void PipeWireBaseEncodedStream::pause()
+{
+    if (d->m_state != Recording || !d->m_produceThread || !d->m_produce) {
+        return;
+    }
+
+    auto produce = d->m_produce.get();
+    QMetaObject::invokeMethod(
+        produce,
+        [produce]() {
+            produce->setStreamActive(false);
+        },
+        Qt::QueuedConnection);
+
+    d->m_state = Paused;
+    Q_EMIT stateChanged();
+}
+
+void PipeWireBaseEncodedStream::resume()
+{
+    if (d->m_state != Paused || !d->m_produceThread || !d->m_produce) {
+        return;
+    }
+
+    auto produce = d->m_produce.get();
+    QMetaObject::invokeMethod(
+        produce,
+        [produce]() {
+            produce->setStreamActive(true);
+        },
+        Qt::QueuedConnection);
+
+    d->m_state = Recording;
+    Q_EMIT stateChanged();
+}
+
 std::optional<quint8> PipeWireBaseEncodedStream::quality() const
 {
     return d->m_quality;

@@ -318,6 +318,20 @@ void PipeWireProduce::deactivate()
     }
 }
 
+void PipeWireProduce::setStreamActive(bool active)
+{
+    if (!m_stream) {
+        return;
+    }
+
+    if (!active && m_frameRepeatTimer) {
+        // Stop repeating the last frame so the encoder fully idles while paused.
+        m_frameRepeatTimer->stop();
+    }
+
+    m_stream->setActive(active);
+}
+
 void PipeWireProduce::destroy()
 {
     // Ensure we cleanup the PipeWireSourceStream while in the same thread we
