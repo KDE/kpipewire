@@ -187,6 +187,11 @@ public:
     std::atomic_int m_pendingFilterFrames = 0;
     std::atomic_int m_pendingEncodeFrames = 0;
     std::atomic_int m_processedFrames = 0;
+    // Whether the encoder has ever produced an encoded packet. Used to tell a broken
+    // encoder (frames go in, nothing comes out) from one that is merely keeping up.
+    std::atomic_bool m_anyFrameEncoded = false;
+    // Guards encodingError so it fires at most once per stream.
+    std::atomic_bool m_encodingErrorEmitted = false;
 
     // Controls how many frames we can push into ffmpeg's encoding stream
     std::atomic_int m_maxPendingFrames = 50;
@@ -199,6 +204,9 @@ Q_SIGNALS:
     void producedFrames();
     void started();
     void finished();
+    // Emitted when the encoder fails to start or stops producing output. Forwarded by
+    // PipeWireBaseEncodedStream as errorFound() so consumers can fall back gracefully.
+    void encodingError(const QString &message);
 
 private:
     void initFiltersVaapi();

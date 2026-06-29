@@ -191,6 +191,9 @@ void PipeWireProduce::setupStream()
     m_encoder = makeEncoder();
     if (!m_encoder) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "No encoder could be created";
+        if (!m_encodingErrorEmitted.exchange(true)) {
+            Q_EMIT encodingError(QStringLiteral("No encoder could be created"));
+        }
         return;
     }
     m_encoderSize = m_stream->size();
@@ -198,6 +201,9 @@ void PipeWireProduce::setupStream()
     connect(m_stream.get(), &PipeWireSourceStream::stateChanged, this, &PipeWireProduce::stateChanged);
     if (!setupFormat()) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not set up the producing thread";
+        if (!m_encodingErrorEmitted.exchange(true)) {
+            Q_EMIT encodingError(QStringLiteral("Could not set up the encoder output format"));
+        }
         return;
     }
 
@@ -289,6 +295,9 @@ void PipeWireProduce::startThreads()
             auto received = m_encoder->receivePacket();
             m_pendingEncodeFrames -= received;
             m_processedFrames += received;
+            if (received > 0) {
+                m_anyFrameEncoded = true;
+            }
 
             // Notify the produce thread that the count of processed frames has
             // changed and it can do cleanup if needed, making sure that that
@@ -433,6 +442,12 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
 
     if (m_pendingFilterFrames + 1 > m_maxPendingFrames) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Filter queue is full, dropping frame" << pts;
+        // Frames have backed up to the limit without the encoder ever producing a
+        // single packet: it is not draining (e.g. a hardware encoder that cannot map
+        // its frames). Report it so consumers can fall back instead of showing nothing.
+        if (!m_anyFrameEncoded && !m_encodingErrorEmitted.exchange(true)) {
+            Q_EMIT encodingError(QStringLiteral("Encoder produced no output; the filter queue saturated"));
+        }
         return;
     }
 

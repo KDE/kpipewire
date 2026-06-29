@@ -223,6 +223,10 @@ void PipeWireBaseEncodedStream::start()
         Q_EMIT stateChanged();
     });
 
+    connect(d->m_produce.get(), &PipeWireProduce::encodingError, this, [this](const QString &message) {
+        Q_EMIT errorFound(message);
+    });
+
     connect(d->m_produceThread.get(), &QThread::finished, this, [this]() {
         d->m_produce.reset();
         d->m_produceThread.reset();
