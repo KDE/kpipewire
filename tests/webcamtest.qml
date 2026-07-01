@@ -46,13 +46,13 @@ Kirigami.ApplicationWindow
                         id: rec
                         nodeId: model.objectSerial
                         fd: model.fd
-                        active: recButton.checked
                         output: "/tmp/banana.webm"
                     }
                     Button {
                         id: recButton
                         icon.name: "media-record"
                         checkable: true
+                        onToggled: checked ? rec.start() : rec.stop()
                     }
                 }
             }
