@@ -68,6 +68,9 @@ public:
     int maxPendingFrames() const;
     void setMaxPendingFrames(int newMaxBufferSize);
 
+    QSize requestedSize() const;
+    void setRequestedSize(const QSize &size);
+
     virtual int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(presentationTimestamp.value()).count();
@@ -147,6 +150,7 @@ public:
 
     uint m_fd;
     Fraction m_frameRate;
+    QSize m_requestedSize;
 
     std::optional<quint8> m_quality;
 

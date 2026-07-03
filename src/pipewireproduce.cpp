@@ -56,6 +56,7 @@ void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
+    m_stream->setRequestedSize(m_requestedSize);
 
     // The check in supportsHardwareEncoding() is insufficient to fully
     // determine if we actually support hardware encoding the current stream,
@@ -163,6 +164,23 @@ void PipeWireProduce::handleStreamParametersChanged()
         // The source was resized while streaming; rebuild the encoder so the
         // filter graph and hardware frames context match the new size.
         reconfigureStream();
+    }
+}
+
+QSize PipeWireProduce::requestedSize() const
+{
+    return m_requestedSize;
+}
+
+void PipeWireProduce::setRequestedSize(const QSize &size)
+{
+    if (m_requestedSize == size) {
+        return;
+    }
+    m_requestedSize = size;
+
+    if (m_stream) {
+        m_stream->setRequestedSize(size);
     }
 }
 
