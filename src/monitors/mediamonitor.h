@@ -12,9 +12,10 @@
 #include <QTimer>
 #include <qqmlregistration.h>
 
-#include <pipewire/pipewire.h>
+#include <kpipewiremonitor_export.h>
 
 class PipeWireCore;
+struct MediaMonitorPrivate;
 
 namespace MediaRole
 {
@@ -54,7 +55,7 @@ enum State : int {
 Q_ENUM_NS(State)
 }
 
-class MediaMonitor : public QAbstractListModel, public QQmlParserStatus
+class KPIPEWIREMONITOR_EXPORT MediaMonitor : public QAbstractListModel, public QQmlParserStatus
 {
     Q_OBJECT
     Q_INTERFACES(QQmlParserStatus)
@@ -114,48 +115,11 @@ Q_SIGNALS:
     void runningCountChanged();
     void idleCountChanged();
 
-private Q_SLOTS:
-    void connectToCore();
-    void onPipeBroken();
-
 private:
-    struct ProxyDeleter {
-        void operator()(pw_proxy *proxy) const
-        {
-            MediaMonitor::onProxyDestroy(pw_proxy_get_user_data(proxy));
-            pw_proxy_destroy(proxy);
-        }
-    };
-
-    static void onRegistryEventGlobal(void *data, uint32_t id, uint32_t permissions, const char *type, uint32_t version, const spa_dict *props);
-    static void onRegistryEventGlobalRemove(void *data, uint32_t id);
-    static void onProxyDestroy(void *data);
-    static void onNodeEventInfo(void *data, const pw_node_info *info);
-
-    static void readProps(const spa_dict *props, pw_proxy *proxy, bool emitSignal);
-
     void classBegin() override;
     void componentComplete() override;
+    void onPipeBroken();
 
-    void disconnectFromCore();
-    void reconnectOnIdle();
-    void updateState();
-
-    static pw_registry_events s_pwRegistryEvents;
-    static pw_proxy_events s_pwProxyEvents;
-    static pw_node_events s_pwNodeEvents;
-
-    bool m_componentReady = false;
-    MediaRole::Role m_role = MediaRole::Unknown;
-    bool m_detectionAvailable = false;
-    int m_runningCount = 0;
-    int m_idleCount = 0;
-
-    QSharedPointer<PipeWireCore> m_pwCore;
-    pw_registry *m_registry = nullptr;
-    spa_hook m_registryListener;
-    std::vector<std::unique_ptr<pw_proxy, ProxyDeleter>> m_nodeList;
-    QTimer m_reconnectTimer;
-
-    bool m_inDestructor = false;
+    std::unique_ptr<MediaMonitorPrivate> d;
+    friend struct MediaMonitorPrivate;
 };
