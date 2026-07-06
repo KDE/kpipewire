@@ -14,6 +14,8 @@
 
 #include "pipewirecore_p.h"
 
+#include <pipewire/pipewire.h>
+
 namespace
 {
 struct Node {
@@ -38,38 +40,84 @@ void updateProp(const spa_dict *props, const char *key, QString &prop, int role,
 }
 }
 
-pw_registry_events MediaMonitor::s_pwRegistryEvents = {
+struct MediaMonitorPrivate {
+    void connectToCore();
+
+    struct ProxyDeleter {
+        void operator()(pw_proxy *proxy) const
+        {
+            MediaMonitorPrivate::onProxyDestroy(pw_proxy_get_user_data(proxy));
+            pw_proxy_destroy(proxy);
+        }
+    };
+
+    static void onRegistryEventGlobal(void *data, uint32_t id, uint32_t permissions, const char *type, uint32_t version, const spa_dict *props);
+    static void onRegistryEventGlobalRemove(void *data, uint32_t id);
+    static void onProxyDestroy(void *data);
+    static void onNodeEventInfo(void *data, const pw_node_info *info);
+
+    static void readProps(const spa_dict *props, pw_proxy *proxy, bool emitSignal);
+
+    void disconnectFromCore();
+    void reconnectOnIdle();
+    void updateState();
+
+    static pw_registry_events s_pwRegistryEvents;
+    static pw_proxy_events s_pwProxyEvents;
+    static pw_node_events s_pwNodeEvents;
+
+    MediaMonitor *const q;
+
+    bool m_componentReady = true;
+    MediaRole::Role m_role = MediaRole::Unknown;
+    bool m_detectionAvailable = false;
+    int m_runningCount = 0;
+    int m_idleCount = 0;
+
+    QSharedPointer<PipeWireCore> m_pwCore;
+    pw_registry *m_registry = nullptr;
+    spa_hook m_registryListener;
+    std::vector<std::unique_ptr<pw_proxy, ProxyDeleter>> m_nodeList;
+    QTimer m_reconnectTimer;
+
+    bool m_inDestructor = false;
+};
+
+pw_registry_events MediaMonitorPrivate::s_pwRegistryEvents = {
     .version = PW_VERSION_REGISTRY_EVENTS,
-    .global = &MediaMonitor::onRegistryEventGlobal,
-    .global_remove = &MediaMonitor::onRegistryEventGlobalRemove,
+    .global = &MediaMonitorPrivate::onRegistryEventGlobal,
+    .global_remove = &MediaMonitorPrivate::onRegistryEventGlobalRemove,
 };
 
-pw_proxy_events MediaMonitor::s_pwProxyEvents = {
+pw_proxy_events MediaMonitorPrivate::s_pwProxyEvents = {
     .version = PW_VERSION_PROXY_EVENTS,
-    .destroy = &MediaMonitor::onProxyDestroy,
+    .destroy = &MediaMonitorPrivate::onProxyDestroy,
 };
 
-pw_node_events MediaMonitor::s_pwNodeEvents = {
+pw_node_events MediaMonitorPrivate::s_pwNodeEvents = {
     .version = PW_VERSION_NODE_EVENTS,
-    .info = &MediaMonitor::onNodeEventInfo,
+    .info = &MediaMonitorPrivate::onNodeEventInfo,
 };
 
 MediaMonitor::MediaMonitor(QObject *parent)
     : QAbstractListModel(parent)
+    , d(std::make_unique<MediaMonitorPrivate>(this))
 {
     connect(this, &QAbstractListModel::rowsInserted, this, &MediaMonitor::countChanged);
     connect(this, &QAbstractListModel::rowsRemoved, this, &MediaMonitor::countChanged);
     connect(this, &QAbstractListModel::modelReset, this, &MediaMonitor::countChanged);
 
-    m_reconnectTimer.setSingleShot(true);
-    m_reconnectTimer.setInterval(5000);
-    connect(&m_reconnectTimer, &QTimer::timeout, this, &MediaMonitor::connectToCore);
+    d->m_reconnectTimer.setSingleShot(true);
+    d->m_reconnectTimer.setInterval(5000);
+    connect(&d->m_reconnectTimer, &QTimer::timeout, this, [this] {
+        d->connectToCore();
+    });
 }
 
 MediaMonitor::~MediaMonitor()
 {
-    m_inDestructor = true;
-    disconnectFromCore();
+    d->m_inDestructor = true;
+    d->disconnectFromCore();
 }
 
 QVariant MediaMonitor::data(const QModelIndex &index, int role) const
@@ -78,7 +126,7 @@ QVariant MediaMonitor::data(const QModelIndex &index, int role) const
         return {};
     }
 
-    pw_proxy *const proxy = m_nodeList.at(index.row()).get();
+    pw_proxy *const proxy = d->m_nodeList.at(index.row()).get();
     const Node *const node = static_cast<Node *>(pw_proxy_get_user_data(proxy));
 
     switch (role) {
@@ -95,7 +143,7 @@ QVariant MediaMonitor::data(const QModelIndex &index, int role) const
 
 int MediaMonitor::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : m_nodeList.size();
+    return parent.isValid() ? 0 : d->m_nodeList.size();
 }
 
 QHash<int, QByteArray> MediaMonitor::roleNames() const
@@ -109,44 +157,44 @@ QHash<int, QByteArray> MediaMonitor::roleNames() const
 
 MediaRole::Role MediaMonitor::role() const
 {
-    return m_role;
+    return d->m_role;
 }
 
 void MediaMonitor::setRole(MediaRole::Role newRole)
 {
-    if (m_role == newRole) {
+    if (d->m_role == newRole) {
         return;
     }
     Q_ASSERT(newRole >= MediaRole::Unknown && newRole <= MediaRole::Last);
-    m_role = std::clamp(newRole, MediaRole::Unknown, MediaRole::Last);
+    d->m_role = std::clamp(newRole, MediaRole::Unknown, MediaRole::Last);
 
-    if (m_reconnectTimer.isActive()) {
+    if (d->m_reconnectTimer.isActive()) {
         Q_EMIT roleChanged();
         return;
     }
 
-    disconnectFromCore();
-    connectToCore();
+    d->disconnectFromCore();
+    d->connectToCore();
 
     Q_EMIT roleChanged();
 }
 
 bool MediaMonitor::detectionAvailable() const
 {
-    return m_detectionAvailable;
+    return d->m_detectionAvailable;
 }
 
 int MediaMonitor::runningCount() const
 {
-    return m_runningCount;
+    return d->m_runningCount;
 }
 
 int MediaMonitor::idleCount() const
 {
-    return m_idleCount;
+    return d->m_idleCount;
 }
 
-void MediaMonitor::connectToCore()
+void MediaMonitorPrivate::connectToCore()
 {
     Q_ASSERT(!m_registry);
     if (!m_componentReady || m_role == MediaRole::Unknown) {
@@ -164,22 +212,27 @@ void MediaMonitor::connectToCore()
     }
 
     m_registry = pw_core_get_registry(**m_pwCore.get(), PW_VERSION_REGISTRY, 0);
-    pw_registry_add_listener(m_registry, &m_registryListener, &s_pwRegistryEvents, this /*user data*/);
+    pw_registry_add_listener(m_registry, &m_registryListener, &s_pwRegistryEvents, q /*user data*/);
 
     m_detectionAvailable = true;
-    Q_EMIT detectionAvailableChanged();
+    Q_EMIT q->detectionAvailableChanged();
 
-    connect(m_pwCore.get(), &PipeWireCore::pipeBroken, this, &MediaMonitor::onPipeBroken);
+    QObject::connect(m_pwCore.get(), &PipeWireCore::pipeBroken, q, &MediaMonitor::onPipeBroken);
 }
 
 void MediaMonitor::onPipeBroken()
 {
-    m_registry = nullptr; // When pipe is broken, the registered object is also gone
-    disconnectFromCore();
-    reconnectOnIdle();
+    d->m_registry = nullptr; // When pipe is broken, the registered object is also gone
+    d->disconnectFromCore();
+    d->reconnectOnIdle();
 }
 
-void MediaMonitor::onRegistryEventGlobal(void *data, uint32_t id, uint32_t /*permissions*/, const char *type, uint32_t /*version*/, const spa_dict *props)
+void MediaMonitorPrivate::onRegistryEventGlobal(void *data,
+                                                uint32_t id,
+                                                uint32_t /*permissions*/,
+                                                const char *type,
+                                                uint32_t /*version*/,
+                                                const spa_dict *props)
 {
     auto monitor = static_cast<MediaMonitor *>(data);
 
@@ -188,46 +241,46 @@ void MediaMonitor::onRegistryEventGlobal(void *data, uint32_t id, uint32_t /*per
     }
 
     static const QMetaEnum metaEnum = QMetaEnum::fromType<MediaRole::Role>();
-    if (const char *prop_str = spa_dict_lookup(props, PW_KEY_MEDIA_ROLE); !prop_str || (strcmp(prop_str, metaEnum.valueToKey(monitor->m_role)) != 0)) {
+    if (const char *prop_str = spa_dict_lookup(props, PW_KEY_MEDIA_ROLE); !prop_str || (strcmp(prop_str, metaEnum.valueToKey(monitor->d->m_role)) != 0)) {
         return;
     }
 
-    auto proxy = static_cast<pw_proxy *>(pw_registry_bind(monitor->m_registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, sizeof(Node)));
+    auto proxy = static_cast<pw_proxy *>(pw_registry_bind(monitor->d->m_registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, sizeof(Node)));
     auto node = static_cast<Node *>(pw_proxy_get_user_data(proxy));
     node->monitor = monitor;
     readProps(props, proxy, false);
 
-    monitor->beginInsertRows(QModelIndex(), monitor->m_nodeList.size(), monitor->m_nodeList.size());
-    monitor->m_nodeList.emplace_back(proxy);
+    monitor->beginInsertRows(QModelIndex(), monitor->d->m_nodeList.size(), monitor->d->m_nodeList.size());
+    monitor->d->m_nodeList.emplace_back(proxy);
     monitor->endInsertRows();
 
     pw_proxy_add_listener(proxy, &node->proxyListener, &s_pwProxyEvents, node);
     pw_proxy_add_object_listener(proxy, &node->objectListener, &s_pwNodeEvents, node);
 }
 
-void MediaMonitor::onRegistryEventGlobalRemove(void *data, uint32_t id)
+void MediaMonitorPrivate::onRegistryEventGlobalRemove(void *data, uint32_t id)
 {
     auto monitor = static_cast<MediaMonitor *>(data);
-    const auto proxyIt = std::find_if(monitor->m_nodeList.cbegin(), monitor->m_nodeList.cend(), [id](const auto &proxy) {
+    const auto proxyIt = std::find_if(monitor->d->m_nodeList.cbegin(), monitor->d->m_nodeList.cend(), [id](const auto &proxy) {
         return pw_proxy_get_bound_id(proxy.get()) == id;
     });
-    if (proxyIt == monitor->m_nodeList.cend()) {
+    if (proxyIt == monitor->d->m_nodeList.cend()) {
         return;
     }
-    const int row = std::distance(monitor->m_nodeList.cbegin(), proxyIt);
+    const int row = std::distance(monitor->d->m_nodeList.cbegin(), proxyIt);
     monitor->beginRemoveRows(QModelIndex(), row, row);
-    monitor->m_nodeList.erase(proxyIt);
+    monitor->d->m_nodeList.erase(proxyIt);
     monitor->endRemoveRows();
 }
 
-void MediaMonitor::onProxyDestroy(void *data)
+void MediaMonitorPrivate::onProxyDestroy(void *data)
 {
     auto node = static_cast<Node *>(data);
     spa_hook_remove(&node->proxyListener);
     spa_hook_remove(&node->objectListener);
 }
 
-void MediaMonitor::onNodeEventInfo(void *data, const pw_node_info *info)
+void MediaMonitorPrivate::onNodeEventInfo(void *data, const pw_node_info *info)
 {
     auto node = static_cast<Node *>(data);
 
@@ -253,21 +306,21 @@ void MediaMonitor::onNodeEventInfo(void *data, const pw_node_info *info)
         return;
     }
 
-    const auto proxyIt = std::find_if(node->monitor->m_nodeList.cbegin(), node->monitor->m_nodeList.cend(), [data](const auto &proxy) {
+    const auto proxyIt = std::find_if(node->monitor->d->m_nodeList.cbegin(), node->monitor->d->m_nodeList.cend(), [data](const auto &proxy) {
         return pw_proxy_get_user_data(proxy.get()) == data;
     });
     if (node->state != newState) {
         node->state = newState;
-        const int row = std::distance(node->monitor->m_nodeList.cbegin(), proxyIt);
+        const int row = std::distance(node->monitor->d->m_nodeList.cbegin(), proxyIt);
         const QModelIndex idx = node->monitor->index(row, 0);
-        node->monitor->dataChanged(idx, idx, {StateRole});
+        node->monitor->dataChanged(idx, idx, {MediaMonitor::StateRole});
     }
 
     readProps(info->props, proxyIt->get(), true);
-    node->monitor->updateState();
+    node->monitor->d->updateState();
 }
 
-void MediaMonitor::readProps(const spa_dict *props, pw_proxy *proxy, bool emitSignal)
+void MediaMonitorPrivate::readProps(const spa_dict *props, pw_proxy *proxy, bool emitSignal)
 {
     auto node = static_cast<Node *>(pw_proxy_get_user_data(proxy));
     QList<int> changedRoles;
@@ -282,13 +335,13 @@ void MediaMonitor::readProps(const spa_dict *props, pw_proxy *proxy, bool emitSi
         updateProp(props, PW_KEY_NODE_DESCRIPTION, node->deviceName, Qt::DisplayRole, changedRoles);
     }
 
-    updateProp(props, PW_KEY_OBJECT_SERIAL, node->objectSerial, ObjectSerialRole, changedRoles);
+    updateProp(props, PW_KEY_OBJECT_SERIAL, node->objectSerial, MediaMonitor::ObjectSerialRole, changedRoles);
 
     if (emitSignal && !changedRoles.empty()) {
-        const auto proxyIt = std::find_if(node->monitor->m_nodeList.cbegin(), node->monitor->m_nodeList.cend(), [proxy](const auto &p) {
+        const auto proxyIt = std::find_if(node->monitor->d->m_nodeList.cbegin(), node->monitor->d->m_nodeList.cend(), [proxy](const auto &p) {
             return p.get() == proxy;
         });
-        const int row = std::distance(node->monitor->m_nodeList.cbegin(), proxyIt);
+        const int row = std::distance(node->monitor->d->m_nodeList.cbegin(), proxyIt);
         const QModelIndex idx = node->monitor->index(row, 0);
         node->monitor->dataChanged(idx, idx, changedRoles);
     }
@@ -296,15 +349,16 @@ void MediaMonitor::readProps(const spa_dict *props, pw_proxy *proxy, bool emitSi
 
 void MediaMonitor::classBegin()
 {
+    d->m_componentReady = false;
 }
 
 void MediaMonitor::componentComplete()
 {
-    m_componentReady = true;
-    connectToCore();
+    d->m_componentReady = true;
+    d->connectToCore();
 }
 
-void MediaMonitor::disconnectFromCore()
+void MediaMonitorPrivate::disconnectFromCore()
 {
     if (!m_pwCore) {
         return;
@@ -312,21 +366,21 @@ void MediaMonitor::disconnectFromCore()
 
     if (m_runningCount) {
         m_runningCount = 0;
-        Q_EMIT runningCountChanged();
+        Q_EMIT q->runningCountChanged();
     }
 
     if (m_idleCount) {
         m_idleCount = 0;
-        Q_EMIT idleCountChanged();
+        Q_EMIT q->idleCountChanged();
     }
 
     m_detectionAvailable = false;
-    Q_EMIT detectionAvailableChanged();
+    Q_EMIT q->detectionAvailableChanged();
 
     if (!m_inDestructor) {
-        beginResetModel();
+        q->beginResetModel();
         m_nodeList.clear();
-        endResetModel();
+        q->endResetModel();
     }
 
     if (m_registry) {
@@ -334,10 +388,10 @@ void MediaMonitor::disconnectFromCore()
         spa_hook_remove(&m_registryListener);
         m_registry = nullptr;
     }
-    disconnect(m_pwCore.get(), &PipeWireCore::pipeBroken, this, &MediaMonitor::onPipeBroken);
+    QObject::disconnect(m_pwCore.get(), &PipeWireCore::pipeBroken, q, &MediaMonitor::onPipeBroken);
 }
 
-void MediaMonitor::reconnectOnIdle()
+void MediaMonitorPrivate::reconnectOnIdle()
 {
     if (m_reconnectTimer.isActive()) {
         return;
@@ -352,7 +406,7 @@ void MediaMonitor::reconnectOnIdle()
     m_reconnectTimer.start();
 }
 
-void MediaMonitor::updateState()
+void MediaMonitorPrivate::updateState()
 {
     int newIdleCount = 0;
     int newRunningCount = 0;
@@ -375,10 +429,10 @@ void MediaMonitor::updateState()
     m_runningCount = newRunningCount;
 
     if (idleChanged) {
-        Q_EMIT idleCountChanged();
+        Q_EMIT q->idleCountChanged();
     }
     if (runningChanged) {
-        Q_EMIT runningCountChanged();
+        Q_EMIT q->runningCountChanged();
     }
 }
 
