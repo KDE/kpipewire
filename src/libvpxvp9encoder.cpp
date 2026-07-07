@@ -54,7 +54,6 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
     AVDictionary *options = buildEncodingOptions();
     maybeLogOptions(options);
 
-    const auto area = size.width() * size.height();
     // m_avCodecContext->framerate is not set, so we use m_produce->maxFramerate() instead.
     const auto maxFramerate = m_produce->maxFramerate();
     const auto fps = qreal(maxFramerate.numerator) / std::max(quint32(1), maxFramerate.denominator);
