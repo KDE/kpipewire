@@ -185,8 +185,8 @@ void PipeWireBaseEncodedStream::setActive(bool active)
 
 void PipeWireBaseEncodedStream::start()
 {
-    if (d->m_nodeId == 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Cannot start recording on a stream without a node ID";
+    if (d->m_nodeId == 0 && d->m_objectSerial == quint64(-1)) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Cannot start recording on a stream without a node ID or an object serial";
         return;
     }
 
