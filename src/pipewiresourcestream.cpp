@@ -584,7 +584,7 @@ bool PipeWireSourceStreamPrivate::createStream(uint nodeId, uint64_t objectSeria
     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     auto params = q->createFormatsParams(podBuilder);
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
-    if (pw_stream_connect(pwStream, PW_DIRECTION_INPUT, pwNodeId, s, params.data(), params.size()) != 0) {
+    if (pw_stream_connect(pwStream, PW_DIRECTION_INPUT, objectSerial != uint64_t(-1) ? PW_ID_ANY : pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
         pw_stream_destroy(pwStream);
         pwStream = nullptr;
