@@ -90,6 +90,14 @@ void PipeWireSourceItem::itemChange(QQuickItem::ItemChange change, const QQuickI
     QQuickItem::itemChange(change, data);
 }
 
+void PipeWireSourceItem::releaseResources()
+{
+}
+
+void PipeWireSourceItem::invalidateSceneGraph()
+{
+}
+
 void PipeWireSourceItem::setFd(uint fd)
 {
     if (fd == d->m_fd)
