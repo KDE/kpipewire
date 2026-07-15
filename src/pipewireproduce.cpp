@@ -246,7 +246,7 @@ void PipeWireProduce::setupStream()
         initializeAudioStreams();
     }
 
-    connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::processFrame);
+    connect(m_stream.data(), &PipeWireSourceStream::frameReceived, this, &PipeWireProduce::handleNewFrame);
 
     startThreads();
 
@@ -721,6 +721,26 @@ void PipeWireProduce::setColorRange(PipeWireBaseEncodedStream::ColorRange colorR
     if (m_encoder) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Changing color range after encoding has started is not supported";
     }
+}
+
+void PipeWireProduce::handleNewFrame(const PipeWireFrame &frame)
+{
+    m_pendingFrames << frame;
+    QTimer::singleShot(0, this, [this]() {
+        if (!m_pendingFrames.count()) {
+            return;
+        }
+        qDebug() << "processing frame, there were " << m_pendingFrames.count() << "pending frames";
+        QRegion totalDamage;
+        for (auto frame : m_pendingFrames) {
+            totalDamage += frame.damage.value_or(QRegion());
+        }
+        auto lastFrame = m_pendingFrames.takeLast();
+        lastFrame.damage = totalDamage;
+
+        processFrame(lastFrame);
+        m_pendingFrames.clear();
+    });
 }
 
 void PipeWireProduce::processFrame(const PipeWireFrame &frame)

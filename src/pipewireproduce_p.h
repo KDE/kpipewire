@@ -128,6 +128,7 @@ public:
     void startThreads();
     void stopThreads();
     void initializeAudioStreams();
+    void handleNewFrame(const PipeWireFrame &frame);
     virtual void processFrame(const PipeWireFrame &frame);
     void processAudioFrame(int input, const PipeWireAudioFrame &frame);
     void handleAudioStreamStopped(int input);
@@ -167,6 +168,8 @@ public:
     // The source size the current encoder was created for, used to detect
     // mid-stream resizes that require rebuilding the encoder.
     QSize m_encoderSize;
+
+    QQueue<PipeWireFrame> m_pendingFrames;
 
     AudioSources m_audioSources;
     std::unique_ptr<AudioEncoder> m_audioEncoder;
