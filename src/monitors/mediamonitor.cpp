@@ -165,8 +165,12 @@ void MediaMonitor::setRole(MediaRole::Role newRole)
     if (d->m_role == newRole) {
         return;
     }
-    Q_ASSERT(newRole >= MediaRole::Unknown && newRole <= MediaRole::Last);
-    d->m_role = std::clamp(newRole, MediaRole::Unknown, MediaRole::Last);
+    Q_ASSERT(newRole >= MediaRole::Unknown && newRole <= MediaRole::Last || newRole == MediaRole::All);
+    if (newRole != MediaRole::All) {
+        d->m_role = std::clamp(newRole, MediaRole::Unknown, MediaRole::Last);
+    } else {
+        d->m_role = MediaRole::All;
+    }
 
     if (d->m_reconnectTimer.isActive()) {
         Q_EMIT roleChanged();
@@ -241,8 +245,10 @@ void MediaMonitorPrivate::onRegistryEventGlobal(void *data,
     }
 
     static const QMetaEnum metaEnum = QMetaEnum::fromType<MediaRole::Role>();
-    if (const char *prop_str = spa_dict_lookup(props, PW_KEY_MEDIA_ROLE); !prop_str || (strcmp(prop_str, metaEnum.valueToKey(monitor->d->m_role)) != 0)) {
-        return;
+    if (monitor->d->m_role != MediaRole::All) {
+        if (const char *prop_str = spa_dict_lookup(props, PW_KEY_MEDIA_ROLE); !prop_str || (strcmp(prop_str, metaEnum.valueToKey(monitor->d->m_role)) != 0)) {
+            return;
+        }
     }
 
     auto proxy = static_cast<pw_proxy *>(pw_registry_bind(monitor->d->m_registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, sizeof(Node)));
