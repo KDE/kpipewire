@@ -36,6 +36,7 @@ enum Role : int {
     Accessibility,
     Test,
     Last = Test,
+    All = INT_MAX,
 };
 Q_ENUM_NS(Role)
 }
