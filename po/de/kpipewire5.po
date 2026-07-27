@@ -2,7 +2,7 @@
 # Copyright (C) 2022 This file is copyright:
 # This file is distributed under the same license as the kpipewire package.
 # SPDX-FileCopyrightText: 2022 Frederik Schwarzer <schwarzer@kde.org>
-# SPDX-FileCopyrightText: 2023, 2024 Johannes Obermayr <johannesobermayr@gmx.de>
+# SPDX-FileCopyrightText: 2023-2024 Johannes Obermayr <johannesobermayr@gmx.de>
 msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire6\n"
