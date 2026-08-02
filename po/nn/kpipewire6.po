@@ -1,5 +1,6 @@
 # Translation of kpipewire6 to Norwegian Nynorsk
 #
+# Karl Ove Hufthammer <karl@huftis.org>, 2022, 2024.
 msgid ""
 msgstr ""
 "Project-Id-Version: kpipewire\n"
