@@ -14,6 +14,7 @@
 #include <QDateTime>
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -142,6 +143,9 @@ void PipeWireProduce::initialize()
         if (!m_encoder) {
             return;
         }
+
+        qDebug() << "frame repeat timer";
+
         auto f = m_lastFrame;
         m_lastFrame = {};
         aboutToEncode(f);
@@ -774,6 +778,10 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     if (!m_encoder->filterFrame(f)) {
         return;
     }
+
+    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    std::fprintf(stderr, "LOG FRAME %lld,pushed,%lld\n", static_cast<long long>(frame.presentationTimestamp->count()), static_cast<long long>(now));
+    frameSubmitted(frame, pts);
 
     m_pendingFilterFrames++;
     m_previousPts = pts;

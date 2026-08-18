@@ -27,6 +27,8 @@
 
 #include <KLocalizedString>
 
+#include <cstdio>
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
@@ -634,6 +636,18 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             *frame.damage += QRect(mr->region.position.x, mr->region.position.y, mr->region.size.width, mr->region.size.height);
         }
     }
+
+    const auto frameId = frame.presentationTimestamp->count();
+    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    std::fprintf(stderr, "LOG FRAME %lld,received,%lld\n", static_cast<long long>(frameId), static_cast<long long>(now));
+
+    qint64 damagePixels = 0;
+    if (frame.damage) {
+        for (const QRect &rect : *frame.damage) {
+            damagePixels += qint64(rect.width()) * rect.height();
+        }
+    }
+    std::fprintf(stderr, "LOG FRAME DAMAGE %lld,%lld\n", static_cast<long long>(frameId), static_cast<long long>(damagePixels));
 
     { // process cursor
         struct spa_meta_cursor *cursor = static_cast<struct spa_meta_cursor *>(spa_buffer_find_meta_data(spaBuffer, SPA_META_Cursor, sizeof(*cursor)));

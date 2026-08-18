@@ -9,6 +9,8 @@
 #include "pipewireproduce_p.h"
 #include <QDebug>
 
+#include <cstdio>
+
 extern "C" {
 #include <libavcodec/packet.h>
 }
@@ -58,7 +60,27 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
         return;
     }
 
+    std::optional<std::chrono::nanoseconds> frameId;
+    {
+        QMutexLocker lock(&m_frameIdsMutex);
+        const auto frame = m_frameIds.find(packet->pts);
+        if (frame != m_frameIds.end()) {
+            frameId = *frame;
+            m_frameIds.erase(frame);
+        }
+    }
+    if (frameId) {
+        const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        std::fprintf(stderr, "LOG FRAME %lld,encoded,%lld\n", static_cast<long long>(frameId->count()), static_cast<long long>(now));
+    }
+
     Q_EMIT newPacket(PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size)));
+}
+
+void PipeWireEncodeProduce::frameSubmitted(const PipeWireFrame &frame, int64_t pts)
+{
+    QMutexLocker lock(&m_frameIdsMutex);
+    m_frameIds.insert(pts, *frame.presentationTimestamp);
 }
 
 void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
