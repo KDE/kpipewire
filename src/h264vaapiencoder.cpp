@@ -184,6 +184,11 @@ int H264VAAPIEncoder::percentageToAbsoluteQuality(std::optional<quint8> quality)
 AVDictionary *H264VAAPIEncoder::buildEncodingOptions()
 {
     AVDictionary *options = HardwareEncoder::buildEncodingOptions();
+    if (m_encodingPreference == PipeWireBaseEncodedStream::EncodingPreference::Speed) {
+        // a depth of >1 can leave a pending frame queued indefinitely.
+        av_dict_set_int(&options, "async_depth", 1, 0);
+    }
+
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
     av_dict_set(&options, "flags", "+mv4", 0);
     // Disable in-loop filtering
