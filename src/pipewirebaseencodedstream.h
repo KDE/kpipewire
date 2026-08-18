@@ -73,7 +73,6 @@ public:
      * This needs to be high enough for intra-frame analysis.
      * The default value is 50.
      *
-     * There is a minimum value of 3.
      */
     void setMaxPendingFrames(int maxBufferSize);
     int maxBufferSize() const;

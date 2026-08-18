@@ -216,10 +216,6 @@ public:
         bool dirty = false;
     } m_cursor;
 
-    QScopedPointer<QTimer> m_frameRepeatTimer;
-    bool m_enableFrameRepeat = true;
-    PipeWireFrame m_lastFrame;
-
     std::thread m_passthroughThread;
     std::thread m_outputThread;
     // Can't use jthread directly as it's not available in libc++ yet,

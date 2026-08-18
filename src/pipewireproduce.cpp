@@ -126,32 +126,6 @@ void PipeWireProduce::initialize()
             m_processedFrames = 0;
         });
     }
-
-    /**
-     * Kwin only sends a new frame when there's damage on screen
-     * The encoder does not flush all frames whilst a stream is active
-     * it will keep one frame in the queue waiting for more input until the stream is closed
-     *
-     * If there's no update this timer bumps the last frame through the stack again
-     * to flush the last frame.
-     */
-    m_frameRepeatTimer.reset(new QTimer);
-    m_frameRepeatTimer->setSingleShot(true);
-    m_frameRepeatTimer->setInterval(100);
-    connect(m_frameRepeatTimer.data(), &QTimer::timeout, this, [this]() {
-        if (!m_encoder) {
-            return;
-        }
-        auto f = m_lastFrame;
-        m_lastFrame = {};
-        aboutToEncode(f);
-        if (!m_encoder->filterFrame(f)) {
-            return;
-        }
-
-        m_pendingFilterFrames++;
-        m_passthroughCondition.notify_all();
-    });
 }
 
 Fraction PipeWireProduce::maxFramerate() const
@@ -163,10 +137,6 @@ void PipeWireProduce::setMaxFramerate(const Fraction &framerate)
 {
     m_maxFramerate = framerate;
 
-    const double framesPerSecond = static_cast<double>(framerate.numerator) / framerate.denominator;
-    if (m_frameRepeatTimer) {
-        m_frameRepeatTimer->setInterval((1000 / framesPerSecond) * 2);
-    }
     if (m_stream) {
         m_stream->setMaxFramerate(framerate);
     }
@@ -283,15 +253,7 @@ void PipeWireProduce::reconfigureStream()
 
 void PipeWireProduce::discardFrameState()
 {
-    // The repeat timer may be armed with m_lastFrame holding a frame of the
-    // previous size. If it fired after an encoder swap it would push that stale
-    // frame into the new encoder, allocating a hardware surface of the wrong
-    // size — the exact failure the mid-stream rebuild exists to avoid. Stop it
-    // and drop the frame, along with the queue counters for the old encoder.
-    if (m_frameRepeatTimer) {
-        m_frameRepeatTimer->stop();
-    }
-    m_lastFrame = {};
+    // The queues contain work for the old encoder, which was just destroyed.
     m_pendingFilterFrames = 0;
     m_pendingEncodeFrames = 0;
 }
@@ -627,11 +589,6 @@ void PipeWireProduce::setStreamActive(bool active)
         return;
     }
 
-    if (!active && m_frameRepeatTimer) {
-        // Stop repeating the last frame so the encoder fully idles while paused.
-        m_frameRepeatTimer->stop();
-    }
-
     m_stream->setActive(active);
 }
 
@@ -644,8 +601,6 @@ void PipeWireProduce::destroy()
     if (!m_stream) {
         return;
     }
-
-    m_frameRepeatTimer->stop();
 
     m_frameStatisticsTimer = nullptr;
 
@@ -730,11 +685,6 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     }
 
     auto f = frame;
-
-    m_lastFrame = frame;
-    if (m_enableFrameRepeat) {
-        m_frameRepeatTimer->start();
-    }
 
     if (frame.cursor) {
         m_cursor.position = frame.cursor->position;

@@ -109,6 +109,10 @@ AVDictionary *LibVpxVp9Encoder::buildEncodingOptions()
     av_dict_set_int(&options, "cpu-used", cpuUsed, 0);
     av_dict_set(&options, "deadline", "realtime", 0);
 
+    // Frames arrive on damage, not at a fixed cadence. The libvpx default
+    // lookahead keeps the last frame buffered until another arrives.
+    av_dict_set_int(&options, "lag-in-frames", 0, 0);
+
     // The value is interpreted as being equivalent to log2(realNumberOfColumns),
     // so 3 is 8 columns. 6 is the max amount of columns. 2 is the max amount of rows.
     av_dict_set(&options, "tile-columns", "6", 0);
