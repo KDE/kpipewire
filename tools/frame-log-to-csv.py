@@ -33,14 +33,6 @@ def parse_log(log: TextIO) -> OrderedDict[str, dict[str, str]]:
             frame["damage"] = damage["damage"]
     return frames
 
-def nanoseconds_to_milliseconds(nanoseconds: str) -> str:
-    """Format an integer nanosecond timestamp as exact decimal milliseconds."""
-    value = int(nanoseconds)
-    sign = "-" if value < 0 else ""
-    milliseconds, remainder = divmod(abs(value), 1_000_000)
-    return f"{sign}{milliseconds}.{remainder:06d}"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert PipeWire frame timing logs to CSV.")
     parser.add_argument("log", nargs="?", type=Path, help="stderr log file (defaults to standard input)")
@@ -52,11 +44,10 @@ def main() -> None:
     else:
         frames = parse_log(sys.stdin)
 
-    writer = csv.DictWriter(sys.stdout, fieldnames=("frame_id", "damage", "received", "pushed", "encoded"), lineterminator="\n")
+    writer = csv.DictWriter(sys.stdout, fieldnames=("frame_id", "damage", "received", "encoded", "pushed", "queued", "sent", "acknowledged"), lineterminator="\n")
     writer.writeheader()
     for frame_id, values in frames.items():
-        timestamps = {action: nanoseconds_to_milliseconds(timestamp) for action, timestamp in values.items() if action != "damage"}
-        writer.writerow({"frame_id": nanoseconds_to_milliseconds(frame_id), **values, **timestamps})
+        writer.writerow({"frame_id": frame_id, **values})
 
 if __name__ == "__main__":
     main()

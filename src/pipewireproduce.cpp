@@ -754,11 +754,13 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     // and, for a static screen, may be the only frame ever delivered.
     if (m_previousPts >= 0) {
         if (pts <= m_previousPts) {
+            std::fprintf(stderr, "LOG FRAME %lld,dropped_due_to_timestamp\n", static_cast<long long>(frame.presentationTimestamp->count()));
             return;
         }
 
         auto frameTime = 1000.0 / (m_maxFramerate.numerator / m_maxFramerate.denominator);
         if ((pts - m_previousPts) < frameTime) {
+            std::fprintf(stderr, "LOG FRAME %lld,dropped_due_to_timestamp\n", static_cast<long long>(frame.presentationTimestamp->count()));
             return;
         }
     }
@@ -779,9 +781,8 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         return;
     }
 
-    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-    std::fprintf(stderr, "LOG FRAME %lld,pushed,%lld\n", static_cast<long long>(frame.presentationTimestamp->count()), static_cast<long long>(now));
-    frameSubmitted(frame, pts);
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    std::fprintf(stderr, "LOG FRAME %lld,pushed,%lld\n", static_cast<long long>(pts), static_cast<long long>(now));
 
     m_pendingFilterFrames++;
     m_previousPts = pts;

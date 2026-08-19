@@ -24,11 +24,12 @@ public:
     class Packet
     {
     public:
-        Packet(bool isKey, const QByteArray &data);
+        Packet(bool isKey, const QByteArray &data, qint64 pts);
 
         /// Whether the packet represents a key frame
         bool isKeyFrame() const;
         QByteArray data() const;
+        qint64 pts() const;
 
         std::shared_ptr<PipeWirePacketPrivate> d;
     };

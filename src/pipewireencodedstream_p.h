@@ -9,8 +9,6 @@
 #include "pipewireencodedstream.h"
 #include "pipewireproduce_p.h"
 
-#include <QHash>
-
 class PipeWireEncodeProduce : public PipeWireProduce
 {
     Q_OBJECT
@@ -24,7 +22,6 @@ public:
 
     void processPacket(AVPacket *packet) override;
     void processFrame(const PipeWireFrame &frame) override;
-    void frameSubmitted(const PipeWireFrame &frame, int64_t pts) override;
     // A live encoded stream has no fixed container, so it can rebuild the
     // encoder when the source is resized mid-stream.
     bool supportsResize() const override
@@ -39,6 +36,4 @@ private:
     PipeWireEncodedStream *const m_encodedStream;
     QSize m_size;
     PipeWireCursor m_cursor;
-    QMutex m_frameIdsMutex;
-    QHash<int64_t, std::chrono::nanoseconds> m_frameIds;
 };

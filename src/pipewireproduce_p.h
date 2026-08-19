@@ -88,11 +88,6 @@ public:
     }
 
     virtual void processPacket(AVPacket *packet) = 0;
-    virtual void frameSubmitted(const PipeWireFrame &frame, int64_t pts)
-    {
-        Q_UNUSED(frame);
-        Q_UNUSED(pts);
-    }
     virtual void processAudioPacket(AVPacket *packet)
     {
         Q_UNUSED(packet);

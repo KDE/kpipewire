@@ -637,8 +637,8 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
         }
     }
 
-    const auto frameId = frame.presentationTimestamp->count();
-    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    const auto frameId = std::chrono::duration_cast<std::chrono::milliseconds>(*frame.presentationTimestamp).count();
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     std::fprintf(stderr, "LOG FRAME %lld,received,%lld\n", static_cast<long long>(frameId), static_cast<long long>(now));
 
     qint64 damagePixels = 0;
