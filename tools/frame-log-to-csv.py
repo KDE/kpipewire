@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TextIO
 
 
-TIMING_LOG = re.compile(r"^LOG FRAME (?P<frame_id>-?\d+),(?P<action>received|pushed|encoded),(?P<time>-?\d+)$")
+TIMING_LOG = re.compile(r"^LOG FRAME (?P<frame_id>-?\d+),(?P<action>received|pushed|encoded|queued|sent|acknowledged|),(?P<time>-?\d+)$")
 DAMAGE_LOG = re.compile(r"^LOG FRAME DAMAGE (?P<frame_id>-?\d+),(?P<damage>-?\d+)$")
 
 
@@ -30,7 +30,7 @@ def parse_log(log: TextIO) -> OrderedDict[str, dict[str, str]]:
             frame[timing["action"]] = timing["time"]
         elif damage:
             frame = frames.setdefault(damage["frame_id"], {})
-            frame["damage"] = damage["damage"]
+            # frame["damage"] = damage["damage"]
     return frames
 
 def main() -> None:
@@ -44,10 +44,11 @@ def main() -> None:
     else:
         frames = parse_log(sys.stdin)
 
-    writer = csv.DictWriter(sys.stdout, fieldnames=("frame_id", "damage", "received", "encoded", "pushed", "queued", "sent", "acknowledged"), lineterminator="\n")
+    writer = csv.DictWriter(sys.stdout, fieldnames=("frame_id", "received", "pushed", "encoded", "queued", "sent", "acknowledged"), lineterminator="\n")
     writer.writeheader()
     for frame_id, values in frames.items():
-        writer.writerow({"frame_id": frame_id, **values})
+        if "encoded" in values and "pushed" in values: # filter out only mouse moves
+            writer.writerow({"frame_id": frame_id, **values})
 
 if __name__ == "__main__":
     main()
