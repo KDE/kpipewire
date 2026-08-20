@@ -11,9 +11,14 @@
 #include "pipewirebaseencodedstream.h"
 #include <kpipewire_export.h>
 
+#include <chrono>
+
 struct PipeWireCursor;
 class PipeWirePacketPrivate;
 
+/**
+ * @brief The PipeWireEncodedStream class provides a realtime stream of encoded H264 data
+ */
 class KPIPEWIRE_EXPORT PipeWireEncodedStream : public PipeWireBaseEncodedStream
 {
     Q_OBJECT
@@ -21,14 +26,27 @@ public:
     PipeWireEncodedStream(QObject *parent = nullptr);
     ~PipeWireEncodedStream() override;
 
+    /**
+     * @brief The Packet class represents a frame of H264 encoded data
+     */
     class Packet
     {
     public:
-        Packet(bool isKey, const QByteArray &data);
+        Packet(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts);
 
-        /// Whether the packet represents a key frame
+        /**
+         * Whether the packet represents a key frame
+         */
         bool isKeyFrame() const;
+        /**
+         * The raw h264 encoded data
+         */
         QByteArray data() const;
+
+        /**
+         * The source presentation timestamp of the packet. This is the timestamp that was provided by the source of the stream.
+         */
+        std::chrono::nanoseconds presentationTimeStamp() const;
 
         std::shared_ptr<PipeWirePacketPrivate> d;
     };
