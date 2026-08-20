@@ -9,6 +9,7 @@
 #include "pipewiresourcestream.h"
 #include "glhelpers.h"
 #include "logging.h"
+#include "logging_frame_tracking.h"
 #include "pipewirecore_p.h"
 #include "pwhelpers.h"
 #include "rendernodecontext_p.h"
@@ -634,6 +635,10 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
             *frame.damage += QRect(mr->region.position.x, mr->region.position.y, mr->region.size.width, mr->region.size.height);
         }
     }
+
+    const auto frameId = std::chrono::duration_cast<std::chrono::milliseconds>(*frame.presentationTimestamp).count();
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    qCInfo(PIPEWIREFRAMETRACKING_LOGGING).nospace() << "LOG FRAME " << frameId << ",received," << now;
 
     { // process cursor
         struct spa_meta_cursor *cursor = static_cast<struct spa_meta_cursor *>(spa_buffer_find_meta_data(spaBuffer, SPA_META_Cursor, sizeof(*cursor)));

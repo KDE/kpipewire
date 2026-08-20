@@ -31,6 +31,7 @@
 #include "pipewireaudiosourcestream_p.h"
 
 #include "logging_frame_statistics.h"
+#include "logging_frame_tracking.h"
 #if defined(Q_OS_OPENBSD)
 #include <pthread.h>
 #include <pthread_np.h>
@@ -700,11 +701,15 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     // and, for a static screen, may be the only frame ever delivered.
     if (m_previousPts >= 0) {
         if (pts <= m_previousPts) {
+            const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            qCInfo(PIPEWIREFRAMETRACKING_LOGGING).nospace() << "LOG FRAME " << pts << ",dropped_due_to_timestamp," << now;
             return;
         }
 
         auto frameTime = 1000.0 / (m_maxFramerate.numerator / m_maxFramerate.denominator);
         if ((pts - m_previousPts) < frameTime) {
+            const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            qCInfo(PIPEWIREFRAMETRACKING_LOGGING).nospace() << "LOG FRAME " << pts << ",dropped_due_to_timestamp," << now;
             return;
         }
     }
@@ -724,6 +729,9 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
     if (!m_encoder->filterFrame(f)) {
         return;
     }
+
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    qCInfo(PIPEWIREFRAMETRACKING_LOGGING).nospace() << "LOG FRAME " << pts << ",pushed," << now;
 
     m_pendingFilterFrames++;
     m_previousPts = pts;
