@@ -5,6 +5,7 @@
 */
 
 #include "pipewireencodedstream.h"
+#include "logging_frame_tracking.h"
 #include "pipewireencodedstream_p.h"
 #include "pipewireproduce_p.h"
 #include <QDebug>
@@ -65,8 +66,12 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
         return;
     }
 
+    const auto now = std::chrono::floor<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    qCInfo(PIPEWIREFRAMETRACKING_LOGGING).nospace() << "LOG FRAME " << packet->pts << ",encoded," << now;
+
     // This must match the conversion created by PipeWireProduce::framePts
     auto castedTimeStamp = std::chrono::milliseconds(packet->pts);
+
     Q_EMIT newPacket(
         PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size), castedTimeStamp));
 }

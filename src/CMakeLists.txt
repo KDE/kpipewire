@@ -19,6 +19,13 @@ ecm_qt_declare_logging_category(kpipewire_SRCS
                             CATEGORY_NAME kpipewire_vaapi_logging
                             DESCRIPTION "PipeWire components for KDE - VAAPI related messages"
                             EXPORT KPipeWire)
+ecm_qt_declare_logging_category(kpipewireframetracking_SRCS
+                            HEADER logging_frame_tracking.h
+                            IDENTIFIER PIPEWIREFRAMETRACKING_LOGGING
+                            CATEGORY_NAME kpipewire_frame_tracking
+                            DEFAULT_SEVERITY Warning
+                            DESCRIPTION "PipeWire frame tracking"
+                            EXPORT KPipeWire)
 ecm_qt_declare_logging_category(kpipewiredmabuf_SRCS
                             HEADER logging_dmabuf.h
                             IDENTIFIER PIPEWIREDMABUF_LOGGING
@@ -65,6 +72,7 @@ target_sources(KPipeWire PRIVATE
     pwhelpers.cpp
     vaapiutils.cpp
     ${kpipewire_SRCS}
+    ${kpipewireframetracking_SRCS}
 )
 
 # these are features pipewire use extensively and make it hard to look at compile logs
@@ -130,6 +138,7 @@ install(FILES
 )
 
 add_library(KPipeWireRecord ${kpipewirerecord_SRCS}
+                            ${kpipewireframetracking_SRCS}
                             pipewirebaseencodedstream.cpp
                             pipewireencodedstream.cpp
                             pipewirerecord.cpp
