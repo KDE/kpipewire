@@ -16,24 +16,31 @@ extern "C" {
 class PipeWirePacketPrivate
 {
 public:
-    PipeWirePacketPrivate(bool isKey, const QByteArray &data)
+    PipeWirePacketPrivate(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts)
         : isKey(isKey)
         , data(data)
+        , presentationTimeStamp(pts)
     {
     }
 
     const bool isKey;
     const QByteArray data;
+    const std::chrono::nanoseconds presentationTimeStamp;
 };
 
-PipeWireEncodedStream::Packet::Packet(bool isKey, const QByteArray &data)
-    : d(std::make_shared<PipeWirePacketPrivate>(isKey, data))
+PipeWireEncodedStream::Packet::Packet(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts)
+    : d(std::make_shared<PipeWirePacketPrivate>(isKey, data, pts))
 {
 }
 
 QByteArray PipeWireEncodedStream::Packet::data() const
 {
     return d->data;
+}
+
+std::chrono::nanoseconds PipeWireEncodedStream::Packet::presentationTimeStamp() const
+{
+    return d->presentationTimeStamp;
 }
 
 bool PipeWireEncodedStream::Packet::isKeyFrame() const
@@ -58,7 +65,10 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
         return;
     }
 
-    Q_EMIT newPacket(PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size)));
+    // This must match the conversion created by PipeWireProduce::framePts
+    const auto castedTimeStamp = std::chrono::milliseconds(packet->pts);
+    Q_EMIT newPacket(
+        PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size), castedTimeStamp));
 }
 
 void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)
