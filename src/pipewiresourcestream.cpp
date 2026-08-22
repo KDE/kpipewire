@@ -71,6 +71,11 @@ static const QVersionNumber kDmaBufMinVersion = {0, 3, 24};
 static const QVersionNumber kDmaBufModifierMinVersion = {0, 3, 33};
 static const QVersionNumber kDropSingleModifierMinVersion = {0, 3, 40};
 
+// Some drivers expose enough DMA-BUF modifiers for the format parameters to
+// exceed the old 4 KiB buffer. If that happens, formats at the end of the hash
+// are silently omitted and PipeWire may fail to negotiate a common format.
+static constexpr size_t formatParamsBufferSize = 16 * 1024;
+
 uint32_t PipeWireSourceStream::spaVideoFormatToDrmFormat(spa_video_format spa_format)
 {
     switch (spa_format) {
@@ -245,7 +250,7 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
 void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
-    uint8_t buffer[4096];
+    uint8_t buffer[formatParamsBufferSize];
     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     auto params = pw->createFormatsParams(podBuilder);
     pw_stream_update_params(pw->d->pwStream, params.data(), params.size());
@@ -580,7 +585,7 @@ bool PipeWireSourceStreamPrivate::createStream(uint nodeId, uint64_t objectSeria
 
     m_renegotiateEvent = pw_loop_add_event(pwCore->loop(), q->onRenegotiate, q);
 
-    uint8_t buffer[4096];
+    uint8_t buffer[formatParamsBufferSize];
     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     auto params = q->createFormatsParams(podBuilder);
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
