@@ -150,10 +150,10 @@ int PipeWireProduce::maxPendingFrames() const
 
 void PipeWireProduce::setMaxPendingFrames(int newMaxBufferSize)
 {
-    if (newMaxBufferSize < 3) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Maxmimum pending frame count of " << newMaxBufferSize << " requested. Value must be 3 or higher.";
-        newMaxBufferSize = 3;
-    }
+    // if (newMaxBufferSize < 3) {
+    //     qCWarning(PIPEWIRERECORD_LOGGING) << "Maxmimum pending frame count of " << newMaxBufferSize << " requested. Value must be 3 or higher.";
+    //     newMaxBufferSize = 3;
+    // }
     m_maxPendingFrames = newMaxBufferSize;
 }
 
