@@ -109,6 +109,7 @@ std::pair<int, int> Encoder::encodeFrame(int maximumFrames)
                 }
                 break;
             }
+            m_produce->frameQueuedForEncoding(frame->pts);
             queued++;
         } else {
             qCWarning(PIPEWIRERECORD_LOGGING) << "Encode queue is full, discarding filtered frame" << frame->pts;

@@ -90,6 +90,7 @@ PipeWireProduce::~PipeWireProduce()
 void PipeWireProduce::initialize()
 {
     m_stream.reset(new PipeWireSourceStream(nullptr));
+    m_stream->setDamageEnabled(m_damageTrackingEnabled);
     m_stream->setMaxFramerate(m_frameRate);
     m_stream->setRequestedSize(m_requestedSize);
 
@@ -126,6 +127,11 @@ void PipeWireProduce::initialize()
             m_processedFrames = 0;
         });
     }
+}
+
+void PipeWireProduce::setDamageTrackingEnabled(bool enabled)
+{
+    m_damageTrackingEnabled = enabled;
 }
 
 Fraction PipeWireProduce::maxFramerate() const
@@ -256,6 +262,7 @@ void PipeWireProduce::discardFrameState()
     // The queues contain work for the old encoder, which was just destroyed.
     m_pendingFilterFrames = 0;
     m_pendingEncodeFrames = 0;
+    discardEncoderFrameMetadata();
 }
 
 void PipeWireProduce::startThreads()
@@ -725,6 +732,7 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         return;
     }
 
+    frameAcceptedForEncoding(f);
     m_pendingFilterFrames++;
     m_previousPts = pts;
 

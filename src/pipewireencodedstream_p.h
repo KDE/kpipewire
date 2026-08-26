@@ -9,6 +9,9 @@
 #include "pipewireencodedstream.h"
 #include "pipewireproduce_p.h"
 
+#include <deque>
+#include <map>
+
 class PipeWireEncodeProduce : public PipeWireProduce
 {
     Q_OBJECT
@@ -22,6 +25,9 @@ public:
 
     void processPacket(AVPacket *packet) override;
     void processFrame(const PipeWireFrame &frame) override;
+    void frameAcceptedForEncoding(const PipeWireFrame &frame) override;
+    void frameQueuedForEncoding(int64_t pts) override;
+    void discardEncoderFrameMetadata() override;
     // A live encoded stream has no fixed container, so it can rebuild the
     // encoder when the source is resized mid-stream.
     bool supportsResize() const override
@@ -36,4 +42,7 @@ private:
     PipeWireEncodedStream *const m_encodedStream;
     QSize m_size;
     PipeWireCursor m_cursor;
+    std::mutex m_damageMutex;
+    std::map<int64_t, std::optional<QRegion>> m_damageByPts;
+    std::deque<std::optional<QRegion>> m_pendingPacketDamage;
 };

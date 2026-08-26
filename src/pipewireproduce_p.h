@@ -68,6 +68,8 @@ public:
 
     virtual void initialize();
 
+    void setDamageTrackingEnabled(bool enabled);
+
     QString error() const
     {
         return m_error;
@@ -137,6 +139,19 @@ public:
     virtual void aboutToEncode(PipeWireFrame &frame)
     {
         Q_UNUSED(frame);
+    }
+    // Called after a frame is accepted by the filter graph. The encoder calls
+    // frameQueuedForEncoding() once that filtered frame reaches the codec.
+    virtual void frameAcceptedForEncoding(const PipeWireFrame &frame)
+    {
+        Q_UNUSED(frame);
+    }
+    virtual void frameQueuedForEncoding(int64_t pts)
+    {
+        Q_UNUSED(pts);
+    }
+    virtual void discardEncoderFrameMetadata()
+    {
     }
 
     // Pause/resume frame delivery without tearing the stream down (suppress-output).
@@ -208,6 +223,7 @@ public:
 
     PipeWireBaseEncodedStream::EncodingPreference m_encodingPreference;
     PipeWireBaseEncodedStream::ColorRange m_colorRange = PipeWireBaseEncodedStream::ColorRange::Limited;
+    bool m_damageTrackingEnabled = false;
 
     struct {
         QImage texture;

@@ -16,20 +16,22 @@ extern "C" {
 class PipeWirePacketPrivate
 {
 public:
-    PipeWirePacketPrivate(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts)
+    PipeWirePacketPrivate(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts, std::optional<QRegion> damage)
         : isKey(isKey)
         , data(data)
         , presentationTimeStamp(pts)
+        , damage(std::move(damage))
     {
     }
 
     const bool isKey;
     const QByteArray data;
     const std::chrono::nanoseconds presentationTimeStamp;
+    const std::optional<QRegion> damage;
 };
 
-PipeWireEncodedStream::Packet::Packet(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts)
-    : d(std::make_shared<PipeWirePacketPrivate>(isKey, data, pts))
+PipeWireEncodedStream::Packet::Packet(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts, std::optional<QRegion> damage)
+    : d(std::make_shared<PipeWirePacketPrivate>(isKey, data, pts, std::move(damage)))
 {
 }
 
@@ -48,6 +50,11 @@ bool PipeWireEncodedStream::Packet::isKeyFrame() const
     return d->isKey;
 }
 
+std::optional<QRegion> PipeWireEncodedStream::Packet::damage() const
+{
+    return d->damage;
+}
+
 PipeWireEncodeProduce::PipeWireEncodeProduce(PipeWireBaseEncodedStream::Encoder encoder,
                                              uint nodeId,
                                              quint64 objectSerial,
@@ -57,6 +64,7 @@ PipeWireEncodeProduce::PipeWireEncodeProduce(PipeWireBaseEncodedStream::Encoder 
     : PipeWireProduce(encoder, nodeId, objectSerial, fd, framerate)
     , m_encodedStream(stream)
 {
+    setDamageTrackingEnabled(true);
 }
 
 void PipeWireEncodeProduce::processPacket(AVPacket *packet)
@@ -67,8 +75,43 @@ void PipeWireEncodeProduce::processPacket(AVPacket *packet)
 
     // This must match the conversion created by PipeWireProduce::framePts
     const auto castedTimeStamp = std::chrono::milliseconds(packet->pts);
-    Q_EMIT newPacket(
-        PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY, QByteArray(reinterpret_cast<char *>(packet->data), packet->size), castedTimeStamp));
+    std::optional<QRegion> damage;
+    {
+        std::lock_guard lock(m_damageMutex);
+        if (!m_pendingPacketDamage.empty()) {
+            damage = std::move(m_pendingPacketDamage.front());
+            m_pendingPacketDamage.pop_front();
+        }
+    }
+    Q_EMIT newPacket(PipeWireEncodedStream::Packet(packet->flags & AV_PKT_FLAG_KEY,
+                                                   QByteArray(reinterpret_cast<char *>(packet->data), packet->size),
+                                                   castedTimeStamp,
+                                                   std::move(damage)));
+}
+
+void PipeWireEncodeProduce::frameAcceptedForEncoding(const PipeWireFrame &frame)
+{
+    std::lock_guard lock(m_damageMutex);
+    m_damageByPts.insert_or_assign(framePts(frame.presentationTimestamp), frame.damage);
+}
+
+void PipeWireEncodeProduce::frameQueuedForEncoding(int64_t pts)
+{
+    std::lock_guard lock(m_damageMutex);
+    const auto it = m_damageByPts.find(pts);
+    if (it == m_damageByPts.end()) {
+        m_pendingPacketDamage.emplace_back();
+        return;
+    }
+    m_pendingPacketDamage.push_back(std::move(it->second));
+    m_damageByPts.erase(it);
+}
+
+void PipeWireEncodeProduce::discardEncoderFrameMetadata()
+{
+    std::lock_guard lock(m_damageMutex);
+    m_damageByPts.clear();
+    m_pendingPacketDamage.clear();
 }
 
 void PipeWireEncodeProduce::processFrame(const PipeWireFrame &frame)

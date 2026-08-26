@@ -7,11 +7,13 @@
 #pragma once
 
 #include <QObject>
+#include <QRegion>
 
 #include "pipewirebaseencodedstream.h"
 #include <kpipewire_export.h>
 
 #include <chrono>
+#include <optional>
 
 struct PipeWireCursor;
 class PipeWirePacketPrivate;
@@ -32,7 +34,7 @@ public:
     class Packet
     {
     public:
-        Packet(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts);
+        Packet(bool isKey, const QByteArray &data, std::chrono::nanoseconds pts, std::optional<QRegion> damage = std::nullopt);
 
         /**
          * Whether the packet represents a key frame
@@ -47,6 +49,12 @@ public:
          * The source presentation timestamp of the packet. This is the timestamp that was provided by the source of the stream.
          */
         std::chrono::nanoseconds presentationTimeStamp() const;
+
+        /**
+         * The regions of the source frame that changed since the preceding frame.
+         * A missing value means the source did not provide damage information.
+         */
+        std::optional<QRegion> damage() const;
 
         std::shared_ptr<PipeWirePacketPrivate> d;
     };
