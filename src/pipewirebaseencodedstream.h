@@ -63,6 +63,14 @@ public:
     void setMaxFramerate(const Fraction &framerate);
     void setMaxFramerate(quint32 numerator, quint32 denominator = 1);
 
+    /**
+     * Temporarily disables the encoder, causing it to coalesce frames
+     * until resumed.
+     *
+     * The pipewire source stream will still be alive.
+     */
+    void setEncoderPaused(bool paused);
+
     QSize requestedSize() const;
     void setRequestedSize(const QSize &size);
 

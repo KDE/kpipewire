@@ -132,6 +132,11 @@ void PipeWireBaseEncodedStream::setMaxFramerate(quint32 numerator, quint32 denom
     setMaxFramerate({numerator, denominator});
 }
 
+void PipeWireBaseEncodedStream::setEncoderPaused(bool paused)
+{
+    d->m_produce->setEncoderPaused(paused);
+}
+
 QSize PipeWireBaseEncodedStream::requestedSize() const
 {
     return d->m_requestedSize;
