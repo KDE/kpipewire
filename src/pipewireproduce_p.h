@@ -82,6 +82,13 @@ public:
     QSize requestedSize() const;
     void setRequestedSize(const QSize &size);
 
+    // can be called from any thread
+    void setEncoderPaused(bool encoderPaused);
+    bool encoderPaused() const
+    {
+        return m_encoderPaused;
+    }
+
     virtual int64_t framePts(const std::optional<std::chrono::nanoseconds> &presentationTimestamp)
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(presentationTimestamp.value()).count();
@@ -247,6 +254,10 @@ public:
     Fraction m_maxFramerate = {60, 1};
 
     std::unique_ptr<QTimer> m_frameStatisticsTimer;
+
+    std::atomic_bool m_encoderPaused = false;
+
+    PipeWireFrame m_lastDroppedFrame;
 
 Q_SIGNALS:
     void producedFrames();

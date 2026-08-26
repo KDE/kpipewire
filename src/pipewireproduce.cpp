@@ -189,6 +189,23 @@ void PipeWireProduce::setRequestedSize(const QSize &size)
     }
 }
 
+void PipeWireProduce::setEncoderPaused(bool encoderPaused)
+{
+    if (encoderPaused == m_encoderPaused) {
+        return;
+    }
+
+    m_encoderPaused = encoderPaused;
+
+    if (!m_encoderPaused) {
+        QMetaObject::invokeMethod(this, [this]() {
+            if (m_lastDroppedFrame.dataFrame || m_lastDroppedFrame.dmabuf) {
+                processFrame(m_lastDroppedFrame);
+            }
+        });
+    }
+}
+
 void PipeWireProduce::setupStream()
 {
     qCDebug(PIPEWIRERECORD_LOGGING) << "Setting up stream";
@@ -254,6 +271,7 @@ void PipeWireProduce::reconfigureStream()
 void PipeWireProduce::discardFrameState()
 {
     // The queues contain work for the old encoder, which was just destroyed.
+    m_lastDroppedFrame = {};
     m_pendingFilterFrames = 0;
     m_pendingEncodeFrames = 0;
 }
@@ -707,6 +725,13 @@ void PipeWireProduce::processFrame(const PipeWireFrame &frame)
         if ((pts - m_previousPts) < frameTime) {
             return;
         }
+    }
+
+    if (m_encoderPaused) {
+        m_lastDroppedFrame = frame;
+        return;
+    } else {
+        m_lastDroppedFrame = {};
     }
 
     if (m_pendingFilterFrames + 1 > m_maxPendingFrames) {
