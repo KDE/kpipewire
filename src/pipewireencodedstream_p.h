@@ -9,8 +9,8 @@
 #include "pipewireencodedstream.h"
 #include "pipewireproduce_p.h"
 
-#include <deque>
 #include <map>
+#include <queue>
 
 class PipeWireEncodeProduce : public PipeWireProduce
 {
@@ -44,5 +44,5 @@ private:
     PipeWireCursor m_cursor;
     std::mutex m_damageMutex;
     std::map<int64_t, std::optional<QRegion>> m_damageByPts;
-    std::deque<std::optional<QRegion>> m_pendingPacketDamage;
+    QQueue<std::optional<QRegion>> m_pendingPacketDamage;
 };

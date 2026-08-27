@@ -100,7 +100,7 @@ void PipeWireEncodeProduce::frameQueuedForEncoding(int64_t pts)
     std::lock_guard lock(m_damageMutex);
     const auto it = m_damageByPts.find(pts);
     if (it == m_damageByPts.end()) {
-        m_pendingPacketDamage.emplace_back();
+        m_pendingPacketDamage.push_back({});
         return;
     }
     m_pendingPacketDamage.push_back(std::move(it->second));
