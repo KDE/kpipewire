@@ -83,10 +83,10 @@ void LibVpxVp9Encoder::setQuality(std::optional<quint8> quality)
         return;
     }
     // Lower crf is higher quality. Max 0, min 63. libvpx-vp9 doesn't use global_quality.
+    // But recommended values range is 15 - 37.
     int crf = 31;
     if (m_quality) {
-        constexpr int MinQuality = 63;
-        crf = std::max(1, int(MinQuality - (quality.value() / 100.0) * MinQuality));
+        crf = std::lerp(37, 15, quality.value() / 100.0);
     }
     // libvpx-vp9 crf takes an int
     av_opt_set_int(m_avCodecContext, "qmin", std::clamp(crf / 2, 0, crf), AV_OPT_SEARCH_CHILDREN);
