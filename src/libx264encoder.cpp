@@ -101,8 +101,8 @@ void LibX264Encoder::setQuality(std::optional<quint8> quality)
     }
     // libx264 ignores the AVCodecContext global_quality / qscale fields and
     // requires CRF to be passed as a private option for constant-quality mode.
-    constexpr qreal MinQuality = 51 + 6 * 6;
-    const qreal crf = m_quality ? std::max(1.0, (MinQuality - (quality.value() / 100.0) * MinQuality)) : 35;
+    // Recommended values range is 17 - 28.
+    const qreal crf = m_quality ? std::lerp(28, 17, quality.value() / 100.0) : 23;
     // libx264 crf takes a float
     av_opt_set_double(m_avCodecContext, "crf", crf, AV_OPT_SEARCH_CHILDREN);
 }
