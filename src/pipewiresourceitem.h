@@ -85,8 +85,8 @@ public:
     QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *data) override;
     Q_SCRIPTABLE QString error() const;
 
-    void KPIPEWIRE_DEPRECATED setNodeId(uint nodeId);
-    uint KPIPEWIRE_DEPRECATED nodeId() const;
+    KPIPEWIRE_DEPRECATED void setNodeId(uint nodeId);
+    KPIPEWIRE_DEPRECATED uint nodeId() const;
 
     void setObjectSerial(quint64 objectSerial);
     quint64 objectSerial() const;
