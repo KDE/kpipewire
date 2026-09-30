@@ -490,6 +490,49 @@ void PipeWireSourceStream::setUsageHint(UsageHint hint)
     d->usageHint = hint;
 }
 
+#ifndef EGL_RENDERER_EXT
+// EGL_EXT_device_query_name
+#    define EGL_RENDERER_EXT 0x335F
+#endif
+
+// Mesa's software rasterizers leak the backing buffer for every
+// eglCreateImage() on a dma-buf-backed EGLImage: the DRI sw_winsys
+// discards the reference before its fd branch can free it (mesa#16335).
+// Screen recording on such systems then grows unbounded memory while
+// importing every frame. Software rendering gains nothing from dma-buf
+// anyway, so detect the renderer and stay on the shm path.
+static bool rendererIsSoftware(EGLDisplay display)
+{
+    if (!epoxy_has_egl_extension(EGL_NO_DISPLAY, "EGL_EXT_device_query")) {
+        return false;
+    }
+
+    EGLAttrib device = 0;
+    if (!eglQueryDisplayAttribEXT(display, EGL_DEVICE_EXT, &device) || device == 0) {
+        return false;
+    }
+
+    // Mesa flags a pure software EGL device with this extension.
+    if (const char *deviceExtensions =
+            eglQueryDeviceStringEXT(reinterpret_cast<EGLDeviceEXT>(device), EGL_EXTENSIONS)) {
+        if (QString::fromLatin1(deviceExtensions).contains(QStringLiteral("EGL_MESA_device_software"))) {
+            return true;
+        }
+    }
+
+    // For devices backed by a DRM render node, EGL_EXT_device_query_name
+    // reports the name of the Gallium screen driving it, e.g. "llvmpipe".
+    EGLAttrib renderer = 0;
+    if (!eglQueryDeviceAttribEXT(reinterpret_cast<EGLDeviceEXT>(device), EGL_RENDERER_EXT, &renderer) || renderer == 0) {
+        return false;
+    }
+
+    const QString rendererString = QString::fromLatin1(reinterpret_cast<const char *>(renderer));
+    return rendererString.contains(QStringLiteral("llvmpipe"), Qt::CaseInsensitive)
+        || rendererString.contains(QStringLiteral("softpipe"), Qt::CaseInsensitive)
+        || rendererString.contains(QStringLiteral("swrast"), Qt::CaseInsensitive);
+}
+
 QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
@@ -509,6 +552,9 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
     const EGLDisplay display = RenderNodeResolver::resolveForCurrentSession().eglDisplay;
 
     if (display == EGL_NO_DISPLAY) {
+        d->m_allowDmaBuf = false;
+    } else if (rendererIsSoftware(display)) {
+        qCDebug(PIPEWIRE_LOGGING) << "Software renderer detected, not using dma-buf";
         d->m_allowDmaBuf = false;
     }
 
