@@ -590,7 +590,7 @@ void PipeWireSourceStream::handleFrame(struct pw_buffer *buffer)
 
             QImage cursorTexture;
             if (bitmap && bitmap->size.width > 0 && bitmap->size.height > 0) {
-                const size_t bufferSize = bitmap->stride * bitmap->size.height * 4;
+                const size_t bufferSize = bitmap->stride * bitmap->size.height;
                 void *bufferData = malloc(bufferSize);
                 memcpy(bufferData, SPA_MEMBER(bitmap, bitmap->offset, uint8_t), bufferSize);
                 cursorTexture = PWHelpers::SpaBufferToQImage(static_cast<const uchar *>(bufferData),
