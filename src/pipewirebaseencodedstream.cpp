@@ -218,6 +218,7 @@ void PipeWireBaseEncodedStream::start()
     d->m_produce->setMaxPendingFrames(d->m_maxPendingFrames);
     d->m_produce->setEncodingPreference(d->m_encodingPreference);
     d->m_produce->setColorRange(d->m_colorRange);
+    d->m_produce->setRequestedSize(d->m_requestedSize);
     d->m_produce->moveToThread(d->m_produceThread.get());
     d->m_produceThread->start();
     QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);
