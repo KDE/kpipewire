@@ -68,6 +68,12 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
+    // Without a frame rate libx264 assumes 1/time_base, i.e. 1000 fps, and signals level 6.1,
+    // which decoders such as OpenH264 reject: give it the stream's real maximum frame rate
+    const Fraction framerate = m_produce->maxFramerate();
+    if (framerate.numerator > 0 && framerate.denominator > 0) {
+        m_avCodecContext->framerate = AVRational{int(framerate.numerator), int(framerate.denominator)};
+    }
 
     switch (m_profile) {
     case H264Profile::Baseline:
