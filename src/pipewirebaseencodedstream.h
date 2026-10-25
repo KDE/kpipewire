@@ -76,6 +76,7 @@ public:
 
     QSize requestedSize() const;
     void setRequestedSize(const QSize &size);
+    void setPreferredScale(qreal scale);
 
     /**
      * Defines how many frames are kept in the encoding buffer.

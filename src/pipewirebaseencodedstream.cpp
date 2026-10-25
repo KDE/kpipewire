@@ -28,6 +28,7 @@ struct PipeWireEncodedStreamPrivate {
     std::optional<uint> m_fd;
     Fraction m_maxFramerate;
     QSize m_requestedSize;
+    qreal m_preferredScale = 0;
     int m_maxPendingFrames = 50;
     bool m_active = false;
     PipeWireBaseEncodedStream::Encoder m_encoder = PipeWireBaseEncodedStream::NoEncoder;
@@ -166,6 +167,22 @@ void PipeWireBaseEncodedStream::setRequestedSize(const QSize &size)
         Qt::QueuedConnection);
 }
 
+void PipeWireBaseEncodedStream::setPreferredScale(qreal scale)
+{
+    if (d->m_preferredScale == scale) {
+        return;
+    }
+    d->m_preferredScale = scale;
+
+    // produce runs in another thread
+    QMetaObject::invokeMethod(
+        d->m_produce.get(),
+        [produce = d->m_produce.get(), scale]() {
+            produce->setPreferredScale(scale);
+        },
+        Qt::QueuedConnection);
+}
+
 void PipeWireBaseEncodedStream::setMaxPendingFrames(int maxPendingFrames)
 {
     if (d->m_maxPendingFrames == maxPendingFrames) {
@@ -219,6 +236,7 @@ void PipeWireBaseEncodedStream::start()
     d->m_produce->setEncodingPreference(d->m_encodingPreference);
     d->m_produce->setColorRange(d->m_colorRange);
     d->m_produce->setRequestedSize(d->m_requestedSize);
+    d->m_produce->setPreferredScale(d->m_preferredScale);
     d->m_produce->moveToThread(d->m_produceThread.get());
     d->m_produceThread->start();
     QMetaObject::invokeMethod(d->m_produce.get(), &PipeWireProduce::initialize, Qt::QueuedConnection);

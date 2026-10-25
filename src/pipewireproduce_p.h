@@ -81,6 +81,7 @@ public:
 
     QSize requestedSize() const;
     void setRequestedSize(const QSize &size);
+    void setPreferredScale(qreal scale);
 
     // can be called from any thread
     void setEncoderPaused(bool encoderPaused);
@@ -210,6 +211,7 @@ public:
     uint m_fd;
     Fraction m_frameRate;
     QSize m_requestedSize;
+    qreal m_preferredScale = 0;
 
     std::optional<quint8> m_quality;
 

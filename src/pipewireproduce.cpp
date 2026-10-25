@@ -92,6 +92,7 @@ void PipeWireProduce::initialize()
     m_stream.reset(new PipeWireSourceStream(nullptr));
     m_stream->setMaxFramerate(m_frameRate);
     m_stream->setRequestedSize(m_requestedSize);
+    m_stream->setPreferredScale(m_preferredScale);
 
     // The check in supportsHardwareEncoding() is insufficient to fully
     // determine if we actually support hardware encoding the current stream,
@@ -186,6 +187,18 @@ void PipeWireProduce::setRequestedSize(const QSize &size)
 
     if (m_stream) {
         m_stream->setRequestedSize(size);
+    }
+}
+
+void PipeWireProduce::setPreferredScale(qreal scale)
+{
+    if (m_preferredScale == scale) {
+        return;
+    }
+    m_preferredScale = scale;
+
+    if (m_stream) {
+        m_stream->setPreferredScale(scale);
     }
 }
 

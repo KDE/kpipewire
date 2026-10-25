@@ -128,6 +128,10 @@ public:
     Fraction framerate() const;
     void setMaxFramerate(const Fraction &framerate);
     void setRequestedSize(const QSize &size);
+    /**
+     * Asks the producer to render with this scale, e.g. when it streams a virtual output.
+     */
+    void setPreferredScale(qreal scale);
 
     uint nodeId();
     quint64 objectSerial();

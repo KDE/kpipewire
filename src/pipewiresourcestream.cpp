@@ -16,6 +16,9 @@
 
 #include <libdrm/drm_fourcc.h>
 #include <spa/utils/result.h>
+#if PW_CHECK_VERSION(0, 3, 80)
+#include <spa/param/tag-utils.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -61,6 +64,7 @@ struct PipeWireSourceStreamPrivate
     bool m_withDamage = false;
     Fraction maxFramerate;
     QSize requestedSize;
+    qreal preferredScale = 0;
 
     PipeWireSourceStream::UsageHint usageHint = PipeWireSourceStream::UsageHint::Render;
     bool createStream(uint nodeId, uint64_t objectSerial, int fd, PipeWireSourceStream *q);
@@ -474,6 +478,17 @@ void PipeWireSourceStream::setRequestedSize(const QSize &size)
     }
 }
 
+void PipeWireSourceStream::setPreferredScale(qreal scale)
+{
+    if (d->preferredScale == scale) {
+        return;
+    }
+    d->preferredScale = scale;
+    if (d->pwStream) {
+        pw_loop_signal_event(d->pwCore->loop(), d->m_renegotiateEvent);
+    }
+}
+
 uint PipeWireSourceStream::nodeId()
 {
     return d->pwNodeId;
@@ -592,6 +607,17 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(QByteArray &buf
 
             params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate, d->requestedSize);
         }
+#if PW_CHECK_VERSION(0, 3, 80)
+        if (d->preferredScale > 0) {
+            const QByteArray scale = QByteArray::number(d->preferredScale);
+            const spa_dict_item item = SPA_DICT_ITEM_INIT("org.kde.preferred-scale", scale.constData());
+            const spa_dict dict = SPA_DICT_INIT(&item, 1);
+            spa_pod_frame frame;
+            spa_tag_build_start(&podBuilder, &frame, SPA_PARAM_Tag, SPA_DIRECTION_INPUT);
+            spa_tag_build_add_dict(&podBuilder, &dict);
+            params += spa_tag_build_end(&podBuilder, &frame);
+        }
+#endif
         if (podBuilder.state.offset <= podBuilder.size) {
             break;
         }
