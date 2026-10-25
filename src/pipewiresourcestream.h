@@ -171,7 +171,7 @@ private:
     static void onStreamStateChanged(void *data, pw_stream_state old, pw_stream_state state, const char *error_message);
     static void onRenegotiate(void *data, uint64_t);
     static void onDestroy(void *data);
-    QList<const spa_pod *> createFormatsParams(spa_pod_builder podBuilder);
+    QList<const spa_pod *> createFormatsParams(QByteArray &buffer);
 
     void coreFailed(const QString &errorMessage);
     QScopedPointer<PipeWireSourceStreamPrivate> d;

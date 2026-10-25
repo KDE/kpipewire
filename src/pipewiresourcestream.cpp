@@ -245,9 +245,8 @@ void PipeWireSourceStream::onStreamStateChanged(void *data, pw_stream_state old,
 void PipeWireSourceStream::onRenegotiate(void *data, uint64_t)
 {
     PipeWireSourceStream *pw = static_cast<PipeWireSourceStream *>(data);
-    uint8_t buffer[4096];
-    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    auto params = pw->createFormatsParams(podBuilder);
+    QByteArray buffer;
+    auto params = pw->createFormatsParams(buffer);
     pw_stream_update_params(pw->d->pwStream, params.data(), params.size());
 }
 
@@ -533,7 +532,7 @@ static bool rendererIsSoftware(EGLDisplay display)
         || rendererString.contains(QStringLiteral("swrast"), Qt::CaseInsensitive);
 }
 
-QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder podBuilder)
+QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(QByteArray &buffer)
 {
     const auto pwServerVersion = d->pwCore->serverVersion();
     static constexpr auto formats = {
@@ -579,12 +578,24 @@ QList<const spa_pod *> PipeWireSourceStream::createFormatsParams(spa_pod_builder
         d->m_availableModifiers = availableModifiers;
     }
 
-    for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
-        if (d->m_allowDmaBuf && !it->isEmpty()) {
-            params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate, d->maxFramerate, d->requestedSize);
-        }
+    // The modifier lists can be long. The builder does not write past its end but keeps counting,
+    // so if it ran out of space, build again into a buffer of the size it needed.
+    // Start with 4096 bytes, which is enough in most cases.
+    buffer.resize(4096);
+    for (;;) {
+        spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer.data(), uint32_t(buffer.size()));
+        params.clear();
+        for (auto it = d->m_availableModifiers.constBegin(), itEnd = d->m_availableModifiers.constEnd(); it != itEnd; ++it) {
+            if (d->m_allowDmaBuf && !it->isEmpty()) {
+                params += buildFormat(&podBuilder, it.key(), it.value(), withDontFixate, d->maxFramerate, d->requestedSize);
+            }
 
-        params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate, d->requestedSize);
+            params += buildFormat(&podBuilder, it.key(), {}, withDontFixate, d->maxFramerate, d->requestedSize);
+        }
+        if (podBuilder.state.offset <= podBuilder.size) {
+            break;
+        }
+        buffer.resize(podBuilder.state.offset);
     }
 
     // BUG 492400: Workaround for pipewire < 0.3.49 https://github.com/PipeWire/pipewire/commit/8646117374df6fa3b73f63f9b35cda78a6aaa2f4
@@ -626,9 +637,8 @@ bool PipeWireSourceStreamPrivate::createStream(uint nodeId, uint64_t objectSeria
 
     m_renegotiateEvent = pw_loop_add_event(pwCore->loop(), q->onRenegotiate, q);
 
-    uint8_t buffer[4096];
-    spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-    auto params = q->createFormatsParams(podBuilder);
+    QByteArray buffer;
+    auto params = q->createFormatsParams(buffer);
     pw_stream_flags s = (pw_stream_flags)(PW_STREAM_FLAG_DONT_RECONNECT | PW_STREAM_FLAG_AUTOCONNECT);
     if (pw_stream_connect(pwStream, PW_DIRECTION_INPUT, objectSerial != uint64_t(-1) ? PW_ID_ANY : pwNodeId, s, params.data(), params.size()) != 0) {
         qCWarning(PIPEWIRE_LOGGING) << "Could not connect to stream";
