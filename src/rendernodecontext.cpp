@@ -8,6 +8,12 @@ extern "C" {
 #include <xf86drm.h>
 }
 
+// From EGL_EXT_device_drm_render_node; libepoxy's generated headers lack it, which compiled
+// the render node query below out and left only the primary node fallback.
+#ifndef EGL_DRM_RENDER_NODE_FILE_EXT
+#define EGL_DRM_RENDER_NODE_FILE_EXT 0x3377
+#endif
+
 QByteArray RenderNodeResolver::renderNodeForDevicePath(const QByteArray &devicePath)
 {
     if (devicePath.isEmpty()) {
