@@ -33,12 +33,13 @@ LibOpenH264Encoder::LibOpenH264Encoder(H264Profile profile, PipeWireProduce *pro
     : SoftwareEncoder(produce)
     , m_profile(profile)
 {
-    auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? u"full"_s : u"limited"_s;
-    m_filterGraphToParse = u"format=yuv420p,scale=out_range=%1"_s.arg(colorRange);
 }
 
 bool LibOpenH264Encoder::initialize(const QSize &size)
 {
+    auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? u"full"_s : u"limited"_s;
+    m_filterGraphToParse = u"format=yuv420p,scale=out_range=%1"_s.arg(colorRange);
+
     createFilterGraph(size);
 
     auto codec = avcodec_find_encoder_by_name("libopenh264");
@@ -59,6 +60,7 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
+    m_avCodecContext->color_range = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
     setQuality(m_quality);

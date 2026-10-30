@@ -33,16 +33,17 @@ LibX264Encoder::LibX264Encoder(H264Profile profile, PipeWireProduce *produce)
     : SoftwareEncoder(produce)
     , m_profile(profile)
 {
+}
+
+bool LibX264Encoder::initialize(const QSize &size)
+{
     auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? u"full"_s : u"limited"_s;
 
     // Adjust the filter graph to ensure we are using an even frame size using a
     // pad filter. Otherwise the size adjustment below will insert a row/column
     // of garbage instead of black.
     m_filterGraphToParse = u"format=yuv420p,pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=out_range=%1"_s.arg(colorRange);
-}
 
-bool LibX264Encoder::initialize(const QSize &size)
-{
     createFilterGraph(size);
 
     auto codec = avcodec_find_encoder_by_name("libx264");
@@ -67,6 +68,7 @@ bool LibX264Encoder::initialize(const QSize &size)
     m_avCodecContext->max_b_frames = 0;
     m_avCodecContext->gop_size = 100;
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
+    m_avCodecContext->color_range = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG;
     m_avCodecContext->time_base = AVRational{1, 1000};
     // Without a frame rate libx264 assumes 1/time_base, i.e. 1000 fps, and signals level 6.1,
     // which decoders such as OpenH264 reject: give it the stream's real maximum frame rate
