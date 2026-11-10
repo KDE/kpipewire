@@ -42,7 +42,7 @@ bool LibX264Encoder::initialize(const QSize &size)
     // Adjust the filter graph to ensure we are using an even frame size using a
     // pad filter. Otherwise the size adjustment below will insert a row/column
     // of garbage instead of black.
-    m_filterGraphToParse = u"format=yuv420p,pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=out_range=%1"_s.arg(colorRange);
+    m_filterGraphToParse = u"format=yuv420p,pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=out_color_matrix=bt709:out_range=%1"_s.arg(colorRange);
 
     createFilterGraph(size);
 
