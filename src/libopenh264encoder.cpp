@@ -38,7 +38,7 @@ LibOpenH264Encoder::LibOpenH264Encoder(H264Profile profile, PipeWireProduce *pro
 bool LibOpenH264Encoder::initialize(const QSize &size)
 {
     auto colorRange = m_colorRange == PipeWireBaseEncodedStream::ColorRange::Full ? u"full"_s : u"limited"_s;
-    m_filterGraphToParse = u"format=yuv420p,scale=out_range=%1"_s.arg(colorRange);
+    m_filterGraphToParse = u"format=yuv420p,scale=out_color_matrix=bt709:out_range=%1"_s.arg(colorRange);
 
     createFilterGraph(size);
 
