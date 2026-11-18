@@ -246,8 +246,8 @@ void PipeWireRecordProduce::aboutToEncode(PipeWireFrame &frame)
 
     if (m_cursor.position && !m_cursor.texture.isNull()) {
         auto image = frame.dataFrame->toImage();
-        // Do not copy the image if it's already ours
-        if (m_frameWithoutMetadataCursor.dataFrame->cleanup != frame.dataFrame->cleanup) {
+        if (!m_frameWithoutMetadataCursor.dataFrame || m_frameWithoutMetadataCursor.dataFrame->cleanup != frame.dataFrame->cleanup) {
+            // Adopt the frame if we don't have one.
             m_frameWithoutMetadataCursor.dataFrame = frame.dataFrame->copy();
         }
         QPainter p(&image);
