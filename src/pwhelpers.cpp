@@ -62,9 +62,9 @@ std::shared_ptr<PipeWireFrameData> PipeWireFrameData::copy() const
 {
     // BEWARE! The stride here comes out of SPA and is in bytes per line, not pixels. Do NOT multiply by planes!
     const uint bufferSize = size.height() * stride;
-    auto newMap = malloc(bufferSize);
-    memcpy(newMap, data, bufferSize);
-    return std::make_shared<PipeWireFrameData>(format, newMap, size, stride, new PipeWireFrameCleanupFunction([newMap] {
-                                                   free(newMap);
+    auto buffer = std::span<std::byte>{static_cast<std::byte *>(data), bufferSize};
+    auto newMap = std::vector<std::byte>(buffer.begin(), buffer.end());
+    return std::make_shared<PipeWireFrameData>(format, newMap.data(), size, stride, new PipeWireFrameCleanupFunction([newMap = std::move(newMap)]() mutable {
+                                                   newMap.clear();
                                                }));
 }
