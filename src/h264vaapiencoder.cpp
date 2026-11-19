@@ -164,7 +164,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     m_avCodecContext->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(m_outputFilter));
 
     if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
 
