@@ -389,7 +389,7 @@ bool HardwareEncoder::filterFrame(const PipeWireFrame &frame)
     frameDesc->nb_objects = 1;
     frameDesc->objects[0].fd = attribs.planes[0].fd;
     frameDesc->objects[0].format_modifier = attribs.modifier;
-    frameDesc->objects[0].size = attribs.width * attribs.height * 4;
+    frameDesc->objects[0].size = attribs.planes[0].offset + attribs.planes[0].stride * attribs.height;
 
     drmFrame->data[0] = reinterpret_cast<uint8_t *>(frameDesc);
     drmFrame->buf[0] = av_buffer_create(reinterpret_cast<uint8_t *>(frameDesc), sizeof(*frameDesc), av_buffer_default_free, nullptr, 0);
