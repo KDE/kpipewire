@@ -50,10 +50,10 @@ bool LibVpxEncoder::initialize(const QSize &size)
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    AVDictionary *options = buildEncodingOptions();
+    auto options = buildEncodingOptions();
     maybeLogOptions(options);
 
-    if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
+    if (int result = avcodec_open2(m_avCodecContext, codec, std::inout_ptr(options)); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
@@ -61,20 +61,20 @@ bool LibVpxEncoder::initialize(const QSize &size)
     return true;
 }
 
-AVDictionary *LibVpxEncoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary LibVpxEncoder::buildEncodingOptions()
 {
-    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+    auto options = SoftwareEncoder::buildEncodingOptions();
 
-    av_dict_set(&options, "preset", "veryfast", 0);
-    av_dict_set(&options, "tune-content", "screen", 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
+    av_dict_set(std::inout_ptr(options), "preset", "veryfast", 0);
+    av_dict_set(std::inout_ptr(options), "tune-content", "screen", 0);
+    av_dict_set(std::inout_ptr(options), "deadline", "realtime", 0);
     // In theory a lower number should be faster, but the opposite seems to be true
     // av_dict_set(&options, "quality", "40", 0);
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
-    av_dict_set(&options, "flags", "+mv4", 0);
+    av_dict_set(std::inout_ptr(options), "flags", "+mv4", 0);
     // Disable in-loop filtering
-    av_dict_set(&options, "-flags", "+loop", 0);
-    av_dict_set(&options, "crf", "45", 0);
+    av_dict_set(std::inout_ptr(options), "-flags", "+loop", 0);
+    av_dict_set(std::inout_ptr(options), "crf", "45", 0);
 
     return options;
 }

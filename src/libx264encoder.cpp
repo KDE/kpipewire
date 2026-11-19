@@ -86,10 +86,10 @@ bool LibX264Encoder::initialize(const QSize &size)
     }
 
     setQuality(m_quality);
-    AVDictionary *options = buildEncodingOptions();
+    auto options = buildEncodingOptions();
     maybeLogOptions(options);
 
-    if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
+    if (int result = avcodec_open2(m_avCodecContext, codec, std::inout_ptr(options)); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
@@ -111,33 +111,33 @@ void LibX264Encoder::setQuality(std::optional<quint8> quality)
     av_opt_set_double(m_avCodecContext, "crf", crf, AV_OPT_SEARCH_CHILDREN);
 }
 
-AVDictionary *LibX264Encoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary LibX264Encoder::buildEncodingOptions()
 {
-    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+    auto options = SoftwareEncoder::buildEncodingOptions();
 
     switch (m_encodingPreference) {
     case PipeWireBaseEncodedStream::EncodingPreference::NoPreference:
-        av_dict_set(&options, "preset", "veryfast", 0);
+        av_dict_set(std::inout_ptr(options), "preset", "veryfast", 0);
         break;
     case PipeWireBaseEncodedStream::EncodingPreference::Quality:
-        av_dict_set(&options, "preset", "medium", 0);
+        av_dict_set(std::inout_ptr(options), "preset", "medium", 0);
         break;
     case PipeWireBaseEncodedStream::EncodingPreference::Speed:
-        av_dict_set(&options, "preset", "ultrafast", 0);
-        av_dict_set(&options, "tune", "zerolatency", 0);
+        av_dict_set(std::inout_ptr(options), "preset", "ultrafast", 0);
+        av_dict_set(std::inout_ptr(options), "tune", "zerolatency", 0);
         break;
     case PipeWireBaseEncodedStream::EncodingPreference::Size:
-        av_dict_set(&options, "preset", "slow", 0);
+        av_dict_set(std::inout_ptr(options), "preset", "slow", 0);
         break;
     default: //  Same as NoPreference
-        av_dict_set(&options, "preset", "veryfast", 0);
+        av_dict_set(std::inout_ptr(options), "preset", "veryfast", 0);
         break;
     }
 
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
-    av_dict_set(&options, "flags", "+mv4", 0);
+    av_dict_set(std::inout_ptr(options), "flags", "+mv4", 0);
     // Disable in-loop filtering
-    av_dict_set(&options, "-flags", "+loop", 0);
+    av_dict_set(std::inout_ptr(options), "-flags", "+loop", 0);
 
     return options;
 }

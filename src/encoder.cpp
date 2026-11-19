@@ -191,22 +191,22 @@ void Encoder::setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange)
     m_colorRange = colorRange;
 }
 
-AVDictionary *Encoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary Encoder::buildEncodingOptions()
 {
-    AVDictionary *options = NULL;
-
-    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-
+    UniqueAVDictionary options(nullptr, Encoder::uniqueAVDictionaryDeleter);
+    av_dict_set_int(std::out_ptr(options), "threads", qMin(16, QThread::idealThreadCount()), 0);
     return options;
 }
 
-void Encoder::maybeLogOptions(AVDictionary *options)
+void Encoder::maybeLogOptions(const UniqueAVDictionary &options)
 {
     if (PIPEWIRERECORD_LOGGING().isInfoEnabled()) {
-        char *buffer = NULL;
-        av_dict_get_string(options, &buffer, '=', ',');
-        qCDebug(PIPEWIRERECORD_LOGGING) << "Using encoding options:" << buffer;
-        av_freep(&buffer);
+        std::unique_ptr<char, decltype(&av_freep)> buffer(nullptr, [](void *v) {
+            // Yes, yes, it's really a char** into a void*. C my beloved.
+            av_freep(static_cast<void *>(&v));
+        });
+        av_dict_get_string(options.get(), std::out_ptr(buffer), '=', ',');
+        qCDebug(PIPEWIRERECORD_LOGGING) << "Using encoding options:" << buffer.get();
     }
 }
 

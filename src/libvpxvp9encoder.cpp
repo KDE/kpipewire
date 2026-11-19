@@ -51,7 +51,7 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
     m_avCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
     m_avCodecContext->time_base = AVRational{1, 1000};
 
-    AVDictionary *options = buildEncodingOptions();
+    auto options = buildEncodingOptions();
     maybeLogOptions(options);
 
     // m_avCodecContext->framerate is not set, so we use m_produce->maxFramerate() instead.
@@ -62,7 +62,7 @@ bool LibVpxVp9Encoder::initialize(const QSize &size)
 
     setQuality(m_quality);
 
-    if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
+    if (int result = avcodec_open2(m_avCodecContext, codec, std::inout_ptr(options)); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
@@ -100,32 +100,32 @@ void LibVpxVp9Encoder::setQuality(std::optional<quint8> quality)
     av_opt_set_int(m_avCodecContext, "crf", crf, AV_OPT_SEARCH_CHILDREN);
 }
 
-AVDictionary *LibVpxVp9Encoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary LibVpxVp9Encoder::buildEncodingOptions()
 {
-    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+    auto options = SoftwareEncoder::buildEncodingOptions();
 
     // We're probably capturing a screen
-    av_dict_set(&options, "tune-content", "screen", 0);
+    av_dict_set(std::inout_ptr(options), "tune-content", "screen", 0);
 
     // 0-4 are for Video-On-Demand with the good or best deadline.
     // Don't use best, it's not worth it.
     // 5-8 are for streaming with the realtime deadline.
     // Lower is higher quality.
     int cpuUsed = 5 + std::max(1, int(3 - std::round(m_quality.value_or(50) / 100.0 * 3)));
-    av_dict_set_int(&options, "cpu-used", cpuUsed, 0);
-    av_dict_set(&options, "deadline", "realtime", 0);
+    av_dict_set_int(std::inout_ptr(options), "cpu-used", cpuUsed, 0);
+    av_dict_set(std::inout_ptr(options), "deadline", "realtime", 0);
 
     // Frames arrive on damage, not at a fixed cadence. The libvpx default
     // lookahead keeps the last frame buffered until another arrives.
-    av_dict_set_int(&options, "lag-in-frames", 0, 0);
+    av_dict_set_int(std::inout_ptr(options), "lag-in-frames", 0, 0);
 
     // The value is interpreted as being equivalent to log2(realNumberOfColumns),
     // so 3 is 8 columns. 6 is the max amount of columns. 2 is the max amount of rows.
-    av_dict_set(&options, "tile-columns", "6", 0);
-    av_dict_set(&options, "tile-rows", "2", 0);
+    av_dict_set(std::inout_ptr(options), "tile-columns", "6", 0);
+    av_dict_set(std::inout_ptr(options), "tile-rows", "2", 0);
 
-    av_dict_set(&options, "row-mt", "1", 0);
-    av_dict_set(&options, "frame-parallel", "1", 0);
+    av_dict_set(std::inout_ptr(options), "row-mt", "1", 0);
+    av_dict_set(std::inout_ptr(options), "frame-parallel", "1", 0);
 
     return options;
 }

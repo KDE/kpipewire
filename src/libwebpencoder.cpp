@@ -56,10 +56,10 @@ bool LibWebPEncoder::initialize(const QSize &size)
     m_avCodecContext->time_base = AVRational{1, 1000};
 
     setQuality(m_quality);
-    AVDictionary *options = buildEncodingOptions();
+    auto options = buildEncodingOptions();
     maybeLogOptions(options);
 
-    if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
+    if (int result = avcodec_open2(m_avCodecContext, codec, std::inout_ptr(options)); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
@@ -80,9 +80,9 @@ void LibWebPEncoder::setQuality(std::optional<quint8> quality)
     m_avCodecContext->global_quality = quality.has_value() ? quality.value() * FF_QP2LAMBDA : -1;
 }
 
-AVDictionary *LibWebPEncoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary LibWebPEncoder::buildEncodingOptions()
 {
-    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+    auto options = SoftwareEncoder::buildEncodingOptions();
 
     /* Many of libwebp's options aren't exposed directly through FFmpeg options,
      * so we need to use presets to change the options.
@@ -101,6 +101,6 @@ AVDictionary *LibWebPEncoder::buildEncodingOptions()
      * I'm not 100% sure if it's true that segments are capped at 2 without the
      * low-memory option since I don't see any code in libwebp that does that.
      */
-    av_dict_set(&options, "preset", "text", 0);
+    av_dict_set(std::inout_ptr(options), "preset", "text", 0);
     return options;
 }

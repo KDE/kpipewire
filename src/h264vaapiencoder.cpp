@@ -154,7 +154,7 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
         break;
     }
 
-    AVDictionary *options = buildEncodingOptions();
+    auto options = buildEncodingOptions();
     maybeLogOptions(options);
 
     // Assign the right hardware context for encoding frames.
@@ -163,8 +163,8 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
     // able to encode properly, so get that from the output filter.
     m_avCodecContext->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(m_outputFilter));
 
-    if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
-        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(ret);
+    if (int result = avcodec_open2(m_avCodecContext, codec, std::inout_ptr(options)); result < 0) {
+        qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
 
@@ -181,18 +181,19 @@ int H264VAAPIEncoder::percentageToAbsoluteQuality(std::optional<quint8> quality)
     return std::max(1, int(MinQuality - (m_quality.value() / 100.0) * MinQuality));
 }
 
-AVDictionary *H264VAAPIEncoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary H264VAAPIEncoder::buildEncodingOptions()
 {
-    AVDictionary *options = HardwareEncoder::buildEncodingOptions();
+    auto options = HardwareEncoder::buildEncodingOptions();
+
     if (m_encodingPreference == PipeWireBaseEncodedStream::EncodingPreference::Speed) {
         // a depth of >1 can leave a pending frame queued indefinitely.
-        av_dict_set_int(&options, "async_depth", 1, 0);
+        av_dict_set_int(std::inout_ptr(options), "async_depth", 1, 0);
     }
 
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
-    av_dict_set(&options, "flags", "+mv4", 0);
+    av_dict_set(std::inout_ptr(options), "flags", "+mv4", 0);
     // Disable in-loop filtering
-    av_dict_set(&options, "-flags", "+loop", 0);
+    av_dict_set(std::inout_ptr(options), "-flags", "+loop", 0);
 
     return options;
 }

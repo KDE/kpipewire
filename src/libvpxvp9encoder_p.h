@@ -24,5 +24,5 @@ public:
     void setQuality(std::optional<quint8> quality) override;
 
 protected:
-    AVDictionary *buildEncodingOptions() override;
+    Encoder::UniqueAVDictionary buildEncodingOptions() override;
 };
