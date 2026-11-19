@@ -111,8 +111,15 @@ public:
     void setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange);
 
 protected:
-    virtual AVDictionary *buildEncodingOptions();
-    void maybeLogOptions(AVDictionary *options);
+    static void uniqueAVDictionaryDeleter(AVDictionary *dictionary)
+    {
+        if (dictionary) {
+            av_dict_free(&dictionary);
+        }
+    }
+    using UniqueAVDictionary = std::unique_ptr<AVDictionary, decltype(&uniqueAVDictionaryDeleter)>;
+    virtual UniqueAVDictionary buildEncodingOptions();
+    void maybeLogOptions(const UniqueAVDictionary &options);
 
     PipeWireProduce *m_produce;
 
@@ -195,7 +202,7 @@ protected:
     bool createDrmContext(const QSize &size);
     /**
      * @param quality The quality level for the encoder (0-100).
-     * 
+     *
      * @return Integer representing the quality level.
      * VA-API encoders don't use this value the same way as each other.
      * Each of them must have their own implementation of this function.

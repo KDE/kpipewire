@@ -191,20 +191,18 @@ void Encoder::setColorRange(PipeWireBaseEncodedStream::ColorRange colorRange)
     m_colorRange = colorRange;
 }
 
-AVDictionary *Encoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary Encoder::buildEncodingOptions()
 {
-    AVDictionary *options = NULL;
-
-    av_dict_set_int(&options, "threads", qMin(16, QThread::idealThreadCount()), 0);
-
+    UniqueAVDictionary options(nullptr, Encoder::uniqueAVDictionaryDeleter);
+    av_dict_set_int(std::out_ptr(options), "threads", qMin(16, QThread::idealThreadCount()), 0);
     return options;
 }
 
-void Encoder::maybeLogOptions(AVDictionary *options)
+void Encoder::maybeLogOptions(const UniqueAVDictionary &options)
 {
     if (PIPEWIRERECORD_LOGGING().isInfoEnabled()) {
         char *buffer = NULL;
-        av_dict_get_string(options, &buffer, '=', ',');
+        av_dict_get_string(options.get(), &buffer, '=', ',');
         qCDebug(PIPEWIRERECORD_LOGGING) << "Using encoding options:" << buffer;
         av_freep(&buffer);
     }

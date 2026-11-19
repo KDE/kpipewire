@@ -21,5 +21,5 @@ public:
     bool initialize(const QSize &size) override;
 
 protected:
-    AVDictionary *buildEncodingOptions() override;
+    Encoder::UniqueAVDictionary buildEncodingOptions() override;
 };

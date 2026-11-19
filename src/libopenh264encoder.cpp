@@ -83,10 +83,10 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
         break;
     }
 
-    AVDictionary *options = buildEncodingOptions();
+    auto options = buildEncodingOptions();
     maybeLogOptions(options);
 
-    if (int result = avcodec_open2(m_avCodecContext, codec, &options); result < 0) {
+    if (int result = avcodec_open2(m_avCodecContext, codec, std::inout_ptr(options)); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Could not open codec" << av_err2str(result);
         return false;
     }
@@ -105,13 +105,13 @@ void LibOpenH264Encoder::setQuality(std::optional<quint8> quality)
     m_avCodecContext->qmin = m_avCodecContext->qmax = quality ? 51 - (quality.value() / 100.0) * 50 : -1;
 }
 
-AVDictionary *LibOpenH264Encoder::buildEncodingOptions()
+Encoder::UniqueAVDictionary LibOpenH264Encoder::buildEncodingOptions()
 {
-    AVDictionary *options = SoftwareEncoder::buildEncodingOptions();
+    auto options = SoftwareEncoder::buildEncodingOptions();
     // Disable motion estimation, not great while dragging windows but speeds up encoding by an order of magnitude
-    av_dict_set(&options, "flags", "+mv4", 0);
+    av_dict_set(std::inout_ptr(options), "flags", "+mv4", 0);
     // Disable in-loop filtering
-    av_dict_set_int(&options, "loopfilter", 0, 0);
+    av_dict_set_int(std::inout_ptr(options), "loopfilter", 0, 0);
 
     return options;
 }

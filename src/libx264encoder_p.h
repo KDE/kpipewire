@@ -23,7 +23,7 @@ public:
     void setQuality(std::optional<quint8> quality) override;
 
 protected:
-    AVDictionary *buildEncodingOptions() override;
+    Encoder::UniqueAVDictionary buildEncodingOptions() override;
 
 private:
     H264Profile m_profile = H264Profile::Main;
