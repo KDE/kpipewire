@@ -340,11 +340,11 @@ HardwareEncoder::HardwareEncoder(PipeWireProduce *produce)
 HardwareEncoder::~HardwareEncoder()
 {
     if (m_drmFramesContext) {
-        av_free(m_drmFramesContext);
+        av_buffer_unref(&m_drmFramesContext);
     }
 
     if (m_drmContext) {
-        av_free(m_drmContext);
+        av_buffer_unref(&m_drmContext);
     }
 }
 
