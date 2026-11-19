@@ -303,6 +303,9 @@ void PipeWireProduce::startThreads()
 
             auto [filtered, queued] = m_encoder->encodeFrame(m_maxPendingFrames - m_pendingEncodeFrames);
             m_pendingFilterFrames -= filtered;
+            if (m_pendingFilterFrames < 0) {
+                qCWarning(PIPEWIRERECORD_LOGGING) << "Filtered more frames than were pending. There's probably a problem with state resets in the encoder.";
+            }
             m_pendingEncodeFrames += queued;
 
             m_outputCondition.notify_all();
