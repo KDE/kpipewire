@@ -60,7 +60,8 @@ QImage PipeWireFrameData::toImage() const
 
 std::shared_ptr<PipeWireFrameData> PipeWireFrameData::copy() const
 {
-    const uint bufferSize = size.height() * stride * 4;
+    // BEWARE! The stride here comes out of SPA and is in bytes per line, not pixels. Do NOT multiply by planes!
+    const uint bufferSize = size.height() * stride;
     auto newMap = malloc(bufferSize);
     memcpy(newMap, data, bufferSize);
     return std::make_shared<PipeWireFrameData>(format, newMap, size, stride, new PipeWireFrameCleanupFunction([newMap] {
