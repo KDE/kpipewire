@@ -232,10 +232,15 @@ bool SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
         return false;
     }
 
-    AVFrame *avFrame = av_frame_alloc();
+    // "The resulting struct must be freed using av_frame_free()."
+    auto AVFrameDeleter = [](AVFrame *frame) {
+        av_frame_free(&frame);
+    };
+    std::unique_ptr<AVFrame, decltype(AVFrameDeleter)> avFrame(av_frame_alloc(), AVFrameDeleter);
     if (!avFrame) {
         qFatal("Failed to allocate memory");
     }
+
     avFrame->format = convertQImageFormatToAVPixelFormat(image.format());
     avFrame->width = size.width();
     avFrame->height = size.height();
@@ -243,7 +248,7 @@ bool SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
         avFrame->quality = percentageToFrameQuality(m_quality.value());
     }
 
-    av_frame_get_buffer(avFrame, 32);
+    av_frame_get_buffer(avFrame.get(), 32);
 
     const std::uint8_t *buffers[] = {image.constBits(), nullptr};
     const int strides[] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
@@ -254,7 +259,9 @@ bool SoftwareEncoder::filterFrame(const PipeWireFrame &frame)
         avFrame->pts = m_produce->framePts(frame.presentationTimestamp);
     }
 
-    if (auto result = av_buffersrc_add_frame(m_inputFilter, avFrame); result < 0) {
+    // We do not use av_buffersrc_add_frame here because it actually has poor semantics with regards to ownership.
+    // av_buffersrc_write_frame never takes ownership so we are in charge!
+    if (auto result = av_buffersrc_write_frame(m_inputFilter, avFrame.get()); result < 0) {
         qCWarning(PIPEWIRERECORD_LOGGING) << "Failed to submit frame for filtering";
     }
 
