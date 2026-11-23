@@ -201,7 +201,7 @@ Encoder::UniqueAVDictionary Encoder::buildEncodingOptions()
 void Encoder::maybeLogOptions(const UniqueAVDictionary &options)
 {
     if (PIPEWIRERECORD_LOGGING().isInfoEnabled()) {
-        char *buffer = NULL;
+        char *buffer = nullptr;
         av_dict_get_string(options.get(), &buffer, '=', ',');
         qCDebug(PIPEWIRERECORD_LOGGING) << "Using encoding options:" << buffer;
         av_freep(static_cast<void *>(&buffer));
